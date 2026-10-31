@@ -1,0 +1,17 @@
+@layer components {
+  .preview-card,
+  .preview-code {
+    width: 100%;
+    background-color: var(--color-preview-bg);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-custom);
+  }
+
+  .preview-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+}

@@ -1,0 +1,61 @@
+# esqe
+
+Edit your writing where you read it.
+
+<br />
+
+esqe is a small editor for Next.js sites written in MDX. It loads only in development. Press the square in the bottom left, click any paragraph and start typing. Your changes are saved straight into the `.mdx` file and the page re-renders from the real source.
+
+## Why
+
+Going back and forth between the browser and the editor to fix one sentence gets old fast. You read the post on the page, so that's where you should be able to change it.
+
+<br />
+
+The editor renders with your site's own styles. What you see while typing is what your readers will see.
+
+## What it does
+
+- Select text for bold, italic, code, links or your own marks, like a <em className="font-libre-baskerville">serif</em> font.
+- Press `/` on an empty line for headings, code blocks, images and your own components.
+- Paste or drop an image to upload it and insert it.
+- Drag any block to move it, including demos.
+- Blocks you didn't touch are written back byte for byte, so your diffs stay small.
+
+## Install
+
+```sh
+pnpm add -D esqe
+```
+
+Add the remark plugin last and wrap your config.
+
+```ts title="next.config.ts"
+import { withEsqe } from "esqe/next";
+
+const withMDX = createMDX({
+  options: {
+    remarkPlugins: [
+      ...(process.env.NODE_ENV === "development" ? ["esqe/remark"] : []),
+    ],
+  },
+});
+
+export default withEsqe(withMDX(nextConfig));
+```
+
+Then mount it once in your root layout.
+
+```tsx title="app/layout.tsx"
+import { Esqe } from "esqe";
+
+{process.env.NODE_ENV === "development" && <Esqe />}
+```
+
+Outside of `next dev` nothing is added and your config is returned untouched.
+
+## Shortcuts
+
+- `⌘⇧E` switches between reading and editing.
+- `Esc` or clicking away saves and hands the page back.
+- `⌘Z` outside the editor undoes the last change.
