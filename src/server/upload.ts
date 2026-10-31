@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { EsqiaOptions } from "./server";
@@ -42,7 +43,6 @@ async function toBlob(input: UploadInput, prefix: string): Promise<string> {
       await put(pathname, input.body, { ...options, addRandomSuffix: false })
     ).url;
   } catch {
-    // The name is taken; keep the readable name and let Blob make it unique.
     return (
       await put(pathname, input.body, { ...options, addRandomSuffix: true })
     ).url;
@@ -75,10 +75,9 @@ function loadEnv(root: string) {
     return;
   }
   envLoaded = true;
-  try {
-    process.loadEnvFile(path.join(root, ".env.local"));
-  } catch {
-    // No .env.local; the token can still come from the environment.
+  const file = path.join(root, ".env.local");
+  if (existsSync(file)) {
+    process.loadEnvFile(file);
   }
 }
 

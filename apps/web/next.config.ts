@@ -6,7 +6,6 @@ import { withEsqia } from "esqia/next";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // esqia sits bottom-left, where Next puts its own indicator by default.
   devIndicators: { position: "bottom-right" },
   pageExtensions: ["ts", "tsx", "md", "mdx"],
   reactCompiler: true,
@@ -27,10 +26,7 @@ const withMDX = createMDX({
         },
       ],
     ],
-    remarkPlugins: [
-      ["remark-smartypants", { dashes: false }],
-      ...(process.env.NODE_ENV === "development" ? ["esqia/remark"] : []),
-    ],
+    remarkPlugins: [["remark-smartypants", { dashes: false }], "esqia/remark"],
   },
 });
 

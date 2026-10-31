@@ -16,11 +16,6 @@ const shared = globalThis as typeof globalThis & {
   __esqiaSidecar?: Promise<unknown>;
 };
 
-/**
- * Starts the editing sidecar during `next dev` and tells the client where to find it.
- * Returns the config untouched in any other environment. Returns an object for an
- * object, so wrappers that must stay outermost (like `withInterfere`) can still wrap it.
- */
 export function withEsqia<T extends NextConfig | ConfigFunction>(
   config: T,
   options: EsqiaOptions = {}

@@ -8,35 +8,11 @@ import {
 } from "node:http";
 import path from "node:path";
 import { hashSource } from "../remark";
-import type { Smartypants } from "../shared/markdown";
+import { clientConfig, type EsqiaOptions } from "../shared/config";
 import { applyOps, type Op } from "../shared/ops";
 import { upload } from "./upload";
 
-export interface EsqiaOptions {
-  /** Inline JSX the toolbar can wrap a selection in, e.g. a font. */
-  marks?: { name: string; tag: string; className: string }[];
-  media?: {
-    /** Where pasted and dropped files go. Defaults to Vercel Blob when a token is set, else `public/`. */
-    upload?: "vercel-blob" | "public";
-    /** Path prefix for uploads. `{dir}` is the name of the folder the MDX file sits in. */
-    path?: string;
-    /** Inserted for an image. Placeholders: `{url}`, `{width}`, `{height}`, `{name}`. */
-    image?: string;
-    /** Inserted for a video. Same placeholders as `image`. */
-    video?: string;
-  };
-  /** The options you pass to `remark-smartypants`, so the editor shows the same punctuation the page does. */
-  smartypants?: Smartypants;
-  /** Blocks offered in the `/` menu, inserted verbatim. */
-  snippets?: { name: string; source: string }[];
-}
-
-export interface ClientConfig {
-  marks: NonNullable<EsqiaOptions["marks"]>;
-  media: { image: string; video: string };
-  smartypants: Smartypants;
-  snippets: NonNullable<EsqiaOptions["snippets"]>;
-}
+export type { ClientConfig, EsqiaOptions } from "../shared/config";
 
 interface HistoryEntry {
   afterHash: string;
@@ -51,7 +27,6 @@ export interface Sidecar {
   url: string;
 }
 
-/** The address is derived from the project path, so every process that loads the config agrees on it without talking to each other. */
 export function sidecarAddress(root: string): Sidecar {
   const port = 4800 + (Number.parseInt(hashSource(root).slice(0, 4), 16) % 100);
   return { token: persistentToken(root), url: `http://127.0.0.1:${port}` };
@@ -67,7 +42,6 @@ export async function startSidecar(
     return;
   }
   if (await isOurs(url, root)) {
-    // A sidecar from an earlier config load keeps running across Next's config reloads; give it the current options.
     await fetch(`${url}/configure`, {
       body: JSON.stringify(options),
       headers: { "content-type": "application/json", "x-esqia-token": token },
@@ -120,7 +94,6 @@ function listen(
   return new Promise((resolve) => {
     server.once("error", () => resolve(false));
     server.listen(port, "127.0.0.1", () => {
-      // The config is loaded by processes that are meant to exit; the sidecar must not keep them alive.
       server.unref();
       resolve(true);
     });
@@ -137,7 +110,6 @@ interface Context {
 const PRIVATE_HOST =
   /^(localhost|127\.0\.0\.1|\[::1\]|.+\.localhost|.+\.local|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/;
 
-/** This machine or the local network, so a site opened by its network address still works. Public origins are refused. */
 function isPrivateOrigin(origin: string): boolean {
   try {
     return PRIVATE_HOST.test(new URL(origin).hostname);
@@ -159,7 +131,7 @@ async function handle(
       "content-type, x-esqia-token, x-esqia-file, x-esqia-name"
     );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    // Chrome asks before a page on a network address may call this machine's loopback address.
+
     res.setHeader("Access-Control-Allow-Private-Network", "true");
   }
   if (req.method === "OPTIONS") {
@@ -279,22 +251,6 @@ async function handle(
     default:
       return send(res, 404, { error: "Not found." });
   }
-}
-
-function clientConfig(options: EsqiaOptions): ClientConfig {
-  return {
-    marks: options.marks ?? [],
-    media: {
-      image:
-        options.media?.image ??
-        '<Image src="{url}" alt="" width={{width}} height={{height}} />',
-      video:
-        options.media?.video ??
-        '<Video src="{url}" width={{width}} height={{height}} />',
-    },
-    smartypants: options.smartypants ?? false,
-    snippets: options.snippets ?? [],
-  };
 }
 
 function record(

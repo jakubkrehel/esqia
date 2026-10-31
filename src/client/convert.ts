@@ -12,7 +12,6 @@ import {
   stringifyBlock,
 } from "../shared/markdown";
 
-/** What a block looked like when the run opened, so untouched blocks are written back byte for byte. */
 export interface Original {
   fingerprint: string;
   gapBefore: string;
@@ -290,7 +289,6 @@ function inlineToMdast(block: PMNode, style: MarkdownStyle): PhrasingContent[] {
   return hoistWhitespace(root);
 }
 
-/** Cut leading and trailing whitespace off the first and last text children and return it. */
 function trimEdges(children: PhrasingContent[]): {
   lead: string;
   trail: string;
@@ -310,7 +308,6 @@ function trimEdges(children: PhrasingContent[]): {
   return { lead, trail };
 }
 
-/** `**word **` doesn't close in markdown, so spaces at the edges of emphasis move outside it. */
 function hoistWhitespace(nodes: PhrasingContent[]): PhrasingContent[] {
   return nodes.flatMap((node): PhrasingContent[] => {
     if (!("children" in node)) {
@@ -359,10 +356,6 @@ function markToMdast(mark: Mark): PhrasingContent {
   }
 }
 
-/**
- * The run's new source. Blocks that still match what was parsed keep their exact
- * text and the gap before them; everything else is serialized fresh.
- */
 export function serializeRun(
   doc: PMNode,
   originals: Map<string, Original>,
@@ -378,7 +371,6 @@ export function serializeRun(
     node?.type.name === "paragraph" && node.content.size > 0;
 
   children.forEach((node, index) => {
-    // A spacer only separates paragraphs. One the editor added next to a heading or a block is noise.
     if (
       node.type.name === "spacer" &&
       !node.attrs.id &&

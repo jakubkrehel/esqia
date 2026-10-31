@@ -1,4 +1,10 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { Esqia } from "esqia";
 import Content from "./content.mdx";
+
+const CONTENT = "src/app/content.mdx";
+const source = readFileSync(path.join(process.cwd(), CONTENT), "utf8");
 
 export default function Page() {
   return (
@@ -10,6 +16,19 @@ export default function Page() {
           Jakub Krehel
         </a>
       </footer>
+      {process.env.NODE_ENV === "development" ? (
+        <Esqia />
+      ) : (
+        <Esqia
+          demo={{
+            marks: [
+              { className: "font-libre-baskerville", name: "Serif", tag: "em" },
+            ],
+            smartypants: { dashes: false },
+            sources: { [CONTENT]: source },
+          }}
+        />
+      )}
     </main>
   );
 }

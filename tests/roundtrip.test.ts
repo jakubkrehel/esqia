@@ -83,7 +83,6 @@ const files = REPOS.flatMap((dir) => {
   }
 });
 
-// The corpus is the MDX in the sibling site repos, which only exist on the author's machine, not in CI.
 describe.skipIf(files.length === 0)("round trip over real content", () => {
   it("finds content", () => {
     expect(files.length).toBeGreaterThan(10);

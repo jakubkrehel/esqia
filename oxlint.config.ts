@@ -31,7 +31,6 @@ export default defineConfig({
   extends: [core, react, vitest],
   ignorePatterns: [...(core.ignorePatterns ?? [])],
   overrides: [
-    // PostCSS uses an existing CommonJS configuration.
     {
       files: ["apps/web/postcss.config.js"],
       rules: { "unicorn/prefer-module": "off" },
@@ -62,35 +61,33 @@ export default defineConfig({
       },
     },
   ],
-  // Preserve established syntax; new style preferences do not rewrite published demos.
+
   rules: {
-    // Count a switch once so explicit state cases do not inflate the limit.
     complexity: ["error", { max: 20, variant: "modified" }],
     eqeqeq: ["error", "always", { null: "ignore" }],
-    // Function declarations and local helpers are established project conventions.
+
     "func-style": "off",
     "import/consistent-type-specifier-style": "off",
     "import/first": "error",
     "import/newline-after-import": "off",
-    // Icon packages intentionally offer both default and named exports.
+
     "import/no-named-as-default": "off",
-    // Demo controls have labels nested inside several visual wrappers.
+
     "jsx-a11y/control-has-associated-label": ["error", { depth: 5 }],
-    // Custom SVG and interactive demos intentionally use explicit roles.
+
     "jsx-a11y/prefer-tag-over-role": "off",
 
-    // Sequential writes, event callbacks and explicit Promise adapters are intentional.
     "no-await-in-loop": "off",
-    // Null comparisons deliberately include undefined.
+
     "no-eq-null": "off",
 
     "no-plusplus": "off",
     "no-promise-executor-return": "error",
     "no-restricted-imports": ["error", restrictedImports],
     "no-return-assign": "error",
-    // Destructuring may intentionally omit a prop before forwarding the rest.
+
     "no-unused-vars": ["error", { ignoreRestSiblings: true }],
-    // Allow hoisted helpers and deferred closures; reject same-scope early reads.
+
     "no-use-before-define": [
       "error",
       { classes: false, functions: false, variables: false },
@@ -104,7 +101,6 @@ export default defineConfig({
     "promise/prefer-await-to-callbacks": "off",
     "promise/prefer-await-to-then": "off",
 
-    // Enable reviewed compiler checks; internal diagnostics remain off.
     "react/capitalized-calls": "error",
     "react/error-boundaries": "error",
     "react/exhaustive-effect-dependencies": "off",
@@ -118,7 +114,6 @@ export default defineConfig({
     "react/jsx-curly-brace-presence": "off",
     "react/jsx-handler-names": "off",
 
-    // React Compiler owns memoization; MDX rendering uses Children and cloneElement.
     "react/jsx-no-constructed-context-values": "off",
     "react/jsx-no-target-blank": ["error", { allowReferrer: true }],
     "react/jsx-pascal-case": ["error", { allowAllCaps: true }],
@@ -126,7 +121,7 @@ export default defineConfig({
     "react/no-clone-element": "off",
     "react/no-object-type-as-default-prop": "off",
     "react/no-react-children": "off",
-    // JSX copy, setter names and render props retain their existing conventions.
+
     "react/no-unescaped-entities": "off",
     "react/no-unstable-nested-components": ["error", { allowAsProps: true }],
     "react/preserve-manual-memoization": "off",
@@ -142,7 +137,6 @@ export default defineConfig({
     "react/use-memo": "off",
     "require-unicode-regexp": "off",
 
-    // Biome owns import organization and property ordering during this stage.
     "sort-keys": "off",
     "typescript/array-type": "off",
     "typescript/consistent-type-imports": [

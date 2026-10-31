@@ -27,7 +27,7 @@ interface Rect {
   top: number;
   width: number;
 }
-/** Where a block's outline and handles go. */
+
 interface Geometry {
   handleTop: number;
   radius: number;
@@ -58,6 +58,15 @@ const IDLE: RunSnapshot = {
   slash: null,
 };
 const unsubscribed = () => () => undefined;
+
+function saveMode(mode: Mode): boolean {
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function readMode(): Mode {
   try {
@@ -99,6 +108,8 @@ export function Chrome({ host }: { host: HTMLElement }) {
   const runRef = useRef<Run | null>(null);
   const closing = useRef<Promise<void> | null>(null);
   const lastFile = useRef<string | null>(null);
+  const runs = useRef(new Set<Run>());
+  const demoNoted = useRef(false);
   useEffect(() => {
     runRef.current = run;
   }, [run]);
@@ -141,14 +152,13 @@ export function Chrome({ host }: { host: HTMLElement }) {
   }
 
   useEffect(() => {
-    try {
-      localStorage.setItem(MODE_KEY, mode);
-    } catch {
-      // Storage can be blocked; the mode just isn't remembered.
-    }
+    saveMode(mode);
     document.documentElement.dataset.esqiaMode = mode;
     if (mode === "read") {
       closeRun();
+    }
+    for (const parked of runs.current) {
+      parked.setEditable(mode === "edit");
     }
     return () => {
       delete document.documentElement.dataset.esqiaMode;
@@ -181,9 +191,17 @@ export function Chrome({ host }: { host: HTMLElement }) {
         file: fresh.file,
         onClose: () => setRun((value) => (value === next ? null : value)),
         onError: (message) => notify(message, "error"),
+        onFocus: (focused) => setRun(focused),
       });
+      runs.current.add(next);
       lastFile.current = fresh.file;
       setRun(next);
+      if (!(api.live || demoNoted.current)) {
+        demoNoted.current = true;
+        notify(
+          "Edits stay in this tab. Install esqia to save them to your files."
+        );
+      }
     } catch (error) {
       notify(errorText(error), "error");
     }
@@ -213,6 +231,9 @@ export function Chrome({ host }: { host: HTMLElement }) {
   }
 
   async function undo() {
+    if (!api.live) {
+      return;
+    }
     const file =
       lastFile.current ??
       document.querySelector<HTMLElement>(BLOCK_SELECTOR)?.dataset.esqiaFile;
@@ -248,6 +269,7 @@ export function Chrome({ host }: { host: HTMLElement }) {
     <div className="layer">
       {editing && (
         <BlockControls
+          canMove={api.live}
           host={host}
           onActivate={(target) => openRun(target)}
           onDelete={(block) =>
@@ -272,6 +294,7 @@ export function Chrome({ host }: { host: HTMLElement }) {
         ))}
       <Trigger
         busy={busy}
+        demo={!api.live}
         editing={editing}
         onToggle={() => setMode(toggled)}
       />
@@ -325,13 +348,16 @@ function isTyping() {
 
 function Trigger({
   busy,
+  demo,
   editing,
   onToggle,
 }: {
   busy: boolean;
+  demo: boolean;
   editing: boolean;
   onToggle: () => void;
 }) {
+  const idleLabel = demo ? "Try editing" : "Edit page";
   return (
     <>
       <button
@@ -346,13 +372,14 @@ function Trigger({
         <span className="mark" />
       </button>
       <div className="label">
-        {editing ? "Stop editing" : "Edit page"} <kbd>⌘⇧E</kbd>
+        {editing ? "Stop editing" : idleLabel} <kbd>⌘⇧E</kbd>
       </div>
     </>
   );
 }
 
 interface BlockControlsProps {
+  canMove: boolean;
   host: HTMLElement;
   onActivate: (target: OpenTarget) => void;
   onDelete: (block: Block) => void;
@@ -361,8 +388,8 @@ interface BlockControlsProps {
   run: Run | null;
 }
 
-/** Hover outline, the gutter's add and drag handles, the drop line and the block menu. */
 function BlockControls({
+  canMove,
   host,
   run,
   onActivate,
@@ -452,7 +479,6 @@ function BlockControls({
     let moved = false;
     setDrag({ block, line: null, moved: false });
 
-    // On window, not the grip: the gutter unmounts once the drag starts.
     const onPointerMove = (move: PointerEvent) => {
       if (
         !moved &&
@@ -508,15 +534,17 @@ function BlockControls({
             >
               <PlusIcon />
             </button>
-            <button
-              aria-label="Drag to move, click for options"
-              className="grip"
-              data-active={drag ? "" : undefined}
-              onPointerDown={(event) => startDrag(event, block)}
-              type="button"
-            >
-              <GripIcon />
-            </button>
+            {canMove && (
+              <button
+                aria-label="Drag to move, click for options"
+                className="grip"
+                data-active={drag ? "" : undefined}
+                onPointerDown={(event) => startDrag(event, block)}
+                type="button"
+              >
+                <GripIcon />
+              </button>
+            )}
           </div>
         </>
       )}
@@ -534,7 +562,7 @@ function BlockControls({
         <div
           className="panel menu"
           style={{
-            left: gutterPosition(menu).left,
+            left: gutterPosition(menu).left - (HANDLE * 2 + 2),
             top: menu.handleTop + HANDLE + 6,
           }}
         >
@@ -627,7 +655,7 @@ function measureBlock(block: Block): Geometry | null {
     ? Number.parseFloat(getComputedStyle(first).borderTopLeftRadius) || 0
     : 0;
   const line = firstLineRect(block.el);
-  // Centre on the first line of text when it starts near the top, like the title row of a code block.
+
   const center =
     line && line.top - rect.top < 64
       ? line.top + line.height / 2
@@ -655,8 +683,9 @@ function firstLineRect(el: HTMLElement): DOMRect | null {
 
 function gutterPosition(geometry: Geometry) {
   return {
-    left: geometry.rect.left - PAD - HANDLE_GAP - (HANDLE * 2 + 2),
+    left: geometry.rect.left - PAD - HANDLE_GAP,
     top: geometry.handleTop,
+    transform: "translateX(-100%)",
   };
 }
 
@@ -715,7 +744,7 @@ function Bubble({
 }) {
   const { editor } = run;
   const { from, to, empty } = editor.state.selection;
-  // Tied to where it was opened, so moving the selection closes the link field without an effect.
+
   const [linkDraft, setLinkDraft] = useState<{
     from: number;
     href: string;
@@ -937,7 +966,7 @@ function Slash({
   const slash = snapshot.slash;
   const [dismissed, setDismissed] = useState(false);
   const query = slash?.query.trim().toLowerCase() ?? "";
-  // Keyed by the query, so typing resets the highlight to the first match.
+
   const [highlight, setHighlight] = useState({ index: 0, query });
   const active = highlight.query === query ? highlight.index : 0;
   const setActive = (next: (index: number) => number) =>
@@ -1079,7 +1108,6 @@ const LinkIcon = () => (
   </svg>
 );
 
-// Mirrors the teardown toolbar on jakub.kr: preview-bg surface, shadow-custom ring, ghost buttons.
 export const CHROME_CSS = `
 :host {
   all: initial;
@@ -1188,7 +1216,6 @@ export const PAGE_CSS = `
 [data-esqia-mode="edit"] [data-esqia-type="heading"] > *,
 [data-esqia-mode="edit"] [data-esqia-type="code"] > * { cursor: text; }
 .esqia-editor { display: contents; }
-/* Tiptap's own .ProseMirror rule turns off font features and keeps trailing spaces, which changes glyph widths and wrapping. */
 .esqia-editor > .ProseMirror { font-feature-settings: inherit; font-variant-ligatures: inherit; white-space: pre-wrap; }
 .esqia-editor > .ProseMirror { outline: none; caret-color: oklch(74.6% 0.16 232.661); }
 .esqia-editor [data-esqia-spacer] { position: relative; }

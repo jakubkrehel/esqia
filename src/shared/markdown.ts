@@ -51,7 +51,6 @@ export function blockType(node: RootContent): BlockType {
   }
 }
 
-/** The options the site passes to `remark-smartypants`, or false when it doesn't use it. */
 export type Smartypants =
   | false
   | {
@@ -68,7 +67,6 @@ export interface MarkdownStyle {
   strong: "*" | "_";
 }
 
-/** Typographic punctuation, exactly as the site's build renders it. */
 export function curl(tree: Root, smartypants: Smartypants): Root {
   if (smartypants === false) {
     return tree;
@@ -76,7 +74,6 @@ export function curl(tree: Root, smartypants: Smartypants): Root {
   return unified().use(remarkSmartypants, smartypants).runSync(tree) as Root;
 }
 
-/** Undo `curl` on text the editor produced, so the source keeps plain ASCII punctuation. */
 export function straighten(text: string, smartypants: Smartypants): string {
   if (smartypants === false) {
     return text;
@@ -128,12 +125,10 @@ export function detectStyle(
   };
 }
 
-/** Verbatim source, emitted as-is. Used for JSX the editor never parses. */
 export interface RawNode extends Literal {
   type: "raw";
 }
 
-/** Inline JSX whose children stay editable; the tags are kept verbatim. */
 export interface JsxWrapNode extends Parent {
   close: string;
   open: string;
@@ -174,18 +169,16 @@ export function stringifyBlock(
   if (node.type === "raw") {
     return node.value;
   }
-  return (
-    toMarkdown({ children: [node], type: "root" } as Root, {
-      emphasis: style.emphasis,
-      extensions: [mdxToMarkdown()],
-      fence: "`",
-      fences: true,
-      handlers: { jsxWrap, raw } as never,
-      rule: "-",
-      strong: style.strong,
-    })
-      .replace(/\n$/, "")
-      // An ampersand only needs escaping when it would start a character reference.
-      .replace(/\\&(?![#a-zA-Z0-9]+;)/g, "&")
-  );
+  return toMarkdown({ children: [node], type: "root" } as Root, {
+    emphasis: style.emphasis,
+    extensions: [mdxToMarkdown()],
+    fence: "`",
+    fences: true,
+    handlers: { jsxWrap, raw } as never,
+    rule: "-",
+    strong: style.strong,
+  })
+    .replace(/\n$/, "")
+
+    .replace(/\\&(?![#a-zA-Z0-9]+;)/g, "&");
 }

@@ -21,22 +21,18 @@ export interface RunSnapshot {
 
 export interface OpenOptions {
   after?: Block;
-  /** The blocks to edit. Empty to start a new paragraph after `after`. */
+
   blocks: Block[];
   caret?: { index: number; offset: number };
   config: ClientConfig;
   file: string;
   onClose: () => void;
   onError: (message: string) => void;
+  onFocus?: (run: Run) => void;
 }
 
 const SAVE_DELAY = 800;
 
-/**
- * One editing session over a contiguous run of blocks. The rendered blocks are
- * hidden, not edited: React owns them, and typing into its DOM would break the
- * next Fast Refresh. The editor sits beside them and writes the run's source.
- */
 export class Run {
   readonly file: string;
   readonly root: HTMLElement;
@@ -60,6 +56,7 @@ export class Run {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saving: Promise<void> | null = null;
   private wrote = false;
+  private revision: number;
   private closing: Promise<void> | null = null;
   private snapshot: RunSnapshot = {
     busy: null,
@@ -72,7 +69,7 @@ export class Run {
   static async open(options: OpenOptions): Promise<Run> {
     const { source, hash } = await api.source(options.file);
     const version = options.blocks[0]?.version ?? options.after?.version;
-    if (version && version !== hash) {
+    if (api.live && version && version !== hash) {
       throw new ConflictError(
         "The page is behind the file. Wait for it to refresh, then try again."
       );
@@ -89,15 +86,24 @@ export class Run {
 
     const first = options.blocks[0];
     const last = options.blocks.at(-1);
-    this.start = first ? first.start : (options.after?.end ?? source.length);
-    const end = last ? last.end : this.start;
+
+    const renderedStart = first
+      ? first.start
+      : (options.after?.end ?? source.length);
+    const renderedEnd = last ? last.end : renderedStart;
+    this.start = api.mapOffset(this.file, renderedStart, 0);
+    const end = api.mapOffset(this.file, renderedEnd, 0);
+    this.revision = api.revision(this.file);
     this.current = source.slice(this.start, end);
     this.prefix = first ? "" : "\n\n";
     this.style = {
       ...detectStyle(source),
       smartypants: this.config.smartypants,
     };
-    this.ranges.set(hash, [this.start, end]);
+    this.ranges.set(first?.version ?? options.after?.version ?? hash, [
+      renderedStart,
+      renderedEnd,
+    ]);
 
     const parsed = parseRun(this.current, this.config.smartypants);
     this.originals = parsed.originals;
@@ -155,6 +161,7 @@ export class Run {
     });
 
     this.editor.on("update", () => this.schedule());
+    this.editor.on("focus", () => options.onFocus?.(this));
     this.editor.on("transaction", () =>
       this.update({
         selection: this.snapshot.selection + 1,
@@ -164,7 +171,15 @@ export class Run {
     this.placeCaret(options.caret);
   }
 
-  /** The slash menu claims arrow keys and Enter while it's open. */
+  setEditable(editable: boolean) {
+    this.editor.setEditable(editable);
+  }
+
+  private rebase() {
+    this.start = api.mapOffset(this.file, this.start, this.revision);
+    this.revision = api.revision(this.file);
+  }
+
   setSlashKeys(handler: ((event: KeyboardEvent) => boolean) | null) {
     this.slashKeys = handler;
   }
@@ -187,7 +202,6 @@ export class Run {
     }
   }
 
-  /** Hide every rendered block that falls inside the run, in whichever version of the file the page currently shows. */
   private hide() {
     for (const block of fileBlocks(this.file)) {
       const range = this.ranges.get(block.version);
@@ -240,6 +254,7 @@ export class Run {
       return;
     }
 
+    this.rebase();
     const op = {
       end: this.start + this.current.length,
       expected: this.current,
@@ -271,10 +286,10 @@ export class Run {
     this.hash = hash;
     this.current = text;
     this.wrote = true;
+    this.revision = api.revision(this.file);
     this.ranges.set(hash, [this.start, this.start + text.length]);
   }
 
-  /** Writes what's left, waits for the page to render that version, then hands the blocks back to React. */
   close(discard = false): Promise<void> {
     this.closing ??= (async () => {
       clearTimeout(this.timer);
@@ -283,6 +298,11 @@ export class Run {
       }
       if (this.current === "" && this.prefix === "" && !discard) {
         await this.collapseGap();
+      }
+      if (!api.live) {
+        this.closing = null;
+        this.onClose();
+        return;
       }
       if (
         this.wrote &&
@@ -303,8 +323,8 @@ export class Run {
     return this.closing;
   }
 
-  /** Every block of the run was deleted; fold the blank lines it leaves behind into one gap. */
   private async collapseGap() {
+    this.rebase();
     const { source, hash } = await api.source(this.file);
     if (hash !== this.hash) {
       return;
@@ -323,17 +343,18 @@ export class Run {
     } else if (a === 0) {
       text = "";
     }
-    try {
-      const result = await api.ops(
+    const result = await api
+      .ops(
         this.file,
         hash,
         [{ end: b, expected: source.slice(a, b), start: a, text }],
         this.group
-      );
+      )
+      .catch(() => null);
+    if (result) {
       this.hash = result.hash;
       this.wrote = true;
-    } catch {
-      // Leaving an extra blank line behind is harmless; the edit itself is already saved.
+      this.revision = api.revision(this.file);
     }
   }
 
@@ -365,7 +386,6 @@ export class Run {
     };
   }
 
-  /** Replace the `/query` paragraph the slash menu was opened from. */
   clearSlashText() {
     const { $from } = this.editor.state.selection;
     this.editor

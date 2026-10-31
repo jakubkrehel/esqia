@@ -23,10 +23,6 @@ interface Rendered {
   dom: HTMLElement;
 }
 
-/**
- * Elements cloned from the live page, so the editor renders with the site's own
- * classes and structure instead of a stylesheet of its own.
- */
 export interface Templates {
   block: (
     kind: "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "pre"
@@ -129,7 +125,6 @@ function bare(tag: string): Rendered {
   return { contentDOM: dom, dom };
 }
 
-/** Clone a rendered block and find the element its text lives in, dropping text-less controls like anchor links. */
 function textTemplate(sample: HTMLElement): Rendered {
   const dom = sample.cloneNode(true) as HTMLElement;
   for (const el of dom.querySelectorAll("[id]")) {
@@ -383,7 +378,6 @@ export function createExtensions({
   ];
 }
 
-/** Curl quotes while typing, so new text looks like the rendered page before it's saved. */
 function quotesAsTyped(ellipsis: boolean) {
   const off = [
     "emDash",

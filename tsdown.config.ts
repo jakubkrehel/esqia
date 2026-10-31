@@ -10,7 +10,6 @@ export default defineConfig([
     platform: "node",
   },
   {
-    // Next needs the directive at the top of the client entry to treat it as a client component.
     banner: '"use client";',
     dts: true,
     entry: { index: "src/client/index.tsx" },

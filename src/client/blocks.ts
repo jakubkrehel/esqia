@@ -29,7 +29,6 @@ export function fileBlocks(file: string): Block[] {
     .sort((a, b) => a.start - b.start);
 }
 
-/** The clicked block plus its editable neighbours, up to the nearest demo or other JSX on either side. */
 export function runAround(block: Block): Block[] {
   const blocks = fileBlocks(block.file);
   const index = blocks.findIndex((b) => b.start === block.start);
@@ -47,7 +46,6 @@ export function runAround(block: Block): Block[] {
   return blocks.slice(first, last + 1);
 }
 
-/** A `display: contents` wrapper has no box of its own, so measure what it contains. */
 export function blockRect(el: HTMLElement): DOMRect | null {
   const range = document.createRange();
   range.selectNodeContents(el);
@@ -88,7 +86,6 @@ export function waitForVersion(
   });
 }
 
-/** Characters of rendered text between the start of `el` and the point under the pointer. */
 export function textOffsetAt(
   el: HTMLElement,
   x: number,

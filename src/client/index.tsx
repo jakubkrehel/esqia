@@ -1,15 +1,18 @@
 import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { configured } from "./api";
+import { clientConfig, type EsqiaOptions } from "../shared/config";
+import { configured, startDemo } from "./api";
 import { CHROME_CSS, Chrome, PAGE_CSS } from "./chrome";
 
-/**
- * Mount once in the root layout during development. Renders nothing unless
- * `withEsqia` started the sidecar and the page has MDX blocks.
- */
-export function Esqia() {
+export interface EsqiaProps {
+  demo?: EsqiaOptions & { sources: Record<string, string> };
+}
+
+export function Esqia({ demo }: EsqiaProps) {
   useEffect(() => {
-    if (!configured) {
+    if (demo) {
+      startDemo(demo.sources, clientConfig(demo));
+    } else if (!configured) {
       return;
     }
     const host = document.createElement("esqia-ui");
@@ -25,7 +28,6 @@ export function Esqia() {
     pageStyle.textContent = PAGE_CSS;
     document.head.append(pageStyle);
 
-    // Sites switch themes with a media query or a class on <html>; the computed color-scheme reflects either.
     const syncTheme = () => {
       host.dataset.theme = getComputedStyle(
         document.documentElement
@@ -42,12 +44,10 @@ export function Esqia() {
       attributes: true,
     });
 
-    // A separate root, so React attaches its listeners inside the shadow root and events keep their real targets.
     const root = createRoot(mount);
     root.render(<Chrome host={host} />);
 
     return () => {
-      // The layout can unmount this while React is mid-render; unmounting a second root synchronously there throws a warning.
       media.removeEventListener("change", syncTheme);
       themeObserver.disconnect();
       setTimeout(() => {
@@ -56,7 +56,7 @@ export function Esqia() {
         pageStyle.remove();
       }, 0);
     };
-  }, []);
+  }, [demo]);
 
   return null;
 }

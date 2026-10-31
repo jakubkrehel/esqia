@@ -15,8 +15,6 @@ const attribute = (name: string, value: string): MdxJsxAttribute => ({
   value,
 });
 
-// A plain style string would reach React as a string and throw, so the
-// object literal is spelled out as the estree MDX expects for `style={{…}}`.
 const displayContents: MdxJsxAttribute = {
   name: "style",
   type: "mdxJsxAttribute",
@@ -55,7 +53,6 @@ const displayContents: MdxJsxAttribute = {
   },
 };
 
-/** Wraps every top-level block in a `display: contents` div that records where it came from. */
 export default function remarkEsqia() {
   return (tree: Root, file: VFile) => {
     if (!file.path) {

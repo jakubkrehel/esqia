@@ -1,4 +1,3 @@
-/** Replace `source.slice(start, end)`, which must still equal `expected`, with `text`. */
 export interface Op {
   end: number;
   expected: string;
@@ -40,10 +39,6 @@ export interface BlockRange {
   start: number;
 }
 
-/**
- * Ops that move `block` so it sits before `target`, or after the last block when
- * `target` is null. `blocks` is every top-level block of the file in source order.
- */
 export function moveOps(
   source: string,
   blocks: BlockRange[],
@@ -81,7 +76,6 @@ export function deleteOps(
   return [{ end, expected: source.slice(start, end), start, text: "" }];
 }
 
-/** A block plus the gap that separates it from its neighbour, so removing it leaves one gap behind. */
 function removalRange(blocks: BlockRange[], block: BlockRange): BlockRange {
   const index = blocks.findIndex((b) => b.start === block.start);
   const next = blocks[index + 1];

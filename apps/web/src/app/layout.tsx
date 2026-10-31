@@ -1,4 +1,3 @@
-import { Esqia } from "esqia";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { berkeleyMono, inter, libreBaskerville } from "./fonts";
@@ -18,7 +17,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         className={`${libreBaskerville.variable} ${berkeleyMono.variable} bg-gray-background font-sans text-base text-gray-1200 antialiased`}
       >
         {children}
-        {process.env.NODE_ENV === "development" && <Esqia />}
       </body>
     </html>
   );
