@@ -7,15 +7,15 @@ export class ConflictError extends Error {
   override readonly name = "ConflictError";
 }
 
-const url = process.env.NEXT_PUBLIC_ESQE_URL;
-const token = process.env.NEXT_PUBLIC_ESQE_TOKEN ?? "";
+const url = process.env.NEXT_PUBLIC_ESQIA_URL;
+const token = process.env.NEXT_PUBLIC_ESQIA_TOKEN ?? "";
 
 export const configured = Boolean(url);
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${url}${path}`, {
     ...init,
-    headers: { "x-esqe-token": token, ...init.headers },
+    headers: { "x-esqia-token": token, ...init.headers },
   });
   const body = (await response.json().catch(() => ({}))) as T & {
     error?: string;
@@ -24,7 +24,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ConflictError(body.error ?? "The file changed on disk.");
   }
   if (!response.ok) {
-    throw new Error(body.error ?? `esqe: ${response.status}`);
+    throw new Error(body.error ?? `esqia: ${response.status}`);
   }
   return body;
 }
@@ -56,8 +56,8 @@ export const api = {
       body: blob,
       headers: {
         "content-type": blob.type || "application/octet-stream",
-        "x-esqe-file": file,
-        "x-esqe-name": encodeURIComponent(blob.name),
+        "x-esqia-file": file,
+        "x-esqia-name": encodeURIComponent(blob.name),
       },
       method: "POST",
     }),

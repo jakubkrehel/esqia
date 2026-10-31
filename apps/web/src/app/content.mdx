@@ -1,10 +1,10 @@
-# esqe
+# esqia
 
 Edit your writing where you read it.
 
 <br />
 
-esqe is a small editor for Next.js sites written in MDX. It loads only in development. Press the square in the bottom left, click any paragraph and start typing. Your changes are saved straight into the `.mdx` file and the page re-renders from the real source.
+esqia is a small editor for Next.js sites written in MDX. It loads only in development. Press the square in the bottom left, click any paragraph and start typing. Your changes are saved straight into the `.mdx` file and the page re-renders from the real source.
 
 ## Why
 
@@ -31,7 +31,7 @@ pnpm add -D esqia
 Add the remark plugin last and wrap your config.
 
 ```ts title="next.config.ts"
-import { withEsqe } from "esqia/next";
+import { withEsqia } from "esqia/next";
 
 const withMDX = createMDX({
   options: {
@@ -41,15 +41,15 @@ const withMDX = createMDX({
   },
 });
 
-export default withEsqe(withMDX(nextConfig));
+export default withEsqia(withMDX(nextConfig));
 ```
 
 Then mount it once in your root layout.
 
 ```tsx title="app/layout.tsx"
-import { Esqe } from "esqia";
+import { Esqia } from "esqia";
 
-{process.env.NODE_ENV === "development" && <Esqe />}
+{process.env.NODE_ENV === "development" && <Esqia />}
 ```
 
 Outside of `next dev` nothing is added and your config is returned untouched.

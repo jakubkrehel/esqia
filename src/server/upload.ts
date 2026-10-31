@@ -1,14 +1,14 @@
 import { randomBytes } from "node:crypto";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { EsqeOptions } from "./server";
+import type { EsqiaOptions } from "./server";
 
 interface UploadInput {
   body: Buffer;
   contentType: string;
   dir: string;
   name: string;
-  options: NonNullable<EsqeOptions["media"]>;
+  options: NonNullable<EsqiaOptions["media"]>;
   root: string;
 }
 

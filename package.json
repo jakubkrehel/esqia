@@ -1,6 +1,6 @@
 {
   "name": "esqia",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Edit your MDX from the rendered page while you write. A dev-only editor for Next.js.",
   "keywords": [
     "mdx",
@@ -10,10 +10,10 @@
     "wysiwyg",
     "writing"
   ],
-  "homepage": "https://esqe.jakub.kr",
+  "homepage": "https://esqia.jakub.kr",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jakubkrehel/esqe.git"
+    "url": "git+https://github.com/jakubkrehel/esqia.git"
   },
   "license": "MIT",
   "sideEffects": false,

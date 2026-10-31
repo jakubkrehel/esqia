@@ -4,13 +4,13 @@ import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { sidecarAddress, startSidecar } from "../src/server/server";
 
-const root = mkdtempSync(path.join(tmpdir(), "esqe-"));
+const root = mkdtempSync(path.join(tmpdir(), "esqia-"));
 const file = "posts/hello/content.mdx";
 const { url, token } = sidecarAddress(root);
 const call = (route: string, init: RequestInit = {}) =>
   fetch(`${url}${route}`, {
     ...init,
-    headers: { "x-esqe-token": token, ...init.headers },
+    headers: { "x-esqia-token": token, ...init.headers },
   });
 const json = (body: unknown) => ({
   body: JSON.stringify(body),
@@ -63,8 +63,8 @@ describe("sidecar", () => {
       body: new Uint8Array([1, 2, 3]),
       headers: {
         "content-type": "image/png",
-        "x-esqe-file": file,
-        "x-esqe-name": "shot.png",
+        "x-esqia-file": file,
+        "x-esqia-name": "shot.png",
       },
       method: "POST",
     });

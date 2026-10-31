@@ -12,7 +12,7 @@ import type { Smartypants } from "../shared/markdown";
 import { applyOps, type Op } from "../shared/ops";
 import { upload } from "./upload";
 
-export interface EsqeOptions {
+export interface EsqiaOptions {
   /** Inline JSX the toolbar can wrap a selection in, e.g. a font. */
   marks?: { name: string; tag: string; className: string }[];
   media?: {
@@ -32,10 +32,10 @@ export interface EsqeOptions {
 }
 
 export interface ClientConfig {
-  marks: NonNullable<EsqeOptions["marks"]>;
+  marks: NonNullable<EsqiaOptions["marks"]>;
   media: { image: string; video: string };
   smartypants: Smartypants;
-  snippets: NonNullable<EsqeOptions["snippets"]>;
+  snippets: NonNullable<EsqiaOptions["snippets"]>;
 }
 
 interface HistoryEntry {
@@ -59,7 +59,7 @@ export function sidecarAddress(root: string): Sidecar {
 
 export async function startSidecar(
   root: string,
-  options: EsqeOptions
+  options: EsqiaOptions
 ): Promise<void> {
   const { url, token } = sidecarAddress(root);
   const port = Number(new URL(url).port);
@@ -70,7 +70,7 @@ export async function startSidecar(
     // A sidecar from an earlier config load keeps running across Next's config reloads; give it the current options.
     await fetch(`${url}/configure`, {
       body: JSON.stringify(options),
-      headers: { "content-type": "application/json", "x-esqe-token": token },
+      headers: { "content-type": "application/json", "x-esqia-token": token },
       method: "POST",
     }).catch(() => undefined);
     return;
@@ -81,7 +81,7 @@ export async function startSidecar(
 }
 
 function persistentToken(root: string): string {
-  const file = path.join(root, "node_modules", ".cache", "esqe", "token");
+  const file = path.join(root, "node_modules", ".cache", "esqia", "token");
   try {
     return readFileSync(file, "utf8").trim();
   } catch {
@@ -96,7 +96,7 @@ async function isOurs(url: string, root: string): Promise<boolean> {
   try {
     const response = await fetch(`${url}/health`);
     const body = (await response.json()) as { name?: string; root?: string };
-    return body.name === "esqe" && body.root === root;
+    return body.name === "esqia" && body.root === root;
   } catch {
     return false;
   }
@@ -106,7 +106,7 @@ function listen(
   port: number,
   root: string,
   token: string,
-  options: EsqeOptions
+  options: EsqiaOptions
 ): Promise<boolean> {
   const context: Context = { history: new Map(), options, root, token };
   const server = createServer((req, res) => {
@@ -129,7 +129,7 @@ function listen(
 
 interface Context {
   history: Map<string, HistoryEntry[]>;
-  options: EsqeOptions;
+  options: EsqiaOptions;
   root: string;
   token: string;
 }
@@ -146,7 +146,7 @@ async function handle(
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "content-type, x-esqe-token, x-esqe-file, x-esqe-name"
+      "content-type, x-esqia-token, x-esqia-file, x-esqia-name"
     );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   }
@@ -156,13 +156,13 @@ async function handle(
 
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
   if (url.pathname === "/health") {
-    return send(res, 200, { name: "esqe", root: context.root });
+    return send(res, 200, { name: "esqia", root: context.root });
   }
 
   if (origin && !LOCAL_ORIGIN.test(origin)) {
     return send(res, 403, { error: "Origin not allowed." });
   }
-  if (req.headers["x-esqe-token"] !== context.token) {
+  if (req.headers["x-esqia-token"] !== context.token) {
     return send(res, 401, { error: "Bad token." });
   }
 
@@ -176,7 +176,9 @@ async function handle(
           error: "Only the Next config can reconfigure the sidecar.",
         });
       }
-      context.options = JSON.parse(await readBody(req, 100_000)) as EsqeOptions;
+      context.options = JSON.parse(
+        await readBody(req, 100_000)
+      ) as EsqiaOptions;
       return send(res, 204);
 
     case "GET /source": {
@@ -243,10 +245,10 @@ async function handle(
     case "POST /upload": {
       const file = resolveFile(
         context.root,
-        firstHeader(req.headers["x-esqe-file"])
+        firstHeader(req.headers["x-esqia-file"])
       );
       const name = path.basename(
-        decodeURIComponent(firstHeader(req.headers["x-esqe-name"]) ?? "upload")
+        decodeURIComponent(firstHeader(req.headers["x-esqia-name"]) ?? "upload")
       );
       const body = await readBody(req, 200_000_000, true);
       const uploaded = await upload({
@@ -267,7 +269,7 @@ async function handle(
   }
 }
 
-function clientConfig(options: EsqeOptions): ClientConfig {
+function clientConfig(options: EsqiaOptions): ClientConfig {
   return {
     marks: options.marks ?? [],
     media: {

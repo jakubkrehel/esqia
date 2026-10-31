@@ -1,4 +1,4 @@
-import { Esqe } from "esqia";
+import { Esqia } from "esqia";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { berkeleyMono, inter, libreBaskerville } from "./fonts";
@@ -7,8 +7,8 @@ import "@/styles/globals.css";
 export const metadata: Metadata = {
   description:
     "Edit your MDX from the rendered page while you write. A dev-only editor for Next.js.",
-  metadataBase: new URL("https://esqe.jakub.kr"),
-  title: "esqe",
+  metadataBase: new URL("https://esqia.jakub.kr"),
+  title: "esqia",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         className={`${libreBaskerville.variable} ${berkeleyMono.variable} bg-gray-background font-sans text-base text-gray-1200 antialiased`}
       >
         {children}
-        {process.env.NODE_ENV === "development" && <Esqe />}
+        {process.env.NODE_ENV === "development" && <Esqia />}
       </body>
     </html>
   );

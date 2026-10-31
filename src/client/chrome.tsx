@@ -50,7 +50,7 @@ type OpenTarget =
   | { block: Block; caret?: { x: number; y: number } }
   | { after: Block };
 
-const MODE_KEY = "esqe:mode";
+const MODE_KEY = "esqia:mode";
 const IDLE: RunSnapshot = {
   busy: null,
   saving: false,
@@ -123,7 +123,7 @@ export function Chrome({ host }: { host: HTMLElement }) {
       .then(setConfig)
       .catch(() =>
         setToast({
-          text: "Can't reach the esqe sidecar. Restart `next dev`.",
+          text: "Can't reach the esqia sidecar. Restart `next dev`.",
           tone: "error",
         })
       );
@@ -146,12 +146,12 @@ export function Chrome({ host }: { host: HTMLElement }) {
     } catch {
       // Storage can be blocked; the mode just isn't remembered.
     }
-    document.documentElement.dataset.esqeMode = mode;
+    document.documentElement.dataset.esqiaMode = mode;
     if (mode === "read") {
       closeRun();
     }
     return () => {
-      delete document.documentElement.dataset.esqeMode;
+      delete document.documentElement.dataset.esqiaMode;
     };
   }, [mode]);
 
@@ -215,7 +215,7 @@ export function Chrome({ host }: { host: HTMLElement }) {
   async function undo() {
     const file =
       lastFile.current ??
-      document.querySelector<HTMLElement>(BLOCK_SELECTOR)?.dataset.esqeFile;
+      document.querySelector<HTMLElement>(BLOCK_SELECTOR)?.dataset.esqiaFile;
     if (!file) {
       return;
     }
@@ -1184,35 +1184,35 @@ kbd { font: inherit; color: var(--faint); margin-left: 4px; }
 `;
 
 export const PAGE_CSS = `
-[data-esqe-mode="edit"] [data-esqe-type="paragraph"] > *,
-[data-esqe-mode="edit"] [data-esqe-type="heading"] > *,
-[data-esqe-mode="edit"] [data-esqe-type="code"] > * { cursor: text; }
-.esqe-editor { display: contents; }
+[data-esqia-mode="edit"] [data-esqia-type="paragraph"] > *,
+[data-esqia-mode="edit"] [data-esqia-type="heading"] > *,
+[data-esqia-mode="edit"] [data-esqia-type="code"] > * { cursor: text; }
+.esqia-editor { display: contents; }
 /* Tiptap's own .ProseMirror rule turns off font features and keeps trailing spaces, which changes glyph widths and wrapping. */
-.esqe-editor > .ProseMirror { font-feature-settings: inherit; font-variant-ligatures: inherit; white-space: pre-wrap; }
-.esqe-editor > .ProseMirror { outline: none; caret-color: oklch(74.6% 0.16 232.661); }
-.esqe-editor [data-esqe-spacer] { position: relative; }
-.esqe-editor [data-esqe-spacer]::after {
+.esqia-editor > .ProseMirror { font-feature-settings: inherit; font-variant-ligatures: inherit; white-space: pre-wrap; }
+.esqia-editor > .ProseMirror { outline: none; caret-color: oklch(74.6% 0.16 232.661); }
+.esqia-editor [data-esqia-spacer] { position: relative; }
+.esqia-editor [data-esqia-spacer]::after {
   content: ""; position: absolute; left: 0; right: 0; top: 50%;
   border-top: 1px dashed currentColor; opacity: 0; transition: opacity 150ms ease-out;
 }
-.esqe-editor [data-esqe-spacer]:hover::after { opacity: 0.15; }
-.esqe-editor .ProseMirror-selectednode { outline: 2px solid oklch(74.6% 0.16 232.661); outline-offset: 2px; border-radius: 4px; }
-.esqe-editor .ProseMirror-selectednode[data-esqe-spacer]::after { opacity: 0.4; }
-.esqe-editor [data-esqe-jsx-block] { margin: 1.5rem 0; }
-.esqe-editor [data-esqe-jsx-block] img,
-.esqe-editor [data-esqe-jsx-block] video { display: block; max-width: 100%; height: auto; border-radius: 8px; }
-.esqe-editor [data-esqe-jsx-block] code {
+.esqia-editor [data-esqia-spacer]:hover::after { opacity: 0.15; }
+.esqia-editor .ProseMirror-selectednode { outline: 2px solid oklch(74.6% 0.16 232.661); outline-offset: 2px; border-radius: 4px; }
+.esqia-editor .ProseMirror-selectednode[data-esqia-spacer]::after { opacity: 0.4; }
+.esqia-editor [data-esqia-jsx-block] { margin: 1.5rem 0; }
+.esqia-editor [data-esqia-jsx-block] img,
+.esqia-editor [data-esqia-jsx-block] video { display: block; max-width: 100%; height: auto; border-radius: 8px; }
+.esqia-editor [data-esqia-jsx-block] code {
   display: block; padding: 10px 12px; border-radius: 8px; white-space: pre-wrap;
   font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   background: color-mix(in oklab, currentColor 6%, transparent);
 }
-.esqe-editor [data-esqe-jsx-inline] {
+.esqia-editor [data-esqia-jsx-inline] {
   padding: 0 4px; border-radius: 4px; font: 0.8em ui-monospace, SFMono-Regular, Menlo, monospace;
   background: color-mix(in oklab, currentColor 8%, transparent);
 }
-.esqe-editor [data-esqe-jsx] { text-decoration: underline dotted; text-underline-offset: 3px; }
-.esqe-editor .is-empty::before {
+.esqia-editor [data-esqia-jsx] { text-decoration: underline dotted; text-underline-offset: 3px; }
+.esqia-editor .is-empty::before {
   content: attr(data-placeholder); float: left; height: 0; pointer-events: none; opacity: 0.35;
 }
 `;

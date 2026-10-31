@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 import {
-  type EsqeOptions,
+  type EsqiaOptions,
   sidecarAddress,
   startSidecar,
 } from "./server/server";
 
-export type { EsqeOptions } from "./server/server";
+export type { EsqiaOptions } from "./server/server";
 
 type ConfigFunction = (
   phase: string,
@@ -13,7 +13,7 @@ type ConfigFunction = (
 ) => NextConfig | Promise<NextConfig>;
 
 const shared = globalThis as typeof globalThis & {
-  __esqeSidecar?: Promise<unknown>;
+  __esqiaSidecar?: Promise<unknown>;
 };
 
 /**
@@ -21,9 +21,9 @@ const shared = globalThis as typeof globalThis & {
  * Returns the config untouched in any other environment. Returns an object for an
  * object, so wrappers that must stay outermost (like `withInterfere`) can still wrap it.
  */
-export function withEsqe<T extends NextConfig | ConfigFunction>(
+export function withEsqia<T extends NextConfig | ConfigFunction>(
   config: T,
-  options: EsqeOptions = {}
+  options: EsqiaOptions = {}
 ): T {
   if (process.env.NODE_ENV !== "development") {
     return config;
@@ -31,10 +31,10 @@ export function withEsqe<T extends NextConfig | ConfigFunction>(
 
   const root = process.cwd();
   const { url, token } = sidecarAddress(root);
-  shared.__esqeSidecar ??= startSidecar(root, options).catch(
+  shared.__esqiaSidecar ??= startSidecar(root, options).catch(
     (error: unknown) => {
       console.error(
-        `esqe: ${error instanceof Error ? error.message : String(error)}`
+        `esqia: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   );
@@ -43,8 +43,8 @@ export function withEsqe<T extends NextConfig | ConfigFunction>(
     ...resolved,
     env: {
       ...resolved.env,
-      NEXT_PUBLIC_ESQE_TOKEN: token,
-      NEXT_PUBLIC_ESQE_URL: url,
+      NEXT_PUBLIC_ESQIA_TOKEN: token,
+      NEXT_PUBLIC_ESQIA_URL: url,
     },
   });
 

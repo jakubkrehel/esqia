@@ -56,7 +56,7 @@ const displayContents: MdxJsxAttribute = {
 };
 
 /** Wraps every top-level block in a `display: contents` div that records where it came from. */
-export default function remarkEsqe() {
+export default function remarkEsqia() {
   return (tree: Root, file: VFile) => {
     if (!file.path) {
       return;
@@ -81,11 +81,11 @@ export default function remarkEsqe() {
 
       const wrapper: MdxJsxFlowElement = {
         attributes: [
-          attribute("data-esqe-file", relative),
-          attribute("data-esqe-start", String(start)),
-          attribute("data-esqe-end", String(end)),
-          attribute("data-esqe-type", blockType(node)),
-          attribute("data-esqe-v", version),
+          attribute("data-esqia-file", relative),
+          attribute("data-esqia-start", String(start)),
+          attribute("data-esqia-end", String(end)),
+          attribute("data-esqia-type", blockType(node)),
+          attribute("data-esqia-v", version),
           displayContents,
         ],
         children: [node as MdxJsxFlowElement["children"][number]],

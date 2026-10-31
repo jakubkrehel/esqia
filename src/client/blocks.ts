@@ -9,22 +9,22 @@ export interface Block {
   version: string;
 }
 
-export const BLOCK_SELECTOR = "[data-esqe-file]";
+export const BLOCK_SELECTOR = "[data-esqia-file]";
 
 export function readBlock(el: HTMLElement): Block {
   return {
     el,
-    end: Number(el.dataset.esqeEnd),
-    file: el.dataset.esqeFile ?? "",
-    start: Number(el.dataset.esqeStart),
-    type: (el.dataset.esqeType ?? "block") as BlockType,
-    version: el.dataset.esqeV ?? "",
+    end: Number(el.dataset.esqiaEnd),
+    file: el.dataset.esqiaFile ?? "",
+    start: Number(el.dataset.esqiaStart),
+    type: (el.dataset.esqiaType ?? "block") as BlockType,
+    version: el.dataset.esqiaV ?? "",
   };
 }
 
 export function fileBlocks(file: string): Block[] {
   return [...document.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)]
-    .filter((el) => el.dataset.esqeFile === file)
+    .filter((el) => el.dataset.esqiaFile === file)
     .map(readBlock)
     .sort((a, b) => a.start - b.start);
 }
@@ -80,7 +80,7 @@ export function waitForVersion(
       resolve(ok);
     };
     observer.observe(document.body, {
-      attributeFilter: ["data-esqe-v"],
+      attributeFilter: ["data-esqia-v"],
       attributes: true,
       childList: true,
       subtree: true,

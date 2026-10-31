@@ -5,14 +5,14 @@ import { CHROME_CSS, Chrome, PAGE_CSS } from "./chrome";
 
 /**
  * Mount once in the root layout during development. Renders nothing unless
- * `withEsqe` started the sidecar and the page has MDX blocks.
+ * `withEsqia` started the sidecar and the page has MDX blocks.
  */
-export function Esqe() {
+export function Esqia() {
   useEffect(() => {
     if (!configured) {
       return;
     }
-    const host = document.createElement("esqe-ui");
+    const host = document.createElement("esqia-ui");
     const shadow = host.attachShadow({ mode: "open" });
     const chromeStyle = document.createElement("style");
     chromeStyle.textContent = CHROME_CSS;
@@ -21,7 +21,7 @@ export function Esqe() {
     document.body.append(host);
 
     const pageStyle = document.createElement("style");
-    pageStyle.dataset.esqe = "";
+    pageStyle.dataset.esqia = "";
     pageStyle.textContent = PAGE_CSS;
     document.head.append(pageStyle);
 

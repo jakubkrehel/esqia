@@ -103,7 +103,7 @@ export class Run {
     this.originals = parsed.originals;
 
     this.root = document.createElement("div");
-    this.root.className = "esqe-editor";
+    this.root.className = "esqia-editor";
     if (first) {
       first.el.before(this.root);
     } else {
@@ -148,7 +148,7 @@ export class Run {
     this.hide();
     this.observer = new MutationObserver(() => this.hide());
     this.observer.observe(document.body, {
-      attributeFilter: ["data-esqe-v", "data-esqe-start"],
+      attributeFilter: ["data-esqia-v", "data-esqia-start"],
       attributes: true,
       childList: true,
       subtree: true,

@@ -2,11 +2,11 @@ import path from "node:path";
 import createMDX from "@next/mdx";
 import pierreDarkVibrant from "@pierre/theme/pierre-dark-vibrant";
 import pierreLightVibrant from "@pierre/theme/pierre-light-vibrant";
-import { withEsqe } from "esqia/next";
+import { withEsqia } from "esqia/next";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // esqe sits bottom-left, where Next puts its own indicator by default.
+  // esqia sits bottom-left, where Next puts its own indicator by default.
   devIndicators: { position: "bottom-right" },
   pageExtensions: ["ts", "tsx", "md", "mdx"],
   reactCompiler: true,
@@ -34,7 +34,7 @@ const withMDX = createMDX({
   },
 });
 
-export default withEsqe(withMDX(nextConfig), {
+export default withEsqia(withMDX(nextConfig), {
   marks: [{ className: "font-libre-baskerville", name: "Serif", tag: "em" }],
   media: { upload: "public" },
   smartypants: { dashes: false },

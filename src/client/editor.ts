@@ -49,10 +49,10 @@ const INLINE_TAGS = new Set([
 
 export function sampleTemplates(): Templates {
   const wrappers = [
-    ...document.querySelectorAll<HTMLElement>("[data-esqe-file]"),
+    ...document.querySelectorAll<HTMLElement>("[data-esqia-file]"),
   ];
   const ofType = (type: string) =>
-    wrappers.filter((wrapper) => wrapper.dataset.esqeType === type);
+    wrappers.filter((wrapper) => wrapper.dataset.esqiaType === type);
 
   const paragraphs = ofType("paragraph")
     .map((wrapper) => wrapper.firstElementChild)
@@ -251,7 +251,7 @@ export function createExtensions({
       atom: true,
       group: "block",
       name: "spacer",
-      renderHTML: () => ["div", { "data-esqe-spacer": "" }, ["br"]],
+      renderHTML: () => ["div", { "data-esqia-spacer": "" }, ["br"]],
       selectable: true,
     }),
     Node.create({
@@ -277,7 +277,7 @@ export function createExtensions({
         const name = /^<([\w.]+)/.exec(raw)?.[1];
         return [
           "span",
-          { "data-esqe-jsx-inline": "", title: raw },
+          { "data-esqia-jsx-inline": "", title: raw },
           name ? `‹${name}›` : raw,
         ];
       },
@@ -315,7 +315,7 @@ export function createExtensions({
         return [
           "span",
           {
-            "data-esqe-jsx": mark.attrs.name,
+            "data-esqia-jsx": mark.attrs.name,
             title: `${mark.attrs.open}…${mark.attrs.close}`,
           },
           0,
@@ -378,7 +378,7 @@ export function createExtensions({
           },
         };
       },
-      name: "esqeKeys",
+      name: "esqiaKeys",
     }),
   ];
 }
@@ -416,7 +416,7 @@ export function markOpen(mark: { tag: string; className: string }): string {
 
 function jsxBlockPreview(raw: string): Rendered {
   const dom = document.createElement("div");
-  dom.dataset.esqeJsxBlock = "";
+  dom.dataset.esqiaJsxBlock = "";
   const src =
     /\bsrc=["']([^"']+)["']/.exec(raw)?.[1] ??
     /!\[[^\]]*\]\(([^)\s]+)/.exec(raw)?.[1];
