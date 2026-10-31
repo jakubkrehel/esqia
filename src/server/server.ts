@@ -134,7 +134,17 @@ interface Context {
   token: string;
 }
 
-const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+const PRIVATE_HOST =
+  /^(localhost|127\.0\.0\.1|\[::1\]|.+\.localhost|.+\.local|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/;
+
+/** This machine or the local network, so a site opened by its network address still works. Public origins are refused. */
+function isPrivateOrigin(origin: string): boolean {
+  try {
+    return PRIVATE_HOST.test(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
 
 async function handle(
   req: IncomingMessage,
@@ -142,13 +152,15 @@ async function handle(
   context: Context
 ) {
   const origin = req.headers.origin;
-  if (origin && LOCAL_ORIGIN.test(origin)) {
+  if (origin && isPrivateOrigin(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader(
       "Access-Control-Allow-Headers",
       "content-type, x-esqia-token, x-esqia-file, x-esqia-name"
     );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    // Chrome asks before a page on a network address may call this machine's loopback address.
+    res.setHeader("Access-Control-Allow-Private-Network", "true");
   }
   if (req.method === "OPTIONS") {
     return send(res, 204);
@@ -159,7 +171,7 @@ async function handle(
     return send(res, 200, { name: "esqia", root: context.root });
   }
 
-  if (origin && !LOCAL_ORIGIN.test(origin)) {
+  if (origin && !isPrivateOrigin(origin)) {
     return send(res, 403, { error: "Origin not allowed." });
   }
   if (req.headers["x-esqia-token"] !== context.token) {

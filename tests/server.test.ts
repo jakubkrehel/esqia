@@ -75,13 +75,20 @@ describe("sidecar", () => {
     );
   });
 
-  it("answers CORS preflight only for localhost", async () => {
+  it("answers CORS preflight for this machine and the local network only", async () => {
     const local = await fetch(`${url}/ops`, {
       headers: { origin: "http://localhost:3000" },
       method: "OPTIONS",
     });
     expect(local.headers.get("access-control-allow-origin")).toBe(
       "http://localhost:3000"
+    );
+    const network = await fetch(`${url}/ops`, {
+      headers: { origin: "http://172.16.227.17:3000" },
+      method: "OPTIONS",
+    });
+    expect(network.headers.get("access-control-allow-origin")).toBe(
+      "http://172.16.227.17:3000"
     );
     const remote = await fetch(`${url}/ops`, {
       headers: { origin: "https://evil.example" },
