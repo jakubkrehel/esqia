@@ -31,7 +31,7 @@ import { Esqe } from "esqe";
 {process.env.NODE_ENV === "development" && <Esqe />}
 ```
 
-Keep `esqe/remark` last. Outside `next dev`, nothing is added and the config is returned untouched.
+Keep `esqe/remark` last. The button sits bottom-left, where Next shows its dev indicator by default, so move Next's with `devIndicators: { position: "bottom-right" }`. Outside `next dev`, nothing is added and the config is returned untouched.
 
 ## How it works
 

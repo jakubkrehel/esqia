@@ -13,21 +13,21 @@ export interface SlashState {
 }
 
 export interface RunSnapshot {
-  saving: boolean;
   busy: string | null;
-  slash: SlashState | null;
+  saving: boolean;
   selection: number;
+  slash: SlashState | null;
 }
 
 export interface OpenOptions {
-  file: string;
+  after?: Block;
   /** The blocks to edit. Empty to start a new paragraph after `after`. */
   blocks: Block[];
-  after?: Block;
   caret?: { index: number; offset: number };
   config: ClientConfig;
-  onError(message: string): void;
-  onClose(): void;
+  file: string;
+  onClose: () => void;
+  onError: (message: string) => void;
 }
 
 const SAVE_DELAY = 800;
@@ -43,7 +43,7 @@ export class Run {
   readonly editor: Editor;
   readonly config: ClientConfig;
 
-  slashKeys: ((event: KeyboardEvent) => boolean) | null = null;
+  private slashKeys: ((event: KeyboardEvent) => boolean) | null = null;
 
   private hash: string;
   private start: number;
@@ -61,14 +61,21 @@ export class Run {
   private saving: Promise<void> | null = null;
   private wrote = false;
   private closing: Promise<void> | null = null;
-  private snapshot: RunSnapshot = { saving: false, busy: null, slash: null, selection: 0 };
+  private snapshot: RunSnapshot = {
+    busy: null,
+    saving: false,
+    selection: 0,
+    slash: null,
+  };
   private listeners = new Set<() => void>();
 
   static async open(options: OpenOptions): Promise<Run> {
     const { source, hash } = await api.source(options.file);
     const version = options.blocks[0]?.version ?? options.after?.version;
     if (version && version !== hash) {
-      throw new ConflictError("The page is behind the file. Wait for it to refresh, then try again.");
+      throw new ConflictError(
+        "The page is behind the file. Wait for it to refresh, then try again."
+      );
     }
     return new Run(options, source, hash);
   }
@@ -86,7 +93,10 @@ export class Run {
     const end = last ? last.end : this.start;
     this.current = source.slice(this.start, end);
     this.prefix = first ? "" : "\n\n";
-    this.style = { ...detectStyle(source), smartypants: this.config.smartypants };
+    this.style = {
+      ...detectStyle(source),
+      smartypants: this.config.smartypants,
+    };
     this.ranges.set(hash, [this.start, end]);
 
     const parsed = parseRun(this.current, this.config.smartypants);
@@ -94,42 +104,69 @@ export class Run {
 
     this.root = document.createElement("div");
     this.root.className = "esqe-editor";
-    if (first) first.el.before(this.root);
-    else options.after?.el.after(this.root);
+    if (first) {
+      first.el.before(this.root);
+    } else {
+      options.after?.el.after(this.root);
+    }
 
     const templates = sampleTemplates();
     this.editor = new Editor({
-      element: this.root,
-      extensions: createExtensions({ templates, config: this.config, spacers: this.style.spacers }),
       content: parsed.doc,
       editorProps: {
-        handleKeyDown: (_view, event) => this.handleKeyDown(event),
-        handlePaste: (_view, event) => this.handleFiles(event.clipboardData?.files),
         handleDrop: (view, event, _slice, moved) => {
-          if (moved) return false;
-          const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+          if (moved) {
+            return false;
+          }
+          const pos = view.posAtCoords({
+            left: event.clientX,
+            top: event.clientY,
+          })?.pos;
           return this.handleFiles(event.dataTransfer?.files, pos);
         },
+        handleKeyDown: (_view, event) => this.handleKeyDown(event),
+        handlePaste: (_view, event) =>
+          this.handleFiles(event.clipboardData?.files),
       },
+      element: this.root,
+      extensions: createExtensions({
+        config: this.config,
+        spacers: this.style.spacers,
+        templates,
+      }),
     });
 
     this.editor.state.doc.forEach((node) => {
-      const original = node.attrs.id ? this.originals.get(node.attrs.id) : undefined;
-      if (original) original.fingerprint = fingerprint(node);
+      const original = node.attrs.id
+        ? this.originals.get(node.attrs.id)
+        : undefined;
+      if (original) {
+        original.fingerprint = fingerprint(node);
+      }
     });
 
     this.hide();
     this.observer = new MutationObserver(() => this.hide());
     this.observer.observe(document.body, {
-      subtree: true,
-      childList: true,
-      attributes: true,
       attributeFilter: ["data-esqe-v", "data-esqe-start"],
+      attributes: true,
+      childList: true,
+      subtree: true,
     });
 
     this.editor.on("update", () => this.schedule());
-    this.editor.on("transaction", () => this.update({ slash: this.readSlash(), selection: this.snapshot.selection + 1 }));
+    this.editor.on("transaction", () =>
+      this.update({
+        selection: this.snapshot.selection + 1,
+        slash: this.readSlash(),
+      })
+    );
     this.placeCaret(options.caret);
+  }
+
+  /** The slash menu claims arrow keys and Enter while it's open. */
+  setSlashKeys(handler: ((event: KeyboardEvent) => boolean) | null) {
+    this.slashKeys = handler;
   }
 
   get usesSpacers() {
@@ -145,7 +182,9 @@ export class Run {
 
   private update(patch: Partial<RunSnapshot>) {
     this.snapshot = { ...this.snapshot, ...patch };
-    for (const listener of this.listeners) listener();
+    for (const listener of this.listeners) {
+      listener();
+    }
   }
 
   /** Hide every rendered block that falls inside the run, in whichever version of the file the page currently shows. */
@@ -168,17 +207,21 @@ export class Run {
     let pos = 1;
     if (caret) {
       doc.forEach((node, offset, index) => {
-        if (index === caret.index) pos = offset + 1 + inlinePos(node, caret.offset);
+        if (index === caret.index) {
+          pos = offset + 1 + inlinePos(node, caret.offset);
+        }
       });
     }
-    const selection = TextSelection.near(doc.resolve(Math.min(pos, doc.content.size)));
+    const selection = TextSelection.near(
+      doc.resolve(Math.min(pos, doc.content.size))
+    );
     this.editor.view.dispatch(this.editor.state.tr.setSelection(selection));
     this.editor.view.focus();
   }
 
   private schedule() {
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => void this.save(), SAVE_DELAY);
+    this.timer = setTimeout(() => this.save(), SAVE_DELAY);
   }
 
   private async save(): Promise<void> {
@@ -187,22 +230,30 @@ export class Run {
       await this.saving;
       return this.save();
     }
-    const body = serializeRun(this.editor.state.doc, this.originals, this.style);
+    const body = serializeRun(
+      this.editor.state.doc,
+      this.originals,
+      this.style
+    );
     const text = body && this.prefix + body;
-    if (text === this.current) return;
+    if (text === this.current) {
+      return;
+    }
 
-    const op = { start: this.start, end: this.start + this.current.length, expected: this.current, text };
+    const op = {
+      end: this.start + this.current.length,
+      expected: this.current,
+      start: this.start,
+      text,
+    };
     this.update({ saving: true });
-    this.saving = api
-      .ops(this.file, this.hash, [op], this.group)
-      .then(({ hash }) => {
-        this.hash = hash;
-        this.current = text;
-        this.wrote = true;
-        this.ranges.set(hash, [this.start, this.start + text.length]);
-      })
+    this.saving = this.write(op, text)
       .catch((error: unknown) => {
-        this.onError(error instanceof ConflictError ? "Changed in your editor. Reopen the block to keep going." : String(error));
+        this.onError(
+          error instanceof ConflictError
+            ? "Changed in your editor. Reopen the block to keep going."
+            : String(error)
+        );
         void this.close(true);
       })
       .finally(() => {
@@ -212,20 +263,41 @@ export class Run {
     return this.saving;
   }
 
+  private async write(
+    op: { start: number; end: number; expected: string; text: string },
+    text: string
+  ) {
+    const { hash } = await api.ops(this.file, this.hash, [op], this.group);
+    this.hash = hash;
+    this.current = text;
+    this.wrote = true;
+    this.ranges.set(hash, [this.start, this.start + text.length]);
+  }
+
   /** Writes what's left, waits for the page to render that version, then hands the blocks back to React. */
   close(discard = false): Promise<void> {
     this.closing ??= (async () => {
       clearTimeout(this.timer);
-      if (!discard) await this.save();
-      if (this.current === "" && this.prefix === "" && !discard) await this.collapseGap();
-      if (this.wrote && !discard && !(await waitForVersion(this.file, this.hash))) {
+      if (!discard) {
+        await this.save();
+      }
+      if (this.current === "" && this.prefix === "" && !discard) {
+        await this.collapseGap();
+      }
+      if (
+        this.wrote &&
+        !discard &&
+        !(await waitForVersion(this.file, this.hash))
+      ) {
         location.reload();
         return;
       }
       this.observer.disconnect();
       this.editor.destroy();
       this.root.remove();
-      for (const el of this.hidden) el.style.setProperty("display", "contents");
+      for (const el of this.hidden) {
+        el.style.setProperty("display", "contents");
+      }
       this.onClose();
     })();
     return this.closing;
@@ -234,21 +306,41 @@ export class Run {
   /** Every block of the run was deleted; fold the blank lines it leaves behind into one gap. */
   private async collapseGap() {
     const { source, hash } = await api.source(this.file);
-    if (hash !== this.hash) return;
+    if (hash !== this.hash) {
+      return;
+    }
     let a = this.start;
     let b = this.start;
-    while (a > 0 && /\s/.test(source[a - 1] ?? "")) a--;
-    while (b < source.length && /\s/.test(source[b] ?? "")) b++;
-    const text = a === 0 || b === source.length ? (b === source.length ? "\n" : "") : "\n\n";
+    while (a > 0 && /\s/.test(source[a - 1] ?? "")) {
+      a--;
+    }
+    while (b < source.length && /\s/.test(source[b] ?? "")) {
+      b++;
+    }
+    let text = "\n\n";
+    if (b === source.length) {
+      text = "\n";
+    } else if (a === 0) {
+      text = "";
+    }
     try {
-      const result = await api.ops(this.file, hash, [{ start: a, end: b, expected: source.slice(a, b), text }], this.group);
+      const result = await api.ops(
+        this.file,
+        hash,
+        [{ end: b, expected: source.slice(a, b), start: a, text }],
+        this.group
+      );
       this.hash = result.hash;
       this.wrote = true;
-    } catch {}
+    } catch {
+      // Leaving an extra blank line behind is harmless; the edit itself is already saved.
+    }
   }
 
   private handleKeyDown(event: KeyboardEvent): boolean {
-    if (this.snapshot.slash && this.slashKeys?.(event)) return true;
+    if (this.snapshot.slash && this.slashKeys?.(event)) {
+      return true;
+    }
     if (event.key === "Escape") {
       void this.close();
       return true;
@@ -258,12 +350,19 @@ export class Run {
 
   private readSlash(): SlashState | null {
     const { $from, empty } = this.editor.state.selection;
-    if (!empty || $from.parent.type.name !== "paragraph" || $from.depth !== 1) return null;
+    if (!empty || $from.parent.type.name !== "paragraph" || $from.depth !== 1) {
+      return null;
+    }
     const text = $from.parent.textContent;
     const match = /^\/([\w ]{0,24})$/.exec(text);
-    if (!match || $from.parentOffset !== text.length) return null;
+    if (!match || $from.parentOffset !== text.length) {
+      return null;
+    }
     const coords = this.editor.view.coordsAtPos($from.pos);
-    return { query: match[1] ?? "", rect: { left: coords.left, top: coords.top, bottom: coords.bottom } };
+    return {
+      query: match[1] ?? "",
+      rect: { bottom: coords.bottom, left: coords.left, top: coords.top },
+    };
   }
 
   /** Replace the `/query` paragraph the slash menu was opened from. */
@@ -278,10 +377,16 @@ export class Run {
   insertBlock(raw: string) {
     const { $from } = this.editor.state.selection;
     const node = this.editor.schema.nodes.jsxBlock.create({ raw });
-    const emptyParagraph = $from.depth === 1 && $from.parent.type.name === "paragraph" && $from.parent.content.size === 0;
+    const emptyParagraph =
+      $from.depth === 1 &&
+      $from.parent.type.name === "paragraph" &&
+      $from.parent.content.size === 0;
     const tr = this.editor.state.tr;
-    if (emptyParagraph) tr.replaceWith($from.before(), $from.after(), node);
-    else tr.insert($from.after(1), node);
+    if (emptyParagraph) {
+      tr.replaceWith($from.before(), $from.after(), node);
+    } else {
+      tr.insert($from.after(1), node);
+    }
     this.editor.view.dispatch(tr.scrollIntoView());
     this.editor.view.focus();
   }
@@ -289,19 +394,32 @@ export class Run {
   insertSpacer() {
     const { $from } = this.editor.state.selection;
     const { spacer, paragraph } = this.editor.schema.nodes;
-    const tr = this.editor.state.tr.replaceWith($from.before(), $from.after(), [spacer.create(), paragraph.create()]);
+    const tr = this.editor.state.tr.replaceWith($from.before(), $from.after(), [
+      spacer.create(),
+      paragraph.create(),
+    ]);
     tr.setSelection(TextSelection.near(tr.doc.resolve($from.before() + 2)));
     this.editor.view.dispatch(tr);
   }
 
   private handleFiles(files: FileList | undefined, pos?: number): boolean {
-    const media = [...(files ?? [])].filter((file) => /^(image|video)\//.test(file.type));
-    if (media.length === 0) return false;
+    const media = [...(files ?? [])].filter((file) =>
+      /^(image|video)\//.test(file.type)
+    );
+    if (media.length === 0) {
+      return false;
+    }
     if (pos !== undefined) {
-      this.editor.view.dispatch(this.editor.state.tr.setSelection(TextSelection.near(this.editor.state.doc.resolve(pos))));
+      this.editor.view.dispatch(
+        this.editor.state.tr.setSelection(
+          TextSelection.near(this.editor.state.doc.resolve(pos))
+        )
+      );
     }
     void (async () => {
-      for (const file of media) await this.insertMedia(file);
+      for (const file of media) {
+        await this.insertMedia(file);
+      }
     })();
     return true;
   }
@@ -309,8 +427,13 @@ export class Run {
   async insertMedia(file: File) {
     this.update({ busy: `Uploading ${file.name}…` });
     try {
-      const [{ width, height }, { url }] = await Promise.all([measure(file), api.upload(this.file, file)]);
-      const template = file.type.startsWith("video/") ? this.config.media.video : this.config.media.image;
+      const [{ width, height }, { url }] = await Promise.all([
+        measure(file),
+        api.upload(this.file, file),
+      ]);
+      const template = file.type.startsWith("video/")
+        ? this.config.media.video
+        : this.config.media.image;
       const raw = template
         .replaceAll("{url}", url)
         .replaceAll("{width}", String(width))
@@ -318,7 +441,9 @@ export class Run {
         .replaceAll("{name}", file.name.replace(/\.[^.]+$/, ""));
       this.insertBlock(raw);
     } catch (error) {
-      this.onError(`Upload failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.onError(
+        `Upload failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     } finally {
       this.update({ busy: null });
     }
@@ -326,12 +451,16 @@ export class Run {
 }
 
 function inlinePos(node: PMNode, offset: number): number {
-  if (!node.isTextblock) return 0;
+  if (!node.isTextblock) {
+    return 0;
+  }
   let remaining = offset;
   let pos = 0;
   let done = false;
   node.forEach((child) => {
-    if (done) return;
+    if (done) {
+      return;
+    }
     const length = child.isText ? (child.text?.length ?? 0) : 1;
     if (remaining <= length) {
       pos += remaining;
@@ -354,10 +483,10 @@ async function measure(file: File): Promise<{ width: number; height: number }> {
       video.onerror = reject;
     });
     URL.revokeObjectURL(video.src);
-    return { width: video.videoWidth, height: video.videoHeight };
+    return { height: video.videoHeight, width: video.videoWidth };
   }
   const bitmap = await createImageBitmap(file);
-  const size = { width: bitmap.width, height: bitmap.height };
+  const size = { height: bitmap.height, width: bitmap.width };
   bitmap.close();
   return size;
 }

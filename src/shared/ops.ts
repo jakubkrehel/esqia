@@ -1,8 +1,8 @@
 /** Replace `source.slice(start, end)`, which must still equal `expected`, with `text`. */
 export interface Op {
-  start: number;
   end: number;
   expected: string;
+  start: number;
   text: string;
 }
 
@@ -17,7 +17,10 @@ export function applyOps(source: string, ops: Op[]): OpsResult {
 
   for (const op of sorted) {
     if (op.start < 0 || op.end < op.start || op.end > source.length) {
-      return { ok: false, reason: `Range ${op.start}–${op.end} is outside the file.` };
+      return {
+        ok: false,
+        reason: `Range ${op.start}–${op.end} is outside the file.`,
+      };
     }
     if (op.end > floor) {
       return { ok: false, reason: "Edits overlap." };
@@ -33,8 +36,8 @@ export function applyOps(source: string, ops: Op[]): OpsResult {
 }
 
 export interface BlockRange {
-  start: number;
   end: number;
+  start: number;
 }
 
 /**
@@ -49,27 +52,42 @@ export function moveOps(
 ): Op[] {
   const text = source.slice(block.start, block.end);
   const removal = removalRange(blocks, block);
-  const insertAt = target ? target.start : (blocks.at(-1)?.end ?? source.length);
-  if (insertAt >= removal.start && insertAt <= removal.end) return [];
+  const insertAt = target
+    ? target.start
+    : (blocks.at(-1)?.end ?? source.length);
+  if (insertAt >= removal.start && insertAt <= removal.end) {
+    return [];
+  }
 
   return [
-    { start: removal.start, end: removal.end, expected: source.slice(removal.start, removal.end), text: "" },
+    {
+      end: removal.end,
+      expected: source.slice(removal.start, removal.end),
+      start: removal.start,
+      text: "",
+    },
     target
-      ? { start: insertAt, end: insertAt, expected: "", text: `${text}\n\n` }
-      : { start: insertAt, end: insertAt, expected: "", text: `\n\n${text}` },
+      ? { end: insertAt, expected: "", start: insertAt, text: `${text}\n\n` }
+      : { end: insertAt, expected: "", start: insertAt, text: `\n\n${text}` },
   ];
 }
 
-export function deleteOps(source: string, blocks: BlockRange[], block: BlockRange): Op[] {
+export function deleteOps(
+  source: string,
+  blocks: BlockRange[],
+  block: BlockRange
+): Op[] {
   const { start, end } = removalRange(blocks, block);
-  return [{ start, end, expected: source.slice(start, end), text: "" }];
+  return [{ end, expected: source.slice(start, end), start, text: "" }];
 }
 
 /** A block plus the gap that separates it from its neighbour, so removing it leaves one gap behind. */
 function removalRange(blocks: BlockRange[], block: BlockRange): BlockRange {
   const index = blocks.findIndex((b) => b.start === block.start);
   const next = blocks[index + 1];
-  if (next) return { start: block.start, end: next.start };
+  if (next) {
+    return { end: next.start, start: block.start };
+  }
   const previous = blocks[index - 1];
-  return { start: previous ? previous.end : block.start, end: block.end };
+  return { end: block.end, start: previous ? previous.end : block.start };
 }

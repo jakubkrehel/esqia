@@ -1,38 +1,57 @@
 {
   "name": "esqe",
-  "version": "0.0.1",
-  "description": "Edit MDX content in place, from the rendered page, during development.",
-  "type": "module",
-  "license": "MIT",
-  "files": [
-    "dist"
+  "version": "0.1.0",
+  "description": "Edit your MDX from the rendered page while you write. A dev-only editor for Next.js.",
+  "keywords": [
+    "mdx",
+    "next",
+    "editor",
+    "markdown",
+    "wysiwyg",
+    "writing"
   ],
+  "homepage": "https://esqe.jakub.kr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jakubkrehel/esqe.git"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/client/index.d.ts",
-      "default": "./dist/client/index.js"
-    },
-    "./remark": {
-      "types": "./dist/remark.d.ts",
-      "default": "./dist/remark.js"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./next": {
       "types": "./dist/next.d.ts",
       "default": "./dist/next.js"
+    },
+    "./remark": {
+      "types": "./dist/remark.d.ts",
+      "default": "./dist/remark.js"
     }
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsup && tsc -p tsconfig.build.json",
-    "dev": "tsup --watch",
+    "build": "tsdown",
+    "build:web": "pnpm --filter web build",
+    "check": "pnpm lint && biome check --error-on-warnings .",
+    "dev": "pnpm run \"/^dev:/\"",
+    "dev:lib": "tsdown --watch src",
+    "dev:web": "pnpm --filter web dev",
+    "fix": "oxlint --fix . && biome check --write .",
+    "format": "biome format --write .",
+    "lint": "oxlint --deny-warnings --report-unused-disable-directives-severity error .",
+    "prepublishOnly": "tsdown",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && pnpm build && pnpm --filter web typecheck"
   },
-  "peerDependencies": {
-    "next": ">=15",
-    "react": ">=19",
-    "react-dom": ">=19"
-  },
-  "packageManager": "pnpm@12.15.0",
   "dependencies": {
     "@tiptap/core": "^3.32.2",
     "@tiptap/extension-bold": "^3.32.2",
@@ -58,15 +77,24 @@
     "vfile": "^6.0.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@types/mdast": "^4.0.4",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "next": "16.4.3",
+    "oxlint": "1.88.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "tsup": "^9.0.0",
+    "tsdown": "^0.23.4",
     "typescript": "^7.0.2",
+    "ultracite": "8.0.1",
     "vitest": "^5.0.5"
-  }
+  },
+  "peerDependencies": {
+    "next": ">=15.0.0",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  },
+  "packageManager": "pnpm@12.15.0"
 }

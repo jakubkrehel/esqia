@@ -10,63 +10,76 @@ export function hashSource(source: string): string {
 }
 
 const attribute = (name: string, value: string): MdxJsxAttribute => ({
-  type: "mdxJsxAttribute",
   name,
+  type: "mdxJsxAttribute",
   value,
 });
 
 // A plain style string would reach React as a string and throw, so the
 // object literal is spelled out as the estree MDX expects for `style={{…}}`.
 const displayContents: MdxJsxAttribute = {
-  type: "mdxJsxAttribute",
   name: "style",
+  type: "mdxJsxAttribute",
   value: {
-    type: "mdxJsxAttributeValueExpression",
-    value: '{display:"contents"}',
     data: {
       estree: {
-        type: "Program",
-        sourceType: "module",
         body: [
           {
-            type: "ExpressionStatement",
             expression: {
-              type: "ObjectExpression",
               properties: [
                 {
-                  type: "Property",
+                  computed: false,
+                  key: { name: "display", type: "Identifier" },
                   kind: "init",
                   method: false,
                   shorthand: false,
-                  computed: false,
-                  key: { type: "Identifier", name: "display" },
-                  value: { type: "Literal", value: "contents", raw: '"contents"' },
+                  type: "Property",
+                  value: {
+                    raw: '"contents"',
+                    type: "Literal",
+                    value: "contents",
+                  },
                 },
               ],
+              type: "ObjectExpression",
             },
+            type: "ExpressionStatement",
           },
         ],
+        sourceType: "module",
+        type: "Program",
       },
     },
+    type: "mdxJsxAttributeValueExpression",
+    value: '{display:"contents"}',
   },
 };
 
 /** Wraps every top-level block in a `display: contents` div that records where it came from. */
 export default function remarkEsqe() {
   return (tree: Root, file: VFile) => {
-    if (!file.path) return;
+    if (!file.path) {
+      return;
+    }
     const source = String(file.value);
-    const relative = path.relative(process.cwd(), file.path).split(path.sep).join("/");
+    const relative = path
+      .relative(process.cwd(), file.path)
+      .split(path.sep)
+      .join("/");
     const version = hashSource(source);
 
     tree.children = tree.children.map((node): RootContent => {
       const start = node.position?.start.offset;
       const end = node.position?.end.offset;
-      if (start === undefined || end === undefined || node.type === "mdxjsEsm") return node;
+      if (
+        start === undefined ||
+        end === undefined ||
+        node.type === "mdxjsEsm"
+      ) {
+        return node;
+      }
 
       const wrapper: MdxJsxFlowElement = {
-        type: "mdxJsxFlowElement",
-        name: "div",
         attributes: [
           attribute("data-esqe-file", relative),
           attribute("data-esqe-start", String(start)),
@@ -76,6 +89,8 @@ export default function remarkEsqe() {
           displayContents,
         ],
         children: [node as MdxJsxFlowElement["children"][number]],
+        name: "div",
+        type: "mdxJsxFlowElement",
       };
       return wrapper;
     });

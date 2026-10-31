@@ -1,17 +1,54 @@
-import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { EDITABLE } from "../shared/markdown";
-import { deleteOps, moveOps } from "../shared/ops";
+import { deleteOps, moveOps, type Op } from "../shared/ops";
 import { api, type ClientConfig } from "./api";
-import { BLOCK_SELECTOR, type Block, blockRect, fileBlocks, readBlock, runAround, textOffsetAt } from "./blocks";
+import {
+  BLOCK_SELECTOR,
+  type Block,
+  blockRect,
+  fileBlocks,
+  readBlock,
+  runAround,
+  textOffsetAt,
+} from "./blocks";
 import { markOpen } from "./editor";
 import { Run, type RunSnapshot } from "./run";
 
 type Mode = "read" | "edit";
-type Rect = { left: number; top: number; width: number; height: number };
+interface Rect {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+}
+interface Hover {
+  block: Block;
+  rect: Rect;
+}
+interface Drag {
+  block: Block;
+  line: Rect | null;
+  moved: boolean;
+}
+type Toast = { text: string; tone: "info" | "error" } | null;
+type OpenTarget =
+  | { block: Block; caret?: { x: number; y: number } }
+  | { after: Block };
 
 const MODE_KEY = "esqe:mode";
-const IDLE: RunSnapshot = { saving: false, busy: null, slash: null, selection: 0 };
-const noop = () => () => {};
+const IDLE: RunSnapshot = {
+  busy: null,
+  saving: false,
+  selection: 0,
+  slash: null,
+};
+const unsubscribed = () => () => undefined;
 
 function readMode(): Mode {
   try {
@@ -21,257 +58,440 @@ function readMode(): Mode {
   }
 }
 
+function subscribeToBlocks(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.body, { childList: true, subtree: true });
+  return () => observer.disconnect();
+}
+
+const pageHasBlocks = () => document.querySelector(BLOCK_SELECTOR) !== null;
+
+function errorText(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function Chrome({ host }: { host: HTMLElement }) {
   const [mode, setMode] = useState<Mode>(readMode);
-  const [hasBlocks, setHasBlocks] = useState(false);
   const [config, setConfig] = useState<ClientConfig | null>(null);
   const [run, setRun] = useState<Run | null>(null);
-  const [hover, setHover] = useState<{ block: Block; rect: Rect } | null>(null);
-  const [drag, setDrag] = useState<{ block: Block; line: Rect | null; target: Block | null; moved: boolean } | null>(null);
-  const [menu, setMenu] = useState<{ block: Block; rect: Rect } | null>(null);
-  const [toast, setToast] = useState<{ text: string; tone: "info" | "error" } | null>(null);
+  const [toast, setToast] = useState<Toast>(null);
   const [writing, setWriting] = useState(false);
+  const hasBlocks = useSyncExternalStore(
+    subscribeToBlocks,
+    pageHasBlocks,
+    () => false
+  );
+  const snapshot = useSyncExternalStore(
+    run?.subscribe ?? unsubscribed,
+    run?.getSnapshot ?? (() => IDLE),
+    () => IDLE
+  );
 
   const runRef = useRef<Run | null>(null);
   const closing = useRef<Promise<void> | null>(null);
   const lastFile = useRef<string | null>(null);
-  runRef.current = run;
+  useEffect(() => {
+    runRef.current = run;
+  }, [run]);
 
-  const snapshot = useSyncExternalStore(run?.subscribe ?? noop, run?.getSnapshot ?? (() => IDLE), () => IDLE);
-
-  const notify = (text: string, tone: "info" | "error" = "info") => setToast({ text, tone });
+  const notify = (text: string, tone: "info" | "error" = "info") =>
+    setToast({ text, tone });
 
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), toast.tone === "error" ? 5000 : 1600);
+    if (!toast) {
+      return;
+    }
+    const timer = setTimeout(
+      () => setToast(null),
+      toast.tone === "error" ? 5000 : 1600
+    );
     return () => clearTimeout(timer);
   }, [toast]);
 
   useEffect(() => {
-    // Sites switch themes with a media query or a class on <html>; the computed color-scheme reflects either.
-    const sync = () => {
-      host.dataset.theme = getComputedStyle(document.documentElement).colorScheme.includes("dark") ? "dark" : "light";
-    };
-    sync();
-    const media = matchMedia("(prefers-color-scheme: dark)");
-    media.addEventListener("change", sync);
-    const observer = new MutationObserver(sync);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style", "data-theme"] });
-    return () => {
-      media.removeEventListener("change", sync);
-      observer.disconnect();
-    };
-  }, [host]);
-
-  useEffect(() => {
-    api.config().then(setConfig, () => notify("Can't reach the esqe sidecar. Restart `next dev`.", "error"));
+    api
+      .config()
+      .then(setConfig)
+      .catch(() =>
+        setToast({
+          text: "Can't reach the esqe sidecar. Restart `next dev`.",
+          tone: "error",
+        })
+      );
   }, []);
 
-  useEffect(() => {
-    const check = () => setHasBlocks(document.querySelector(BLOCK_SELECTOR) !== null);
-    check();
-    const observer = new MutationObserver(check);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(MODE_KEY, mode);
-    } catch {}
-    document.documentElement.dataset.esqeMode = mode;
-    if (mode === "read") {
-      void closeRun();
-      setHover(null);
-      setMenu(null);
-    }
-    return () => {
-      delete document.documentElement.dataset.esqeMode;
-    };
-  }, [mode]);
-
-  async function closeRun() {
+  function closeRun(): Promise<void> {
     const current = runRef.current;
-    if (!current) return closing.current ?? undefined;
+    if (!current) {
+      return closing.current ?? Promise.resolve();
+    }
     closing.current = current.close().finally(() => {
       closing.current = null;
     });
     return closing.current;
   }
 
-  async function openRun(options: { block: Block; caret?: { x: number; y: number } } | { after: Block }) {
-    if (!config) return;
-    const anchor = "after" in options ? options.after : options.block;
-    const offset = "block" in options && options.caret ? textOffsetAt(anchor.el, options.caret.x, options.caret.y) : null;
+  useEffect(() => {
+    try {
+      localStorage.setItem(MODE_KEY, mode);
+    } catch {
+      // Storage can be blocked; the mode just isn't remembered.
+    }
+    document.documentElement.dataset.esqeMode = mode;
+    if (mode === "read") {
+      closeRun();
+    }
+    return () => {
+      delete document.documentElement.dataset.esqeMode;
+    };
+  }, [mode]);
+
+  async function openRun(target: OpenTarget) {
+    if (!config) {
+      return;
+    }
+    const anchor = "after" in target ? target.after : target.block;
+    const offset =
+      "block" in target && target.caret
+        ? textOffsetAt(anchor.el, target.caret.x, target.caret.y)
+        : null;
     await closeRun();
-    if (!anchor.el.isConnected) return;
+    if (!anchor.el.isConnected) {
+      return;
+    }
     const fresh = readBlock(anchor.el);
-    const blocks = "after" in options ? [] : runAround(fresh);
+    const blocks = "after" in target ? [] : runAround(fresh);
     const index = blocks.findIndex((b) => b.el === fresh.el);
 
     try {
       const next = await Run.open({
-        file: fresh.file,
+        after: "after" in target ? fresh : undefined,
         blocks,
-        after: "after" in options ? fresh : undefined,
         caret: index >= 0 ? { index, offset: offset ?? 0 } : undefined,
         config,
-        onError: (message) => notify(message, "error"),
+        file: fresh.file,
         onClose: () => setRun((value) => (value === next ? null : value)),
+        onError: (message) => notify(message, "error"),
       });
       lastFile.current = fresh.file;
       setRun(next);
-      setHover(null);
-      setMenu(null);
     } catch (error) {
-      notify(error instanceof Error ? error.message : String(error), "error");
+      notify(errorText(error), "error");
     }
   }
 
-  async function writeOps(block: Block, build: (source: string, blocks: Block[]) => ReturnType<typeof moveOps>) {
+  async function writeOps(
+    block: Block,
+    build: (source: string, blocks: Block[]) => Op[]
+  ) {
     setWriting(true);
     try {
       await closeRun();
       const { source, hash } = await api.source(block.file);
-      if (hash !== block.version) throw new Error("The page is behind the file. Wait for it to refresh.");
+      if (hash !== block.version) {
+        throw new Error("The page is behind the file. Wait for it to refresh.");
+      }
       const ops = build(source, fileBlocks(block.file));
-      if (ops.length) await api.ops(block.file, hash, ops);
+      if (ops.length > 0) {
+        await api.ops(block.file, hash, ops);
+      }
       lastFile.current = block.file;
     } catch (error) {
-      notify(error instanceof Error ? error.message : String(error), "error");
+      notify(errorText(error), "error");
     } finally {
       setWriting(false);
     }
   }
 
   async function undo() {
-    const file = lastFile.current ?? document.querySelector<HTMLElement>(BLOCK_SELECTOR)?.dataset.esqeFile;
-    if (!file) return;
+    const file =
+      lastFile.current ??
+      document.querySelector<HTMLElement>(BLOCK_SELECTOR)?.dataset.esqeFile;
+    if (!file) {
+      return;
+    }
     try {
       await api.undo(file);
       notify("Undone");
     } catch (error) {
-      notify(error instanceof Error ? error.message : String(error), "error");
+      notify(errorText(error), "error");
     }
   }
 
+  useShortcuts({
+    editing: mode === "edit",
+    hasRun: () => runRef.current !== null,
+    onToggle: () => setMode(toggled),
+    onUndo: undo,
+  });
+
+  if (!(hasBlocks && config)) {
+    return toast ? <Status {...toast} /> : null;
+  }
+
+  const editing = mode === "edit";
+  const busy = snapshot.saving || writing || snapshot.busy !== null;
+  const status = snapshot.busy
+    ? { text: snapshot.busy, tone: "info" as const }
+    : toast;
+
+  return (
+    <div className="layer">
+      {editing && (
+        <BlockControls
+          host={host}
+          onActivate={(target) => openRun(target)}
+          onDelete={(block) =>
+            writeOps(block, (source, blocks) =>
+              deleteOps(source, blocks, block)
+            )
+          }
+          onMove={(block, target) =>
+            writeOps(block, (source, blocks) =>
+              moveOps(source, blocks, block, target)
+            )
+          }
+          onOutside={() => closeRun()}
+          run={run}
+        />
+      )}
+      {run &&
+        (snapshot.slash ? (
+          <Slash config={config} run={run} snapshot={snapshot} />
+        ) : (
+          <Bubble config={config} run={run} tick={snapshot.selection} />
+        ))}
+      <Trigger
+        busy={busy}
+        editing={editing}
+        onToggle={() => setMode(toggled)}
+      />
+      {status && <Status {...status} />}
+    </div>
+  );
+}
+
+const toggled = (mode: Mode): Mode => (mode === "edit" ? "read" : "edit");
+
+function useShortcuts(options: {
+  editing: boolean;
+  hasRun: () => boolean;
+  onToggle: () => void;
+  onUndo: () => void;
+}) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const mod = event.metaKey || event.ctrlKey;
-      if (mod && event.shiftKey && event.key.toLowerCase() === "e") {
+      const key = event.key.toLowerCase();
+      if (mod && event.shiftKey && key === "e") {
         event.preventDefault();
-        setMode((value) => (value === "edit" ? "read" : "edit"));
+        options.onToggle();
         return;
       }
-      if (mode !== "edit" || runRef.current || !mod || event.shiftKey || event.key.toLowerCase() !== "z") return;
-      const active = document.activeElement;
-      if (active instanceof HTMLElement && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))) return;
+      if (
+        !(options.editing && mod) ||
+        event.shiftKey ||
+        key !== "z" ||
+        options.hasRun() ||
+        isTyping()
+      ) {
+        return;
+      }
       event.preventDefault();
-      void undo();
+      options.onUndo();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+}
+
+function isTyping() {
+  const active = document.activeElement;
+  return (
+    active instanceof HTMLElement &&
+    (active.isContentEditable ||
+      /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))
+  );
+}
+
+function Trigger({
+  busy,
+  editing,
+  onToggle,
+}: {
+  busy: boolean;
+  editing: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <button
+        aria-label={editing ? "Stop editing" : "Edit this page"}
+        aria-pressed={editing}
+        className="trigger"
+        data-busy={busy ? "" : undefined}
+        data-mode={editing ? "edit" : "read"}
+        onClick={onToggle}
+        type="button"
+      >
+        <span className="mark" />
+      </button>
+      <div className="label">
+        {editing ? "Stop editing" : "Edit page"} <kbd>⌘⇧E</kbd>
+      </div>
+    </>
+  );
+}
+
+interface BlockControlsProps {
+  host: HTMLElement;
+  onActivate: (target: OpenTarget) => void;
+  onDelete: (block: Block) => void;
+  onMove: (block: Block, target: Block | null) => void;
+  onOutside: () => void;
+  run: Run | null;
+}
+
+/** Hover outline, the gutter's add and drag handles, the drop line and the block menu. */
+function BlockControls({
+  host,
+  run,
+  onActivate,
+  onMove,
+  onDelete,
+  onOutside,
+}: BlockControlsProps) {
+  const [hover, setHover] = useState<Hover | null>(null);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const [menu, setMenu] = useState<Hover | null>(null);
 
   useEffect(() => {
-    if (mode !== "edit") return;
     let frame = 0;
     let pointer = { x: -1, y: -1 };
 
     const measure = () => {
       frame = 0;
-      if (drag) return;
       const block = hitTest(pointer.x, pointer.y);
       const rect = block && blockRect(block.el);
       setHover(block && rect ? { block, rect: toRect(rect) } : null);
     };
-    const onMove = (event: PointerEvent) => {
-      if (event.composedPath().includes(host)) return;
+    const schedule = () => {
+      frame ||= requestAnimationFrame(measure);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.composedPath().includes(host)) {
+        return;
+      }
       pointer = { x: event.clientX, y: event.clientY };
-      frame ||= requestAnimationFrame(measure);
+      schedule();
     };
-    const onScroll = () => {
-      frame ||= requestAnimationFrame(measure);
-    };
-
     const onPointerDown = (event: PointerEvent) => {
-      if (event.composedPath().includes(host)) return;
+      if (event.composedPath().includes(host)) {
+        return;
+      }
       setMenu(null);
-      const current = runRef.current;
-      if (current && !current.root.contains(event.target as Node)) void closeRun();
+      if (run && !run.root.contains(event.target as Node)) {
+        onOutside();
+      }
     };
-
     const onClick = (event: MouseEvent) => {
-      if (event.composedPath().includes(host)) return;
+      if (event.composedPath().includes(host)) {
+        return;
+      }
       const target = event.target as Element;
-      if (runRef.current?.root.contains(target)) {
-        if (target.closest("a")) event.preventDefault();
+      if (run?.root.contains(target)) {
+        if (target.closest("a")) {
+          event.preventDefault();
+        }
         return;
       }
       const wrapper = target.closest<HTMLElement>(BLOCK_SELECTOR);
-      if (!wrapper) return;
-      const block = readBlock(wrapper);
-      if (!EDITABLE.has(block.type)) return;
+      const block = wrapper && readBlock(wrapper);
+      if (!(block && EDITABLE.has(block.type))) {
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
-      void openRun({ block, caret: { x: event.clientX, y: event.clientY } });
+      setHover(null);
+      onActivate({ block, caret: { x: event.clientX, y: event.clientY } });
     };
 
-    document.addEventListener("pointermove", onMove, { passive: true });
+    document.addEventListener("pointermove", onPointerMove, { passive: true });
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("click", onClick, true);
-    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("scroll", schedule, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("resize", schedule);
     return () => {
       cancelAnimationFrame(frame);
-      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("click", onClick, true);
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("resize", schedule);
     };
   });
 
-  const startDrag = (event: React.PointerEvent<HTMLButtonElement>, block: Block) => {
+  const startDrag = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    block: Block
+  ) => {
     event.preventDefault();
     const origin = { x: event.clientX, y: event.clientY };
     let moved = false;
-    setDrag({ block, line: null, target: null, moved: false });
+    setDrag({ block, line: null, moved: false });
 
     // On window, not the grip: the gutter unmounts once the drag starts.
-    const onMove = (move: PointerEvent) => {
-      if (!moved && Math.hypot(move.clientX - origin.x, move.clientY - origin.y) < 4) return;
+    const onPointerMove = (move: PointerEvent) => {
+      if (
+        !moved &&
+        Math.hypot(move.clientX - origin.x, move.clientY - origin.y) < 4
+      ) {
+        return;
+      }
       moved = true;
-      setDrag({ block, ...dropTarget(block, move.clientY), moved: true });
+      setDrag({
+        block,
+        line: dropTarget(block, move.clientY).line,
+        moved: true,
+      });
     };
-    const onUp = (up: PointerEvent) => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+    const onPointerUp = (up: PointerEvent) => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
       setDrag(null);
+      setHover(null);
       if (moved) {
-        const { target } = dropTarget(block, up.clientY);
-        void writeOps(block, (source, blocks) => moveOps(source, blocks, block, target));
-      } else {
-        const rect = blockRect(block.el);
-        if (rect) setMenu({ block, rect: toRect(rect) });
+        onMove(block, dropTarget(block, up.clientY).target);
+        return;
+      }
+      const rect = blockRect(block.el);
+      if (rect) {
+        setMenu({ block, rect: toRect(rect) });
       }
     };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
   };
 
-  if (!hasBlocks || !config) return toast ? <Toast {...toast} /> : null;
-
-  const editing = mode === "edit";
-  const editor = run?.editor;
+  const dragged = drag?.moved ? blockRect(drag.block.el) : null;
 
   return (
-    <div className="layer">
-      {editing && hover && !drag && !menu && (
+    <>
+      {hover && !drag && !menu && (
         <>
           <div className="outline" style={box(hover.rect, 4)} />
-          <div className="gutter" style={{ left: hover.rect.left - 50, top: hover.rect.top }}>
-            <button aria-label="Add a paragraph below" onClick={() => void openRun({ after: hover.block })} type="button">
+          <div
+            className="gutter"
+            style={{ left: hover.rect.left - 50, top: hover.rect.top }}
+          >
+            <button
+              aria-label="Add a paragraph below"
+              onClick={() => onActivate({ after: hover.block })}
+              type="button"
+            >
               <PlusIcon />
             </button>
             <button
@@ -285,53 +505,42 @@ export function Chrome({ host }: { host: HTMLElement }) {
           </div>
         </>
       )}
-
-      {drag?.moved && (() => {
-        const rect = blockRect(drag.block.el);
-        return rect ? <div className="outline dragging" style={box(toRect(rect), 4)} /> : null;
-      })()}
-      {drag?.line && <div className="indicator" style={{ left: drag.line.left, top: drag.line.top, width: drag.line.width }} />}
-
+      {dragged && (
+        <div className="outline dragging" style={box(toRect(dragged), 4)} />
+      )}
+      {drag?.line && (
+        <div
+          className="indicator"
+          style={{
+            left: drag.line.left,
+            top: drag.line.top,
+            width: drag.line.width,
+          }}
+        />
+      )}
       {menu && (
-        <div className="panel menu" style={{ left: menu.rect.left - 50, top: menu.rect.top + 28 }}>
+        <div
+          className="panel menu"
+          style={{ left: menu.rect.left - 50, top: menu.rect.top + 28 }}
+        >
           <MenuItem
             label="Add paragraph below"
             onSelect={() => {
               setMenu(null);
-              void openRun({ after: menu.block });
+              onActivate({ after: menu.block });
             }}
           />
           <MenuItem
             label="Delete block"
             onSelect={() => {
               setMenu(null);
-              void writeOps(menu.block, (source, blocks) => deleteOps(source, blocks, menu.block));
+              onDelete(menu.block);
             }}
             tone="danger"
           />
         </div>
       )}
-
-      {editor && run && !snapshot.slash && <Bubble config={config} run={run} tick={snapshot.selection} />}
-      {editor && run && snapshot.slash && <Slash config={config} run={run} snapshot={snapshot} />}
-
-      <button
-        aria-label={editing ? "Stop editing" : "Edit this page"}
-        aria-pressed={editing}
-        className="trigger"
-        data-busy={snapshot.saving || writing || snapshot.busy ? "" : undefined}
-        data-mode={mode}
-        onClick={() => setMode(editing ? "read" : "edit")}
-        type="button"
-      >
-        <FeatherIcon />
-      </button>
-      <div className="label">
-        {editing ? "Stop editing" : "Edit page"} <kbd>⌘⇧E</kbd>
-      </div>
-
-      {(toast || snapshot.busy) && <Toast text={snapshot.busy ?? toast?.text ?? ""} tone={snapshot.busy ? "info" : (toast?.tone ?? "info")} />}
-    </div>
+    </>
   );
 }
 
@@ -339,16 +548,32 @@ function hitTest(x: number, y: number): Block | null {
   let best: { block: Block; area: number } | null = null;
   for (const el of document.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)) {
     const rect = blockRect(el);
-    if (!rect) continue;
-    if (y < rect.top - 4 || y > rect.bottom + 4 || x < rect.left - 64 || x > rect.right + 16) continue;
+    if (!rect) {
+      continue;
+    }
+    if (
+      y < rect.top - 4 ||
+      y > rect.bottom + 4 ||
+      x < rect.left - 64 ||
+      x > rect.right + 16
+    ) {
+      continue;
+    }
     const area = rect.width * rect.height;
-    if (!best || area < best.area) best = { block: readBlock(el), area };
+    if (!best || area < best.area) {
+      best = { area, block: readBlock(el) };
+    }
   }
   return best?.block ?? null;
 }
 
-function dropTarget(block: Block, y: number): { line: Rect | null; target: Block | null } {
-  const siblings = fileBlocks(block.file).filter((b) => b.el.parentElement === block.el.parentElement);
+function dropTarget(
+  block: Block,
+  y: number
+): { line: Rect | null; target: Block | null } {
+  const siblings = fileBlocks(block.file).filter(
+    (b) => b.el.parentElement === block.el.parentElement
+  );
   const own = blockRect(block.el);
   const left = own?.left ?? 0;
   const width = own?.width ?? 0;
@@ -356,22 +581,43 @@ function dropTarget(block: Block, y: number): { line: Rect | null; target: Block
 
   for (const sibling of siblings) {
     const rect = blockRect(sibling.el);
-    if (!rect) continue;
+    if (!rect) {
+      continue;
+    }
     if (y < rect.top + rect.height / 2) {
-      const top = previousBottom === null ? rect.top - 6 : (previousBottom + rect.top) / 2 - 1;
-      return { line: { left, top, width, height: 2 }, target: sibling };
+      const top =
+        previousBottom === null
+          ? rect.top - 6
+          : (previousBottom + rect.top) / 2 - 1;
+      return { line: { height: 2, left, top, width }, target: sibling };
     }
     previousBottom = rect.bottom;
   }
-  return { line: previousBottom === null ? null : { left, top: previousBottom + 6, width, height: 2 }, target: null };
+  return {
+    line:
+      previousBottom === null
+        ? null
+        : { height: 2, left, top: previousBottom + 6, width },
+    target: null,
+  };
 }
 
 function toRect(rect: DOMRect): Rect {
-  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+  return {
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+  };
 }
 
 function box(rect: Rect, pad: number) {
-  return { left: rect.left - pad, top: rect.top - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 };
+  return {
+    height: rect.height + pad * 2,
+    left: rect.left - pad,
+    top: rect.top - pad,
+    width: rect.width + pad * 2,
+  };
 }
 
 function MenuItem({
@@ -385,7 +631,7 @@ function MenuItem({
   hint?: string;
   active?: boolean;
   tone?: "danger";
-  onSelect(): void;
+  onSelect: () => void;
 }) {
   return (
     <button
@@ -401,53 +647,138 @@ function MenuItem({
   );
 }
 
-function Bubble({ run, config }: { run: Run; config: ClientConfig; tick: number }) {
+function Bubble({
+  run,
+  config,
+}: {
+  run: Run;
+  config: ClientConfig;
+  tick: number;
+}) {
   const { editor } = run;
-  const [linking, setLinking] = useState<string | null>(null);
   const { from, to, empty } = editor.state.selection;
+  // Tied to where it was opened, so moving the selection closes the link field without an effect.
+  const [linkDraft, setLinkDraft] = useState<{
+    from: number;
+    href: string;
+  } | null>(null);
+  const linking = linkDraft && linkDraft.from === from ? linkDraft.href : null;
+  const setLinking = (href: string | null) =>
+    setLinkDraft(href === null ? null : { from, href });
   const inCode = editor.isActive("codeBlock");
 
-  useEffect(() => {
-    if (empty) setLinking(null);
-  }, [empty]);
-
-  if (empty || inCode || !editor.view.hasFocus() && linking === null) return null;
+  if (empty || inCode || (!editor.view.hasFocus() && linking === null)) {
+    return null;
+  }
 
   const start = editor.view.coordsAtPos(from);
   const end = editor.view.coordsAtPos(to);
   const top = Math.min(start.top, end.top) - 48;
-  const left = Math.max(12, Math.min((start.left + end.right) / 2, window.innerWidth - 12));
+  const left = Math.max(
+    12,
+    Math.min((start.left + end.right) / 2, window.innerWidth - 12)
+  );
 
   const chain = () => editor.chain().focus();
-  const button = (label: ReactNode, name: string, active: boolean, action: () => void) => (
-    <button aria-label={name} aria-pressed={active} key={name} onClick={action} onMouseDown={(e) => e.preventDefault()} type="button">
+  const button = (
+    label: ReactNode,
+    name: string,
+    active: boolean,
+    action: () => void
+  ) => (
+    <button
+      aria-label={name}
+      aria-pressed={active}
+      key={name}
+      onClick={action}
+      onMouseDown={(e) => e.preventDefault()}
+      type="button"
+    >
       {label}
     </button>
   );
 
   const toggleJsxMark = (mark: ClientConfig["marks"][number]) => {
     const type = editor.schema.marks.jsx;
-    const instance = type.create({ open: markOpen(mark), close: `</${mark.tag}>`, name: mark.tag });
+    const instance = type.create({
+      close: `</${mark.tag}>`,
+      name: mark.tag,
+      open: markOpen(mark),
+    });
     const active = editor.isActive("jsx", { open: markOpen(mark) });
     editor
       .chain()
       .focus()
       .command(({ tr }) => {
-        if (active) tr.removeMark(from, to, instance);
-        else tr.addMark(from, to, instance);
+        if (active) {
+          tr.removeMark(from, to, instance);
+        } else {
+          tr.addMark(from, to, instance);
+        }
         return true;
       })
       .run();
   };
 
   return (
-    <div className="panel toolbar" style={{ left, top: Math.max(8, top), transform: "translateX(-50%)" }}>
-      {linking !== null ? (
+    <div
+      className="panel toolbar"
+      style={{ left, top: Math.max(8, top), transform: "translateX(-50%)" }}
+    >
+      {linking === null ? (
+        <>
+          {button("Text", "Text", editor.isActive("paragraph"), () =>
+            chain().setParagraph().run()
+          )}
+          {button(
+            "H2",
+            "Heading 2",
+            editor.isActive("heading", { level: 2 }),
+            () => chain().toggleHeading({ level: 2 }).run()
+          )}
+          {button(
+            "H3",
+            "Heading 3",
+            editor.isActive("heading", { level: 3 }),
+            () => chain().toggleHeading({ level: 3 }).run()
+          )}
+          <span className="sep" />
+          {button(<b>B</b>, "Bold", editor.isActive("bold"), () =>
+            chain().toggleBold().run()
+          )}
+          {button(<i>I</i>, "Italic", editor.isActive("italic"), () =>
+            chain().toggleItalic().run()
+          )}
+          {button(<CodeIcon />, "Code", editor.isActive("code"), () =>
+            chain().toggleCode().run()
+          )}
+          {button(<LinkIcon />, "Link", editor.isActive("link"), () =>
+            setLinking(
+              (editor.getAttributes("link").href as string | undefined) ?? ""
+            )
+          )}
+          {config.marks.length > 0 && <span className="sep" />}
+          {config.marks.map((mark) =>
+            button(
+              mark.name,
+              mark.name,
+              editor.isActive("jsx", { open: markOpen(mark) }),
+              () => toggleJsxMark(mark)
+            )
+          )}
+        </>
+      ) : (
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (linking.trim()) chain().extendMarkRange("link").setLink({ href: linking.trim() }).run();
-            else chain().extendMarkRange("link").unsetLink().run();
+            if (linking.trim()) {
+              chain()
+                .extendMarkRange("link")
+                .setLink({ href: linking.trim() })
+                .run();
+            } else {
+              chain().extendMarkRange("link").unsetLink().run();
+            }
             setLinking(null);
           }}
         >
@@ -465,33 +796,16 @@ function Bubble({ run, config }: { run: Run; config: ClientConfig; tick: number 
             value={linking}
           />
         </form>
-      ) : (
-        <>
-          {button("Text", "Text", editor.isActive("paragraph"), () => chain().setParagraph().run())}
-          {button("H2", "Heading 2", editor.isActive("heading", { level: 2 }), () => chain().toggleHeading({ level: 2 }).run())}
-          {button("H3", "Heading 3", editor.isActive("heading", { level: 3 }), () => chain().toggleHeading({ level: 3 }).run())}
-          <span className="sep" />
-          {button(<b>B</b>, "Bold", editor.isActive("bold"), () => chain().toggleBold().run())}
-          {button(<i>I</i>, "Italic", editor.isActive("italic"), () => chain().toggleItalic().run())}
-          {button(<CodeIcon />, "Code", editor.isActive("code"), () => chain().toggleCode().run())}
-          {button(<LinkIcon />, "Link", editor.isActive("link"), () =>
-            setLinking((editor.getAttributes("link").href as string | undefined) ?? "")
-          )}
-          {config.marks.length > 0 && <span className="sep" />}
-          {config.marks.map((mark) =>
-            button(mark.name, mark.name, editor.isActive("jsx", { open: markOpen(mark) }), () => toggleJsxMark(mark))
-          )}
-        </>
       )}
     </div>
   );
 }
 
 interface SlashItem {
+  apply: (run: Run) => void;
+  hint?: string;
   id: string;
   label: string;
-  hint?: string;
-  apply(run: Run): void;
 }
 
 function slashItems(config: ClientConfig, run: Run): SlashItem[] {
@@ -506,54 +820,83 @@ function slashItems(config: ClientConfig, run: Run): SlashItem[] {
     input.accept = accept;
     input.onchange = () => {
       const file = input.files?.[0];
-      if (file) void r.insertMedia(file);
+      if (file) {
+        void r.insertMedia(file);
+      }
     };
     input.click();
   };
   return [
-    { id: "text", label: "Text", apply: (r) => r.clearSlashText() },
-    { id: "h2", label: "Heading 2", hint: "##", apply: heading(2) },
-    { id: "h3", label: "Heading 3", hint: "###", apply: heading(3) },
-    { id: "h1", label: "Heading 1", hint: "#", apply: heading(1) },
+    { apply: (r) => r.clearSlashText(), id: "text", label: "Text" },
+    { apply: heading(2), hint: "##", id: "h2", label: "Heading 2" },
+    { apply: heading(3), hint: "###", id: "h3", label: "Heading 3" },
+    { apply: heading(1), hint: "#", id: "h1", label: "Heading 1" },
     {
-      id: "code",
-      label: "Code block",
-      hint: "```",
       apply: (r) => {
         r.clearSlashText();
         r.editor.chain().focus().setCodeBlock().run();
       },
+      hint: "```",
+      id: "code",
+      label: "Code block",
     },
-    ...(run.usesSpacers ? [{ id: "spacer", label: "Spacer", hint: "<br />", apply: (r: Run) => r.insertSpacer() }] : []),
-    { id: "image", label: "Image", hint: "upload", apply: pick("image/*") },
-    { id: "video", label: "Video", hint: "upload", apply: pick("video/*") },
+    ...(run.usesSpacers
+      ? [
+          {
+            apply: (r: Run) => r.insertSpacer(),
+            hint: "<br />",
+            id: "spacer",
+            label: "Spacer",
+          },
+        ]
+      : []),
+    { apply: pick("image/*"), hint: "upload", id: "image", label: "Image" },
+    { apply: pick("video/*"), hint: "upload", id: "video", label: "Video" },
     ...config.snippets.map((snippet) => ({
-      id: `snippet:${snippet.name}`,
-      label: snippet.name,
-      hint: snippet.source.length > 24 ? `${snippet.source.slice(0, 22)}…` : snippet.source,
       apply: (r: Run) => {
         r.clearSlashText();
         r.insertBlock(snippet.source);
       },
+      hint:
+        snippet.source.length > 24
+          ? `${snippet.source.slice(0, 22)}…`
+          : snippet.source,
+      id: `snippet:${snippet.name}`,
+      label: snippet.name,
     })),
   ];
 }
 
-function Slash({ run, config, snapshot }: { run: Run; config: ClientConfig; snapshot: RunSnapshot }) {
+function Slash({
+  run,
+  config,
+  snapshot,
+}: {
+  run: Run;
+  config: ClientConfig;
+  snapshot: RunSnapshot;
+}) {
   const slash = snapshot.slash;
-  const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const query = slash?.query.trim().toLowerCase() ?? "";
-  const items = slashItems(config, run).filter((item) => item.label.toLowerCase().includes(query));
+  // Keyed by the query, so typing resets the highlight to the first match.
+  const [highlight, setHighlight] = useState({ index: 0, query });
+  const active = highlight.query === query ? highlight.index : 0;
+  const setActive = (next: (index: number) => number) =>
+    setHighlight({ index: next(active), query });
+  const items = slashItems(config, run).filter((item) =>
+    item.label.toLowerCase().includes(query)
+  );
 
   useEffect(() => {
-    setActive(0);
-  }, [query]);
-
-  useEffect(() => {
-    run.slashKeys = (event) => {
-      if (dismissed || items.length === 0) return false;
-      if (event.key === "ArrowDown" || (event.key === "Tab" && !event.shiftKey)) {
+    run.setSlashKeys((event) => {
+      if (dismissed || items.length === 0) {
+        return false;
+      }
+      if (
+        event.key === "ArrowDown" ||
+        (event.key === "Tab" && !event.shiftKey)
+      ) {
         setActive((index) => (index + 1) % items.length);
         return true;
       }
@@ -570,13 +913,13 @@ function Slash({ run, config, snapshot }: { run: Run; config: ClientConfig; snap
         return true;
       }
       return false;
-    };
-    return () => {
-      run.slashKeys = null;
-    };
+    });
+    return () => run.setSlashKeys(null);
   });
 
-  if (!slash || dismissed || items.length === 0) return null;
+  if (!slash || dismissed || items.length === 0) {
+    return null;
+  }
   const below = slash.rect.bottom + 6;
   const top = below + 320 > window.innerHeight ? slash.rect.top - 6 : below;
 
@@ -584,16 +927,26 @@ function Slash({ run, config, snapshot }: { run: Run; config: ClientConfig; snap
     <div
       className="panel menu"
       role="listbox"
-      style={{ left: slash.rect.left, top, transform: top < below ? "translateY(-100%)" : undefined }}
+      style={{
+        left: slash.rect.left,
+        top,
+        transform: top < below ? "translateY(-100%)" : undefined,
+      }}
     >
       {items.map((item, index) => (
-        <MenuItem active={index === active} hint={item.hint} key={item.id} label={item.label} onSelect={() => item.apply(run)} />
+        <MenuItem
+          active={index === active}
+          hint={item.hint}
+          key={item.id}
+          label={item.label}
+          onSelect={() => item.apply(run)}
+        />
       ))}
     </div>
   );
 }
 
-function Toast({ text, tone }: { text: string; tone: "info" | "error" }) {
+function Status({ text, tone }: { text: string; tone: "info" | "error" }) {
   return (
     <div className="toast" data-tone={tone} role="status">
       {text}
@@ -601,38 +954,64 @@ function Toast({ text, tone }: { text: string; tone: "info" | "error" }) {
   );
 }
 
-// central-icons IconFeather (round-filled-radius-3-stroke-2), used under Jakub's Central Icons license.
-const FeatherIcon = () => (
-  <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
+const PlusIcon = () => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="14"
+    viewBox="0 0 16 16"
+    width="14"
+  >
     <path
-      clipRule="evenodd"
-      d="M19.659 6.15104C20.2637 5.01081 20.0195 3.81804 19.2828 3.01152C18.5709 2.2321 17.4389 1.84265 16.2688 2.05967C11.6838 2.91008 8.58259 5.56118 6.65681 9.06061C4.75002 12.5255 4 16.8034 4 21C4 21.5523 4.44772 22 5 22C5.55228 22 6 21.5523 6 21C6 20.3169 6.02104 19.6361 6.06439 18.9615C12.1381 18.9315 15.3042 15.9958 16.7859 13.8402C17.709 12.4972 17.3596 10.9668 16.4649 9.91497C16.6308 9.7779 16.8102 9.62401 16.9979 9.45433C17.8512 8.68296 18.9178 7.54865 19.659 6.15104Z"
-      fill="currentColor"
-      fillRule="evenodd"
+      d="M8 3v10M3 8h10"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="1.5"
     />
   </svg>
 );
 
-const PlusIcon = () => (
-  <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 16 16" width="14">
-    <path d="M8 3v10M3 8h10" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" />
-  </svg>
-);
-
 const GripIcon = () => (
-  <svg aria-hidden="true" fill="currentColor" height="14" viewBox="0 0 16 16" width="14">
-    {[4, 8, 12].flatMap((y) => [<circle cx="6" cy={y} key={`a${y}`} r="1.2" />, <circle cx="10" cy={y} key={`b${y}`} r="1.2" />])}
+  <svg
+    aria-hidden="true"
+    fill="currentColor"
+    height="14"
+    viewBox="0 0 16 16"
+    width="14"
+  >
+    {[4, 8, 12].flatMap((y) => [
+      <circle cx="6" cy={y} key={`a${y}`} r="1.2" />,
+      <circle cx="10" cy={y} key={`b${y}`} r="1.2" />,
+    ])}
   </svg>
 );
 
 const CodeIcon = () => (
-  <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 16 16" width="14">
-    <path d="M6 4 2 8l4 4M10 4l4 4-4 4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="14"
+    viewBox="0 0 16 16"
+    width="14"
+  >
+    <path
+      d="M6 4 2 8l4 4M10 4l4 4-4 4"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+    />
   </svg>
 );
 
 const LinkIcon = () => (
-  <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 16 16" width="14">
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="14"
+    viewBox="0 0 16 16"
+    width="14"
+  >
     <path
       d="M7 9a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.6.6M9 7a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.6-.6"
       stroke="currentColor"
@@ -687,7 +1066,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .trigger:active { transform: scale(0.96); }
 .trigger:focus-visible { box-shadow: var(--shadow), 0 0 0 4px rgb(0 0 0 / 0.1); }
 .trigger[data-mode="edit"] { color: var(--text); box-shadow: 0 0 0 1.5px var(--sky), var(--shadow); }
-.trigger[data-busy] svg { animation: pulse 900ms ease-in-out infinite; }
+.mark { width: 10px; height: 10px; border-radius: 2px; background: currentColor; }
+.trigger[data-busy] .mark { animation: pulse 900ms ease-in-out infinite; }
 .label, .toast {
   position: fixed; left: calc(64px + env(safe-area-inset-left)); bottom: calc(23px + env(safe-area-inset-bottom));
   padding: 6px 12px; border-radius: 8px; white-space: nowrap;
