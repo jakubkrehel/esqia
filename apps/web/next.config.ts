@@ -1,8 +1,8 @@
 import path from "node:path";
-import { withEsqe } from "@esqe/esqe/next";
 import createMDX from "@next/mdx";
 import pierreDarkVibrant from "@pierre/theme/pierre-dark-vibrant";
 import pierreLightVibrant from "@pierre/theme/pierre-light-vibrant";
+import { withEsqe } from "esqe-dev/next";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -29,7 +29,7 @@ const withMDX = createMDX({
     ],
     remarkPlugins: [
       ["remark-smartypants", { dashes: false }],
-      ...(process.env.NODE_ENV === "development" ? ["@esqe/esqe/remark"] : []),
+      ...(process.env.NODE_ENV === "development" ? ["esqe-dev/remark"] : []),
     ],
   },
 });

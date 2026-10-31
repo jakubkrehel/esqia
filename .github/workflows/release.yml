@@ -18,5 +18,5 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm install --global npm@12.2.1
-      - run: pnpm install --frozen-lockfile --filter @esqe/esqe
+      - run: pnpm install --frozen-lockfile --filter esqe-dev
       - run: npm publish

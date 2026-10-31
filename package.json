@@ -1,5 +1,5 @@
 {
-  "name": "@esqe/esqe",
+  "name": "esqe-dev",
   "version": "0.1.1",
   "description": "Edit your MDX from the rendered page while you write. A dev-only editor for Next.js.",
   "keywords": [
@@ -96,8 +96,5 @@
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
   },
-  "packageManager": "pnpm@12.15.0",
-  "publishConfig": {
-    "access": "public"
-  }
+  "packageManager": "pnpm@12.15.0"
 }
