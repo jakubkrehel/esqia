@@ -2,7 +2,7 @@
   "name": "web",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter esqe-dev build && next build",
+    "build": "pnpm --filter esqia build && next build",
     "dev": "next dev",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit"
@@ -11,7 +11,7 @@
     "@mdx-js/loader": "^3.1.1",
     "@next/mdx": "^16.4.3",
     "@pierre/theme": "^2.0.0",
-    "esqe-dev": "workspace:*",
+    "esqia": "workspace:*",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",

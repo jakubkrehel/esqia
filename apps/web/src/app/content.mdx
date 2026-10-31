@@ -25,18 +25,18 @@ The editor renders with your site's own styles. What you see while typing is wha
 ## Install
 
 ```sh
-pnpm add -D esqe-dev
+pnpm add -D esqia
 ```
 
 Add the remark plugin last and wrap your config.
 
 ```ts title="next.config.ts"
-import { withEsqe } from "esqe-dev/next";
+import { withEsqe } from "esqia/next";
 
 const withMDX = createMDX({
   options: {
     remarkPlugins: [
-      ...(process.env.NODE_ENV === "development" ? ["esqe-dev/remark"] : []),
+      ...(process.env.NODE_ENV === "development" ? ["esqia/remark"] : []),
     ],
   },
 });
@@ -47,7 +47,7 @@ export default withEsqe(withMDX(nextConfig));
 Then mount it once in your root layout.
 
 ```tsx title="app/layout.tsx"
-import { Esqe } from "esqe-dev";
+import { Esqe } from "esqia";
 
 {process.env.NODE_ENV === "development" && <Esqe />}
 ```
