@@ -27,10 +27,19 @@ interface Rect {
   top: number;
   width: number;
 }
-interface Hover {
-  block: Block;
+/** Where a block's outline and handles go. */
+interface Geometry {
+  handleTop: number;
+  radius: number;
   rect: Rect;
 }
+interface Hover extends Geometry {
+  block: Block;
+}
+
+const PAD = 4;
+const HANDLE = 24;
+const HANDLE_GAP = 4;
 interface Drag {
   block: Block;
   line: Rect | null;
@@ -372,8 +381,8 @@ function BlockControls({
     const measure = () => {
       frame = 0;
       const block = hitTest(pointer.x, pointer.y);
-      const rect = block && blockRect(block.el);
-      setHover(block && rect ? { block, rect: toRect(rect) } : null);
+      const geometry = block && measureBlock(block);
+      setHover(block && geometry ? { block, ...geometry } : null);
     };
     const schedule = () => {
       frame ||= requestAnimationFrame(measure);
@@ -467,29 +476,34 @@ function BlockControls({
         onMove(block, dropTarget(block, up.clientY).target);
         return;
       }
-      const rect = blockRect(block.el);
-      if (rect) {
-        setMenu({ block, rect: toRect(rect) });
+      const geometry = measureBlock(block);
+      if (geometry) {
+        setMenu({ block, ...geometry });
       }
     };
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
   };
 
-  const dragged = drag?.moved ? blockRect(drag.block.el) : null;
+  const current = drag ? measureBlock(drag.block) : hover;
+  const block = drag?.block ?? hover?.block;
+  const showControls = current && block && !menu;
 
   return (
     <>
-      {hover && !drag && !menu && (
+      {showControls && (
         <>
-          <div className="outline" style={box(hover.rect, 4)} />
           <div
-            className="gutter"
-            style={{ left: hover.rect.left - 50, top: hover.rect.top }}
-          >
+            className={drag?.moved ? "outline dragging" : "outline"}
+            style={{
+              ...box(current.rect, PAD),
+              borderRadius: current.radius + PAD,
+            }}
+          />
+          <div className="gutter" style={gutterPosition(current)}>
             <button
               aria-label="Add a paragraph below"
-              onClick={() => onActivate({ after: hover.block })}
+              onClick={() => onActivate({ after: block })}
               type="button"
             >
               <PlusIcon />
@@ -497,16 +511,14 @@ function BlockControls({
             <button
               aria-label="Drag to move, click for options"
               className="grip"
-              onPointerDown={(event) => startDrag(event, hover.block)}
+              data-active={drag ? "" : undefined}
+              onPointerDown={(event) => startDrag(event, block)}
               type="button"
             >
               <GripIcon />
             </button>
           </div>
         </>
-      )}
-      {dragged && (
-        <div className="outline dragging" style={box(toRect(dragged), 4)} />
       )}
       {drag?.line && (
         <div
@@ -521,7 +533,10 @@ function BlockControls({
       {menu && (
         <div
           className="panel menu"
-          style={{ left: menu.rect.left - 50, top: menu.rect.top + 28 }}
+          style={{
+            left: gutterPosition(menu).left,
+            top: menu.handleTop + HANDLE + 6,
+          }}
         >
           <MenuItem
             label="Add paragraph below"
@@ -599,6 +614,49 @@ function dropTarget(
         ? null
         : { height: 2, left, top: previousBottom + 6, width },
     target: null,
+  };
+}
+
+function measureBlock(block: Block): Geometry | null {
+  const rect = blockRect(block.el);
+  if (!rect) {
+    return null;
+  }
+  const first = block.el.firstElementChild;
+  const radius = first
+    ? Number.parseFloat(getComputedStyle(first).borderTopLeftRadius) || 0
+    : 0;
+  const line = firstLineRect(block.el);
+  // Centre on the first line of text when it starts near the top, like the title row of a code block.
+  const center =
+    line && line.top - rect.top < 64
+      ? line.top + line.height / 2
+      : rect.top + HANDLE / 2;
+  return { handleTop: center - HANDLE / 2, radius, rect: toRect(rect) };
+}
+
+function firstLineRect(el: HTMLElement): DOMRect | null {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) =>
+      node.textContent?.trim()
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_SKIP,
+  });
+  const text = walker.nextNode();
+  if (!text?.textContent) {
+    return null;
+  }
+  const start = text.textContent.search(/\S/);
+  const range = document.createRange();
+  range.setStart(text, start);
+  range.setEnd(text, start + 1);
+  return range.getClientRects()[0] ?? null;
+}
+
+function gutterPosition(geometry: Geometry) {
+  return {
+    left: geometry.rect.left - PAD - HANDLE_GAP - (HANDLE * 2 + 2),
+    top: geometry.handleTop,
   };
 }
 
@@ -1080,15 +1138,15 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 kbd { font: inherit; color: var(--faint); margin-left: 4px; }
 .outline {
   position: fixed; border-radius: 8px; pointer-events: none !important;
-  box-shadow: 0 0 0 1px var(--sky);
+  box-shadow: 0 0 0 2px var(--sky);
 }
 .outline.dragging { background: color-mix(in oklab, var(--sky) 8%, transparent); }
 .gutter { position: fixed; display: flex; gap: 2px; }
 .gutter button {
-  width: 22px; height: 24px; border: 0; border-radius: 6px; background: transparent;
+  width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent;
   display: grid; place-items: center; color: var(--faint); cursor: pointer;
 }
-.gutter button:hover { background: var(--hover); color: var(--text); }
+.gutter button:hover, .gutter button[data-active] { background: var(--hover); color: var(--text); }
 .gutter .grip { cursor: grab; touch-action: none; }
 .gutter .grip:active { cursor: grabbing; }
 .indicator { position: fixed; height: 2px; border-radius: 1px; background: var(--sky); pointer-events: none !important; }
