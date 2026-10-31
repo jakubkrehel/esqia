@@ -1,4 +1,4 @@
-import { Esqe } from "esqe";
+import { Esqe } from "@esqe/esqe";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { berkeleyMono, inter, libreBaskerville } from "./fonts";
