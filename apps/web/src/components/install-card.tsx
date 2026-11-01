@@ -5,15 +5,15 @@ import { CopyButton } from "@/components/copy-button";
 import { GithubIcon } from "@/components/icons";
 
 const COMMANDS = {
+  bun: "bun add -d esqia",
   npm: "npm install -D esqia",
   pnpm: "pnpm add -D esqia",
   yarn: "yarn add -D esqia",
-  bun: "bun add -d esqia",
 } as const;
 
 type Manager = keyof typeof COMMANDS;
 
-const MANAGERS = Object.keys(COMMANDS) as Manager[];
+const MANAGERS: Manager[] = ["npm", "pnpm", "yarn", "bun"];
 
 const PROGRAM_COLOR =
   "text-[color(display-p3_0.391345_0.215644_0.853560)] dark:text-[color(display-p3_0.615613_0.445256_1)]";

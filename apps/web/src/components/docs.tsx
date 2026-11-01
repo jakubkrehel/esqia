@@ -1,7 +1,7 @@
 import pierreDarkVibrant from "@pierre/theme/pierre-dark-vibrant";
 import pierreLightVibrant from "@pierre/theme/pierre-light-vibrant";
-import type { ReactNode } from "react";
-import { codeToHtml } from "shiki";
+import { Fragment, type ReactNode } from "react";
+import { type BundledLanguage, codeToTokens } from "shiki";
 import { CopyButton } from "@/components/copy-button";
 import {
   CodeIcon,
@@ -32,26 +32,13 @@ async function CodeBlock({
   title,
 }: {
   code: string;
-  lang: string;
+  lang: BundledLanguage;
   title: string;
 }) {
-  const html = await codeToHtml(code, {
+  const { tokens } = await codeToTokens(code, {
     defaultColor: false,
     lang,
     themes: { dark: pierreDarkVibrant, light: pierreLightVibrant },
-    transformers: [
-      {
-        code(node) {
-          node.properties["data-theme"] = "";
-        },
-        pre(node) {
-          node.properties.class =
-            "tab-size-4 scrollbar-thin overflow-x-auto overscroll-x-contain p-3 font-mono text-[13px] [scrollbar-color:var(--color-gray-600)_transparent] **:font-mono [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1";
-          delete node.properties.style;
-          delete node.properties.tabindex;
-        },
-      },
-    ],
   });
 
   return (
@@ -71,7 +58,22 @@ async function CodeBlock({
           text={code}
         />
       </figcaption>
-      <div dangerouslySetInnerHTML={{ __html: html }} />
+      <pre className="tab-size-4 scrollbar-thin overflow-x-auto overscroll-x-contain p-3 font-mono text-[13px] [scrollbar-color:var(--color-gray-600)_transparent] **:font-mono [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1">
+        <code data-theme="">
+          {tokens.map((line, index) => (
+            <Fragment key={index}>
+              {index > 0 && "\n"}
+              <span>
+                {line.map((token) => (
+                  <span key={token.offset} style={token.htmlStyle}>
+                    {token.content}
+                  </span>
+                ))}
+              </span>
+            </Fragment>
+          ))}
+        </code>
+      </pre>
     </figure>
   );
 }
