@@ -1,7 +1,11 @@
 import pierreDarkVibrant from "@pierre/theme/pierre-dark-vibrant";
 import pierreLightVibrant from "@pierre/theme/pierre-light-vibrant";
 import { Fragment, type ReactNode } from "react";
-import { type BundledLanguage, codeToTokens } from "shiki";
+import {
+  type BundledLanguage,
+  codeToTokens,
+  type ThemeRegistration,
+} from "shiki";
 import { CopyButton } from "@/components/copy-button";
 import {
   CodeIcon,
@@ -26,6 +30,20 @@ const LAYOUT = `import { Esqia } from "esqia";
 
 {process.env.NODE_ENV === "development" && <Esqia />}`;
 
+function shikiTheme(theme: typeof pierreLightVibrant): ThemeRegistration {
+  return {
+    colors: theme.colors,
+    name: theme.name,
+    tokenColors: [...theme.tokenColors],
+    type: theme.type,
+  };
+}
+
+const THEMES = {
+  dark: shikiTheme(pierreDarkVibrant),
+  light: shikiTheme(pierreLightVibrant),
+};
+
 async function CodeBlock({
   code,
   lang,
@@ -38,7 +56,7 @@ async function CodeBlock({
   const { tokens } = await codeToTokens(code, {
     defaultColor: false,
     lang,
-    themes: { dark: pierreDarkVibrant, light: pierreLightVibrant },
+    themes: THEMES,
   });
 
   return (
