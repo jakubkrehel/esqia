@@ -277,6 +277,15 @@ export function Chrome({ host }: { host: HTMLElement }) {
         <BlockControls
           host={host}
           onActivate={(target) => openRun(target)}
+          onBreak={(block) =>
+            writeOps(
+              block.el,
+              (_source, _blocks, fresh) => [
+                { end: fresh.end, expected: "", start: fresh.end, text: BREAK },
+              ],
+              (_ops, fresh) => breakOnPage(fresh)
+            )
+          }
           onDelete={(block) =>
             writeOps(
               block.el,
@@ -392,6 +401,7 @@ function Trigger({
 interface BlockControlsProps {
   host: HTMLElement;
   onActivate: (target: OpenTarget) => void;
+  onBreak: (block: Block) => void;
   onDelete: (block: Block) => void;
   onMove: (block: Block, target: Block | null) => void;
   onOutside: () => void;
@@ -403,12 +413,15 @@ function BlockControls({
   run,
   onActivate,
   onMove,
+  onBreak,
   onDelete,
   onOutside,
 }: BlockControlsProps) {
   const [hover, setHover] = useState<Hover | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
-  const [menu, setMenu] = useState<Hover | null>(null);
+  const [menu, setMenu] = useState<(Hover & { kind: "add" | "block" }) | null>(
+    null
+  );
 
   useEffect(() => {
     let frame = 0;
@@ -513,7 +526,7 @@ function BlockControls({
       }
       const geometry = measureBlock(block);
       if (geometry) {
-        setMenu({ block, ...geometry });
+        setMenu({ block, ...geometry, kind: "block" });
       }
     };
     window.addEventListener("pointermove", onPointerMove);
@@ -537,8 +550,8 @@ function BlockControls({
           />
           <div className="gutter" style={gutterPosition(current)}>
             <button
-              aria-label="Add a paragraph below"
-              onClick={() => onActivate({ after: block })}
+              aria-label="Add below"
+              onClick={() => setMenu({ ...current, block, kind: "add" })}
               type="button"
             >
               <PlusIcon />
@@ -573,21 +586,43 @@ function BlockControls({
             top: menu.handleTop + HANDLE + 6,
           }}
         >
-          <MenuItem
-            label="Add paragraph below"
-            onSelect={() => {
-              setMenu(null);
-              onActivate({ after: menu.block });
-            }}
-          />
-          <MenuItem
-            label="Delete block"
-            onSelect={() => {
-              setMenu(null);
-              onDelete(menu.block);
-            }}
-            tone="danger"
-          />
+          {menu.kind === "add" ? (
+            <>
+              <MenuItem
+                label="Paragraph"
+                onSelect={() => {
+                  setMenu(null);
+                  onActivate({ after: menu.block });
+                }}
+              />
+              <MenuItem
+                hint="<br />"
+                label="Line break"
+                onSelect={() => {
+                  setMenu(null);
+                  onBreak(menu.block);
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <MenuItem
+                label="Add paragraph below"
+                onSelect={() => {
+                  setMenu(null);
+                  onActivate({ after: menu.block });
+                }}
+              />
+              <MenuItem
+                label="Delete block"
+                onSelect={() => {
+                  setMenu(null);
+                  onDelete(menu.block);
+                }}
+                tone="danger"
+              />
+            </>
+          )}
         </div>
       )}
     </>
@@ -650,6 +685,24 @@ function dropTarget(
         : { height: 2, left, top: previousBottom + 6, width },
     target: null,
   };
+}
+
+const BREAK = "\n\n<br />";
+
+function breakOnPage(block: Block) {
+  const wrapper = document.createElement("div");
+  wrapper.style.display = "contents";
+  const start = block.end + 2;
+  Object.assign(wrapper.dataset, {
+    esqiaEnd: String(start + BREAK.length - 2),
+    esqiaFile: block.file,
+    esqiaRev: String(api.revision(block.file)),
+    esqiaStart: String(start),
+    esqiaType: "spacer",
+    esqiaV: block.version,
+  });
+  wrapper.append(document.createElement("br"));
+  block.el.after(wrapper);
 }
 
 function removeFromPage(block: Block) {

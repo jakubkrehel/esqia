@@ -249,6 +249,7 @@ export function createExtensions({
     Node.create({
       addAttributes: () => ({
         ...blockId,
+        auto: { default: false, rendered: false },
         raw: { default: "<br />", rendered: false },
       }),
       addInputRules() {
@@ -380,8 +381,8 @@ export function createExtensions({
               .joinBackward()
               .run();
           },
-          Enter: ({ editor }) => spacers && splitWithSpacer(editor),
-          "Shift-Enter": ({ editor }) => splitWithSpacer(editor),
+          Enter: ({ editor }) => spacers && splitWithSpacer(editor, true),
+          "Shift-Enter": ({ editor }) => splitWithSpacer(editor, false),
         };
       },
       name: "esqiaKeys",
@@ -415,7 +416,7 @@ function quotesAsTyped(ellipsis: boolean) {
   });
 }
 
-function splitWithSpacer(editor: Editor): boolean {
+function splitWithSpacer(editor: Editor, auto: boolean): boolean {
   const { $from, empty } = editor.state.selection;
   if (
     !empty ||
@@ -430,7 +431,7 @@ function splitWithSpacer(editor: Editor): boolean {
     .command(({ tr }) => {
       tr.insert(
         tr.selection.$from.before(),
-        editor.schema.nodes.spacer.create()
+        editor.schema.nodes.spacer.create({ auto })
       );
       return true;
     })

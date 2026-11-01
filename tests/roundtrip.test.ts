@@ -186,15 +186,21 @@ describe("line breaks the editor adds", () => {
     content: [{ text, type: "text" }],
     type: "paragraph",
   });
-  const spacer = { type: "spacer" };
+  const spacer = { attrs: { auto: true }, type: "spacer" };
+  const chosenSpacer = { type: "spacer" };
 
-  it("keeps one break between paragraphs, even when two were added", () => {
+  it("keeps one automatic break between paragraphs, even when two were added", () => {
     const doc = build([paragraph("One."), spacer, spacer, paragraph("Two.")]);
     expect(serializeRun(doc, new Map(), style)).toBe("One.\n\n<br />\n\nTwo.");
   });
 
-  it("drops a break with no paragraph after it", () => {
+  it("drops an automatic break with no paragraph after it", () => {
     const doc = build([paragraph("One."), spacer, { type: "paragraph" }]);
     expect(serializeRun(doc, new Map(), style)).toBe("One.");
+  });
+
+  it("keeps a break the writer added, even on its own", () => {
+    const doc = build([chosenSpacer, { type: "paragraph" }]);
+    expect(serializeRun(doc, new Map(), style)).toBe("<br />");
   });
 });

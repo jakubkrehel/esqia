@@ -366,7 +366,7 @@ export function writtenBlocks(doc: PMNode): { node: PMNode; offset: number }[] {
     if (node.isTextblock && node.content.size === 0) {
       return false;
     }
-    if (node.type.name !== "spacer" || node.attrs.id) {
+    if (node.type.name !== "spacer" || node.attrs.id || !node.attrs.auto) {
       return true;
     }
     if (children[index - 1]?.node.type.name === "spacer") {
