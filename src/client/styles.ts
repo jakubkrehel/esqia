@@ -48,24 +48,25 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   transition: padding 350ms var(--expand), box-shadow 200ms ease-out;
 }
 .bar[data-mode="read"]:hover { box-shadow: var(--shadow-hover); }
-.bar[data-mode="edit"] { padding: 4px; }
+.bar[data-mode="edit"] { padding-inline-end: 4px; }
 .bar[data-corner$="right"] { direction: rtl; }
 .bar[data-dragging], .bar[data-dragging] * { cursor: grabbing; }
 .trigger {
-  width: 36px; height: 36px; border: 0; border-radius: 9999px; outline: none;
+  width: 36px; height: 36px; padding: 4px; border: 0; border-radius: 9999px; outline: none;
   display: grid; place-items: center; cursor: pointer; flex-shrink: 0;
-  background: transparent; color: var(--muted);
-  transition: width 350ms var(--expand), height 350ms var(--expand), background-color 200ms ease-out, color 200ms ease-out, transform 150ms ease-out;
+  background: transparent; background-clip: content-box; color: var(--muted);
+  transition: background-color 200ms ease-out, color 200ms ease-out, transform 150ms ease-out;
 }
 .trigger:hover { color: var(--text); }
 .trigger:active { transform: scale(0.96); }
 .trigger:focus-visible { box-shadow: 0 0 0 4px rgb(0 0 0 / 0.1); }
-.bar[data-mode="edit"] .trigger { width: 28px; height: 28px; color: var(--text); }
+.bar[data-mode="edit"] .trigger { color: var(--text); }
 .bar[data-mode="edit"] .trigger:hover { background: var(--hover); }
+.bar[data-mode="edit"] .trigger:focus-visible { box-shadow: inset 0 0 0 4px rgb(0 0 0 / 0.1); }
 .tray { display: grid; grid-template-columns: 0fr; transition: grid-template-columns 350ms var(--expand); }
 .bar[data-mode="edit"] .tray { grid-template-columns: 1fr; }
 .tray-items { min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 4px; }
-.tray-items .sep { margin-inline: 8px 4px; }
+.tray-items .sep { margin-inline: 4px; }
 .action {
   height: 28px; min-width: 28px; padding: 0 6px; border: 0; border-radius: 9999px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
