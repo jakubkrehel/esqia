@@ -28,7 +28,8 @@ export interface Sidecar {
 }
 
 export function sidecarAddress(root: string): Sidecar {
-  const port = 4800 + (Number.parseInt(hashSource(root).slice(0, 4), 16) % 100);
+  const port =
+    20_000 + (Number.parseInt(hashSource(root).slice(0, 6), 16) % 20_000);
   return { token: persistentToken(root), url: `http://127.0.0.1:${port}` };
 }
 

@@ -1,4 +1,11 @@
-import { type AnyExtension, Extension, Mark, Node } from "@tiptap/core";
+import {
+  type AnyExtension,
+  type Editor,
+  Extension,
+  InputRule,
+  Mark,
+  Node,
+} from "@tiptap/core";
 import Bold from "@tiptap/extension-bold";
 import Code from "@tiptap/extension-code";
 import CodeBlock from "@tiptap/extension-code-block";
@@ -16,6 +23,7 @@ import {
   UndoRedo,
 } from "@tiptap/extensions";
 import type { DOMOutputSpec } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 import type { ClientConfig } from "./api";
 
 interface Rendered {
@@ -243,6 +251,28 @@ export function createExtensions({
         ...blockId,
         raw: { default: "<br />", rendered: false },
       }),
+      addInputRules() {
+        return [
+          new InputRule({
+            find: /^<br\s?\/>$/,
+            handler: ({ state, range }) => {
+              const $from = state.doc.resolve(range.from);
+              if ($from.parent.type.name !== "paragraph") {
+                return null;
+              }
+              const { paragraph, spacer } = state.schema.nodes;
+              const before = $from.before();
+              state.tr.replaceWith(before, $from.after(), [
+                spacer.create(),
+                paragraph.create(),
+              ]);
+              state.tr.setSelection(
+                TextSelection.near(state.tr.doc.resolve(before + 2))
+              );
+            },
+          }),
+        ];
+      },
       atom: true,
       group: "block",
       name: "spacer",
@@ -324,7 +354,8 @@ export function createExtensions({
     Dropcursor.configure({ color: "oklch(74.6% 0.16 232.661)", width: 2 }),
     Gapcursor,
     Placeholder.configure({
-      placeholder: "Write, or press / for blocks",
+      placeholder:
+        "Write, or press / for blocks. Shift+Enter adds a line break.",
       showOnlyCurrent: true,
     }),
     Extension.create({
@@ -349,28 +380,8 @@ export function createExtensions({
               .joinBackward()
               .run();
           },
-          Enter: ({ editor }) => {
-            const { $from, empty } = editor.state.selection;
-            if (
-              !spacers ||
-              !empty ||
-              $from.parent.type.name !== "paragraph" ||
-              $from.parent.content.size === 0
-            ) {
-              return false;
-            }
-            return editor
-              .chain()
-              .splitBlock()
-              .command(({ tr }) => {
-                tr.insert(
-                  tr.selection.$from.before(),
-                  editor.schema.nodes.spacer.create()
-                );
-                return true;
-              })
-              .run();
-          },
+          Enter: ({ editor }) => spacers && splitWithSpacer(editor),
+          "Shift-Enter": ({ editor }) => splitWithSpacer(editor),
         };
       },
       name: "esqiaKeys",
@@ -402,6 +413,28 @@ function quotesAsTyped(ellipsis: boolean) {
     ...Object.fromEntries(off.map((rule) => [rule, false])),
     ...(ellipsis ? {} : { ellipsis: false }),
   });
+}
+
+function splitWithSpacer(editor: Editor): boolean {
+  const { $from, empty } = editor.state.selection;
+  if (
+    !empty ||
+    $from.parent.type.name !== "paragraph" ||
+    $from.parent.content.size === 0
+  ) {
+    return false;
+  }
+  return editor
+    .chain()
+    .splitBlock()
+    .command(({ tr }) => {
+      tr.insert(
+        tr.selection.$from.before(),
+        editor.schema.nodes.spacer.create()
+      );
+      return true;
+    })
+    .run();
 }
 
 export function markOpen(mark: { tag: string; className: string }): string {

@@ -1,4 +1,5 @@
 import { type BlockType, EDITABLE } from "../shared/markdown";
+import { api } from "./api";
 
 export interface Block {
   el: HTMLElement;
@@ -12,11 +13,13 @@ export interface Block {
 export const BLOCK_SELECTOR = "[data-esqia-file]";
 
 export function readBlock(el: HTMLElement): Block {
+  const file = el.dataset.esqiaFile ?? "";
+  const revision = Number(el.dataset.esqiaRev ?? 0);
   return {
     el,
-    end: Number(el.dataset.esqiaEnd),
-    file: el.dataset.esqiaFile ?? "",
-    start: Number(el.dataset.esqiaStart),
+    end: api.mapOffset(file, Number(el.dataset.esqiaEnd), revision),
+    file,
+    start: api.mapOffset(file, Number(el.dataset.esqiaStart), revision),
     type: (el.dataset.esqiaType ?? "block") as BlockType,
     version: el.dataset.esqiaV ?? "",
   };
@@ -24,7 +27,9 @@ export function readBlock(el: HTMLElement): Block {
 
 export function fileBlocks(file: string): Block[] {
   return [...document.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)]
-    .filter((el) => el.dataset.esqiaFile === file)
+    .filter(
+      (el) => el.dataset.esqiaFile === file && !("esqiaRemoved" in el.dataset)
+    )
     .map(readBlock)
     .sort((a, b) => a.start - b.start);
 }

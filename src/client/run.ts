@@ -1,10 +1,21 @@
 import { Editor } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
-import { detectStyle, type MarkdownStyle } from "../shared/markdown";
+import {
+  blockType,
+  detectStyle,
+  type MarkdownStyle,
+  parseMdx,
+} from "../shared/markdown";
 import { api, type ClientConfig, ConflictError } from "./api";
 import { type Block, fileBlocks, waitForVersion } from "./blocks";
-import { fingerprint, type Original, parseRun, serializeRun } from "./convert";
+import {
+  fingerprint,
+  type Original,
+  parseRun,
+  serializeRun,
+  writtenBlocks,
+} from "./convert";
 import { createExtensions, sampleTemplates } from "./editor";
 
 export interface SlashState {
@@ -56,6 +67,7 @@ export class Run {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saving: Promise<void> | null = null;
   private wrote = false;
+  private readonly own: HTMLElement[];
   private revision: number;
   private closing: Promise<void> | null = null;
   private snapshot: RunSnapshot = {
@@ -87,23 +99,17 @@ export class Run {
     const first = options.blocks[0];
     const last = options.blocks.at(-1);
 
-    const renderedStart = first
-      ? first.start
-      : (options.after?.end ?? source.length);
-    const renderedEnd = last ? last.end : renderedStart;
-    this.start = api.mapOffset(this.file, renderedStart, 0);
-    const end = api.mapOffset(this.file, renderedEnd, 0);
+    this.start = first ? first.start : (options.after?.end ?? source.length);
+    const end = last ? last.end : this.start;
     this.revision = api.revision(this.file);
+    this.own = options.blocks.map((block) => block.el);
     this.current = source.slice(this.start, end);
     this.prefix = first ? "" : "\n\n";
     this.style = {
       ...detectStyle(source),
       smartypants: this.config.smartypants,
     };
-    this.ranges.set(first?.version ?? options.after?.version ?? hash, [
-      renderedStart,
-      renderedEnd,
-    ]);
+    this.ranges.set(hash, [this.start, end]);
 
     const parsed = parseRun(this.current, this.config.smartypants);
     this.originals = parsed.originals;
@@ -172,7 +178,49 @@ export class Run {
   }
 
   setEditable(editable: boolean) {
-    this.editor.setEditable(editable);
+    if (!this.editor.isDestroyed) {
+      this.editor.setEditable(editable);
+    }
+  }
+
+  private settle(): boolean {
+    const written = writtenBlocks(this.editor.state.doc);
+    const tree = parseMdx(this.current);
+    if (tree.children.length !== written.length) {
+      return false;
+    }
+    const version = this.own[0]?.dataset.esqiaV ?? "demo";
+    const revision = String(api.revision(this.file));
+    written.forEach(({ node, offset }, index) => {
+      const block = tree.children[index];
+      const rendered = this.editor.view.nodeDOM(offset);
+      if (!(block && rendered instanceof HTMLElement)) {
+        return;
+      }
+      const wrapper = document.createElement("div");
+      wrapper.style.display = "contents";
+      Object.assign(wrapper.dataset, {
+        esqiaEnd: String(this.start + (block.position?.end.offset ?? 0)),
+        esqiaFile: this.file,
+        esqiaRev: revision,
+        esqiaStart: String(this.start + (block.position?.start.offset ?? 0)),
+        esqiaType: blockType(block),
+        esqiaV: version,
+      });
+      wrapper.append(
+        node.type.name === "spacer"
+          ? document.createElement("br")
+          : settled(rendered)
+      );
+      this.root.before(wrapper);
+    });
+    this.observer.disconnect();
+    this.editor.destroy();
+    this.root.remove();
+    for (const el of this.own) {
+      el.dataset.esqiaRemoved = "";
+    }
+    return true;
   }
 
   private rebase() {
@@ -182,10 +230,6 @@ export class Run {
 
   setSlashKeys(handler: ((event: KeyboardEvent) => boolean) | null) {
     this.slashKeys = handler;
-  }
-
-  get usesSpacers() {
-    return this.style.spacers;
   }
 
   subscribe = (listener: () => void) => {
@@ -203,6 +247,13 @@ export class Run {
   }
 
   private hide() {
+    if (!api.live) {
+      for (const el of this.own) {
+        el.style.setProperty("display", "none", "important");
+        this.hidden.add(el);
+      }
+      return;
+    }
     for (const block of fileBlocks(this.file)) {
       const range = this.ranges.get(block.version);
       const inside = range && block.start >= range[0] && block.start < range[1];
@@ -300,6 +351,10 @@ export class Run {
         await this.collapseGap();
       }
       if (!api.live) {
+        if (this.settle()) {
+          this.onClose();
+          return;
+        }
         this.closing = null;
         this.onClose();
         return;
@@ -468,6 +523,23 @@ export class Run {
       this.update({ busy: null });
     }
   }
+}
+
+function settled(rendered: HTMLElement): HTMLElement {
+  const copy = rendered.cloneNode(true) as HTMLElement;
+  for (const el of [copy, ...copy.querySelectorAll<HTMLElement>("*")]) {
+    el.removeAttribute("contenteditable");
+    el.removeAttribute("draggable");
+    delete el.dataset.placeholder;
+    el.classList.remove("is-empty", "is-editor-empty");
+    if (
+      el.classList.contains("ProseMirror-trailingBreak") ||
+      el.classList.contains("ProseMirror-separator")
+    ) {
+      el.remove();
+    }
+  }
+  return copy;
 }
 
 function inlinePos(node: PMNode, offset: number): number {

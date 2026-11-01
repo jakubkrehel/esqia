@@ -208,19 +208,25 @@ export function Chrome({ host }: { host: HTMLElement }) {
   }
 
   async function writeOps(
-    block: Block,
-    build: (source: string, blocks: Block[]) => Op[]
+    el: HTMLElement,
+    build: (source: string, blocks: Block[], block: Block) => Op[],
+    showOnPage: (ops: Op[], block: Block, blocks: Block[]) => void
   ) {
     setWriting(true);
     try {
       await closeRun();
+      const block = readBlock(el);
       const { source, hash } = await api.source(block.file);
-      if (hash !== block.version) {
+      if (api.live && hash !== block.version) {
         throw new Error("The page is behind the file. Wait for it to refresh.");
       }
-      const ops = build(source, fileBlocks(block.file));
+      const blocks = fileBlocks(block.file);
+      const ops = build(source, blocks, block);
       if (ops.length > 0) {
         await api.ops(block.file, hash, ops);
+        if (!api.live) {
+          showOnPage(ops, block, blocks);
+        }
       }
       lastFile.current = block.file;
     } catch (error) {
@@ -269,17 +275,22 @@ export function Chrome({ host }: { host: HTMLElement }) {
     <div className="layer">
       {editing && (
         <BlockControls
-          canMove={api.live}
           host={host}
           onActivate={(target) => openRun(target)}
           onDelete={(block) =>
-            writeOps(block, (source, blocks) =>
-              deleteOps(source, blocks, block)
+            writeOps(
+              block.el,
+              (source, blocks, fresh) => deleteOps(source, blocks, fresh),
+              (_ops, fresh) => removeFromPage(fresh)
             )
           }
           onMove={(block, target) =>
-            writeOps(block, (source, blocks) =>
-              moveOps(source, blocks, block, target)
+            writeOps(
+              block.el,
+              (source, blocks, fresh) =>
+                moveOps(source, blocks, fresh, target && readBlock(target.el)),
+              (ops, fresh, blocks) =>
+                moveOnPage(ops, fresh, target && readBlock(target.el), blocks)
             )
           }
           onOutside={() => closeRun()}
@@ -315,7 +326,7 @@ function useShortcuts(options: {
     const onKey = (event: KeyboardEvent) => {
       const mod = event.metaKey || event.ctrlKey;
       const key = event.key.toLowerCase();
-      if (mod && event.shiftKey && key === "e") {
+      if (mod && !event.shiftKey && key === "e") {
         event.preventDefault();
         options.onToggle();
         return;
@@ -372,14 +383,13 @@ function Trigger({
         <span className="mark" />
       </button>
       <div className="label">
-        {editing ? "Stop editing" : idleLabel} <kbd>⌘⇧E</kbd>
+        {editing ? "Stop editing" : idleLabel} <kbd>⌘E</kbd>
       </div>
     </>
   );
 }
 
 interface BlockControlsProps {
-  canMove: boolean;
   host: HTMLElement;
   onActivate: (target: OpenTarget) => void;
   onDelete: (block: Block) => void;
@@ -389,7 +399,6 @@ interface BlockControlsProps {
 }
 
 function BlockControls({
-  canMove,
   host,
   run,
   onActivate,
@@ -534,17 +543,15 @@ function BlockControls({
             >
               <PlusIcon />
             </button>
-            {canMove && (
-              <button
-                aria-label="Drag to move, click for options"
-                className="grip"
-                data-active={drag ? "" : undefined}
-                onPointerDown={(event) => startDrag(event, block)}
-                type="button"
-              >
-                <GripIcon />
-              </button>
-            )}
+            <button
+              aria-label="Drag to move, click for options"
+              className="grip"
+              data-active={drag ? "" : undefined}
+              onPointerDown={(event) => startDrag(event, block)}
+              type="button"
+            >
+              <GripIcon />
+            </button>
           </div>
         </>
       )}
@@ -643,6 +650,38 @@ function dropTarget(
         : { height: 2, left, top: previousBottom + 6, width },
     target: null,
   };
+}
+
+function removeFromPage(block: Block) {
+  block.el.dataset.esqiaRemoved = "";
+  block.el.style.setProperty("display", "none", "important");
+}
+
+function moveOnPage(
+  ops: Op[],
+  block: Block,
+  target: Block | null,
+  blocks: Block[]
+) {
+  const [removal, insertion] = ops;
+  if (!(removal && insertion)) {
+    return;
+  }
+  if (target) {
+    target.el.before(block.el);
+  } else {
+    blocks.at(-1)?.el.after(block.el);
+  }
+  let start = insertion.start;
+  if (start > removal.start) {
+    start -= removal.end - removal.start;
+  }
+  if (insertion.text.startsWith("\n\n")) {
+    start += 2;
+  }
+  block.el.dataset.esqiaStart = String(start);
+  block.el.dataset.esqiaEnd = String(start + block.end - block.start);
+  block.el.dataset.esqiaRev = String(api.revision(block.file));
 }
 
 function measureBlock(block: Block): Geometry | null {
@@ -895,7 +934,7 @@ interface SlashItem {
   label: string;
 }
 
-function slashItems(config: ClientConfig, run: Run): SlashItem[] {
+function slashItems(config: ClientConfig): SlashItem[] {
   const heading = (level: 1 | 2 | 3) => (r: Run) => {
     r.clearSlashText();
     r.editor.chain().focus().setHeading({ level }).run();
@@ -927,16 +966,12 @@ function slashItems(config: ClientConfig, run: Run): SlashItem[] {
       id: "code",
       label: "Code block",
     },
-    ...(run.usesSpacers
-      ? [
-          {
-            apply: (r: Run) => r.insertSpacer(),
-            hint: "<br />",
-            id: "spacer",
-            label: "Spacer",
-          },
-        ]
-      : []),
+    {
+      apply: (r: Run) => r.insertSpacer(),
+      hint: "<br />",
+      id: "spacer",
+      label: "Line break",
+    },
     { apply: pick("image/*"), hint: "upload", id: "image", label: "Image" },
     { apply: pick("video/*"), hint: "upload", id: "video", label: "Video" },
     ...config.snippets.map((snippet) => ({
@@ -971,7 +1006,7 @@ function Slash({
   const active = highlight.query === query ? highlight.index : 0;
   const setActive = (next: (index: number) => number) =>
     setHighlight({ index: next(active), query });
-  const items = slashItems(config, run).filter((item) =>
+  const items = slashItems(config).filter((item) =>
     item.label.toLowerCase().includes(query)
   );
 

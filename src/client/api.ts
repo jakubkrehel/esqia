@@ -127,7 +127,8 @@ function memory(
     mapOffset: (name, offset, since) => {
       let mapped = offset;
       for (const shift of file(name).shifts.slice(since)) {
-        if (mapped > shift.at && mapped >= shift.end) {
+        const inserted = shift.at === shift.end;
+        if (inserted ? mapped >= shift.at : mapped >= shift.end) {
           mapped += shift.delta;
         }
       }

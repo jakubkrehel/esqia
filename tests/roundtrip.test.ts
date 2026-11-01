@@ -177,3 +177,24 @@ describe("smartypants", () => {
     );
   });
 });
+
+describe("line breaks the editor adds", () => {
+  const style = { ...detectStyle(""), smartypants: false as const };
+  const build = (content: object[]) =>
+    PMNode.fromJSON(schema, { content, type: "doc" });
+  const paragraph = (text: string) => ({
+    content: [{ text, type: "text" }],
+    type: "paragraph",
+  });
+  const spacer = { type: "spacer" };
+
+  it("keeps one break between paragraphs, even when two were added", () => {
+    const doc = build([paragraph("One."), spacer, spacer, paragraph("Two.")]);
+    expect(serializeRun(doc, new Map(), style)).toBe("One.\n\n<br />\n\nTwo.");
+  });
+
+  it("drops a break with no paragraph after it", () => {
+    const doc = build([paragraph("One."), spacer, { type: "paragraph" }]);
+    expect(serializeRun(doc, new Map(), style)).toBe("One.");
+  });
+});

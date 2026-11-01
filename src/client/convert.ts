@@ -356,6 +356,30 @@ function markToMdast(mark: Mark): PhrasingContent {
   }
 }
 
+export function writtenBlocks(doc: PMNode): { node: PMNode; offset: number }[] {
+  const children: { node: PMNode; offset: number }[] = [];
+  doc.forEach((node, offset) => children.push({ node, offset }));
+  const isParagraph = (entry: { node: PMNode } | undefined) =>
+    entry?.node.type.name === "paragraph" && entry.node.content.size > 0;
+
+  return children.filter(({ node }, index) => {
+    if (node.isTextblock && node.content.size === 0) {
+      return false;
+    }
+    if (node.type.name !== "spacer" || node.attrs.id) {
+      return true;
+    }
+    if (children[index - 1]?.node.type.name === "spacer") {
+      return false;
+    }
+    let next = index + 1;
+    while (children[next]?.node.type.name === "spacer") {
+      next++;
+    }
+    return isParagraph(children[index - 1]) && isParagraph(children[next]);
+  });
+}
+
 export function serializeRun(
   doc: PMNode,
   originals: Map<string, Original>,
@@ -365,28 +389,11 @@ export function serializeRun(
   const used = new Set<string>();
   let previousId: string | null = null;
 
-  const children: PMNode[] = [];
-  doc.forEach((node) => children.push(node));
-  const isParagraph = (node: PMNode | undefined) =>
-    node?.type.name === "paragraph" && node.content.size > 0;
-
-  children.forEach((node, index) => {
-    if (
-      node.type.name === "spacer" &&
-      !node.attrs.id &&
-      !(isParagraph(children[index - 1]) && isParagraph(children[index + 1]))
-    ) {
-      return;
-    }
+  for (const { node } of writtenBlocks(doc)) {
     const id: string | null = node.attrs.id ?? null;
     const original = id && !used.has(id) ? originals.get(id) : undefined;
     if (id) {
       used.add(id);
-    }
-
-    const empty = node.isTextblock && node.content.size === 0;
-    if (empty) {
-      return;
     }
 
     const text =
@@ -401,7 +408,7 @@ export function serializeRun(
     }
     parts.push(gap + text);
     previousId = id;
-  });
+  }
 
   return parts.join("");
 }
