@@ -172,9 +172,11 @@ export function Chrome({
         corner={corner}
         editing={editing}
         onCorner={setCorner}
+        onOpen={session.canOpen ? () => session.openInEditor() : undefined}
         onOutline={setOutline}
         onRevert={() => session.revert()}
         onToggle={() => setMode(toggled)}
+        onUndo={session.canUndo ? () => session.undo() : undefined}
         outline={outline}
       />
       {toast && <Status corner={corner} {...toast} />}

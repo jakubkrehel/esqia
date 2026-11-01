@@ -152,9 +152,75 @@
   }
 }
 
+@utility animate-toolbar-loop {
+  animation: toolbar-loop-bar 4s infinite;
+
+  & [data-trigger] {
+    animation: toolbar-loop-trigger 4s infinite;
+  }
+
+  & [data-tray] {
+    animation: toolbar-loop-tray 4s infinite;
+  }
+}
+
+@keyframes toolbar-loop-bar {
+  0%,
+  25% {
+    padding-right: 0;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  34%,
+  80% {
+    padding-right: 8px;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  89%,
+  100% {
+    padding-right: 0;
+  }
+}
+
+@keyframes toolbar-loop-trigger {
+  0%,
+  25% {
+    color: var(--color-gray-1100);
+    animation-timing-function: ease-out;
+  }
+  30%,
+  80% {
+    color: var(--color-gray-1200);
+    animation-timing-function: ease-out;
+  }
+  85%,
+  100% {
+    color: var(--color-gray-1100);
+  }
+}
+
+@keyframes toolbar-loop-tray {
+  0%,
+  25% {
+    grid-template-columns: 0fr;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  34%,
+  80% {
+    grid-template-columns: 1fr;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  89%,
+  100% {
+    grid-template-columns: 0fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-viewfinder-focus > g,
-  .animate-viewfinder-scan [data-scanline] {
+  .animate-viewfinder-scan [data-scanline],
+  .animate-toolbar-loop,
+  .animate-toolbar-loop [data-trigger],
+  .animate-toolbar-loop [data-tray] {
     animation: none;
   }
 }

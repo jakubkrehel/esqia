@@ -24,12 +24,18 @@ const components: MDXComponents = {
     <figure className="my-6 preview-code overflow-hidden" {...props} />
   ),
   h1: ({ children, ...props }) => (
-    <h1 className="mb-5 font-[550] font-text text-gray-1200" {...props}>
+    <h1
+      className="mb-5 font-[550] font-text text-body text-gray-1200"
+      {...props}
+    >
       {children}
     </h1>
   ),
   h2: ({ children, ...props }) => (
-    <h2 className="mt-16 mb-5 font-[550] font-text text-gray-1200" {...props}>
+    <h2
+      className="mt-16 mb-5 font-[550] font-text text-body text-gray-1200"
+      {...props}
+    >
       {children}
     </h2>
   ),

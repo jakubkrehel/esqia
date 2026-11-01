@@ -16,9 +16,10 @@ export function errorText(error: unknown) {
 }
 
 export interface Backend {
-  changes: () => Promise<{ files: string[] }>;
+  changes: () => Promise<{ edits?: number; files: string[] }>;
   config: () => Promise<ClientConfig>;
   notice: string | null;
+  open?: (file: string, line: number) => Promise<void>;
   ops: (
     file: string,
     hash: string,
@@ -54,9 +55,20 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const sidecar: Backend = {
-  changes: () => request<{ files: string[] }>("/changes"),
+  changes: () => request<{ edits?: number; files: string[] }>("/changes"),
   config: () => request<ClientConfig>("/config"),
   notice: null,
+  open: async (file, line) => {
+    const params = new URLSearchParams({
+      column1: "1",
+      file,
+      line1: String(line),
+    });
+    const response = await fetch(`/__nextjs_launch-editor?${params}`);
+    if (!response.ok) {
+      throw new Error(`Couldn't open ${file} in your editor.`);
+    }
+  },
   ops: (file, hash, ops, group) =>
     request<{ hash: string }>("/ops", {
       body: JSON.stringify({ file, group, hash, ops }),
@@ -113,6 +125,7 @@ export function memoryBackend(
   return {
     changes: () =>
       Promise.resolve({
+        edits: writes,
         files: [...files]
           .filter(([name, f]) => f.source !== sources[name])
           .map(([name]) => name),

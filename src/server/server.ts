@@ -212,7 +212,7 @@ async function handle(
     }
 
     case "GET /changes":
-      return send(res, 200, { files: changedFiles(context) });
+      return send(res, 200, changes(context));
 
     case "POST /revert":
       return send(res, 200, await revertAll(context));
@@ -240,10 +240,14 @@ async function undo(res: ServerResponse, context: Context, file: string) {
   return send(res, 200, { hash: hashSource(last.before) });
 }
 
-function changedFiles(context: Context): string[] {
-  return [...context.history]
-    .filter(([, entries]) => entries.length > 0)
-    .map(([file]) => path.relative(context.root, file));
+function changes(context: Context) {
+  const touched = [...context.history].filter(
+    ([, entries]) => entries.length > 0
+  );
+  return {
+    edits: touched.reduce((sum, [, entries]) => sum + entries.length, 0),
+    files: touched.map(([file]) => path.relative(context.root, file)),
+  };
 }
 
 async function revertAll(context: Context) {

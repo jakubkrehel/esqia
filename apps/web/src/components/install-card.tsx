@@ -30,7 +30,7 @@ function ManagerSwitch({
   return (
     <div
       aria-label="Package manager"
-      className="relative grid h-11 flex-1 select-none grid-cols-4 rounded-xl bg-preview-bg p-1 shadow-custom"
+      className="relative grid h-11 select-none sm:flex-1 grid-cols-4 rounded-xl bg-preview-bg p-1 shadow-custom"
       role="radiogroup"
     >
       <span
@@ -65,6 +65,18 @@ export function InstallCard() {
 
   return (
     <div className="flex w-full flex-col gap-1 rounded-2xl p-1 shadow-custom">
+      <div className="flex w-full flex-col gap-1 sm:flex-row">
+        <ManagerSwitch onChange={setManager} value={manager} />
+        <a
+          className="interactive flex h-11 select-none items-center justify-center gap-1.5 rounded-xl bg-preview-bg px-5 font-medium text-gray-1200 shadow-custom hover-hover:hover:bg-gray-200 sm:flex-1"
+          href="https://github.com/jakubkrehel/esqia"
+          rel="noopener"
+          target="_blank"
+        >
+          <GithubIcon className="size-5 text-gray-1100" />
+          GitHub
+        </a>
+      </div>
       <div className="flex h-11 items-center gap-2 overflow-hidden rounded-xl bg-preview-bg pr-1 pl-4 shadow-custom">
         <code className="flex-1 truncate bg-transparent font-mono text-sm">
           <span className={PROGRAM_COLOR}>{program}</span>
@@ -76,18 +88,6 @@ export function InstallCard() {
           label="Copy command"
           text={command}
         />
-      </div>
-      <div className="flex w-full gap-1">
-        <ManagerSwitch onChange={setManager} value={manager} />
-        <a
-          className="interactive flex h-11 flex-1 select-none items-center justify-center gap-1.5 rounded-xl bg-preview-bg px-5 font-medium text-gray-1200 shadow-custom hover-hover:hover:bg-gray-200"
-          href="https://github.com/jakubkrehel/esqia"
-          rel="noopener"
-          target="_blank"
-        >
-          <GithubIcon className="size-5 text-gray-1100" />
-          GitHub
-        </a>
       </div>
     </div>
   );

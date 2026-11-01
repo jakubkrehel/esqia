@@ -13,7 +13,6 @@ export const CHROME_CSS = `
   --danger: oklch(0.577 0.245 27.325);
   --success: oklch(0.627 0.194 149.214);
   --shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06), 0 2px 4px 0 rgb(0 0 0 / 0.04);
-  --shadow-hover: 0 0 0 1px rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08), 0 2px 4px 0 rgb(0 0 0 / 0.06);
 }
 :host([data-theme="dark"]) {
   --surface: oklch(0.178 0 0);
@@ -25,7 +24,6 @@ export const CHROME_CSS = `
   --danger: oklch(0.704 0.191 22.216);
   --success: oklch(0.723 0.219 149.579);
   --shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
-  --shadow-hover: 0 0 0 1px rgb(255 255 255 / 0.13);
 }
 * { box-sizing: border-box; }
 .layer {
@@ -47,21 +45,19 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   background: var(--surface); box-shadow: var(--shadow);
   transition: padding 350ms var(--expand), box-shadow 200ms ease-out;
 }
-.bar[data-mode="read"]:hover { box-shadow: var(--shadow-hover); }
 .bar[data-mode="edit"] { padding-inline-end: 4px; }
 .bar[data-corner$="right"] { direction: rtl; }
 .bar[data-dragging], .bar[data-dragging] * { cursor: grabbing; }
 .trigger {
-  width: 36px; height: 36px; padding: 4px; border: 0; border-radius: 9999px; outline: none;
+  width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9999px; outline: none;
   display: grid; place-items: center; cursor: pointer; flex-shrink: 0;
   background: transparent; background-clip: content-box; color: var(--muted);
-  transition: background-color 200ms ease-out, color 200ms ease-out, transform 150ms ease-out;
+  transition: padding 350ms var(--expand), background-color 200ms ease-out, color 200ms ease-out, transform 150ms ease-out;
 }
-.trigger:hover { color: var(--text); }
+.trigger:hover { background-color: var(--hover); color: var(--text); }
 .trigger:active { transform: scale(0.96); }
 .trigger:focus-visible { box-shadow: 0 0 0 4px rgb(0 0 0 / 0.1); }
-.bar[data-mode="edit"] .trigger { color: var(--text); }
-.bar[data-mode="edit"] .trigger:hover { background: var(--hover); }
+.bar[data-mode="edit"] .trigger { padding: 4px; color: var(--text); }
 .bar[data-mode="edit"] .trigger:focus-visible { box-shadow: inset 0 0 0 4px rgb(0 0 0 / 0.1); }
 .tray { display: grid; grid-template-columns: 0fr; transition: grid-template-columns 350ms var(--expand); }
 .bar[data-mode="edit"] .tray { grid-template-columns: 1fr; }
@@ -73,15 +69,28 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap;
   transition: background-color 200ms ease-out, color 200ms ease-out, transform 150ms ease-out;
 }
-.action:hover:not(:disabled), .action[aria-expanded="true"] { background: var(--hover); color: var(--text); }
-.action:active:not(:disabled) { transform: scale(0.96); }
-.action:disabled { opacity: 0.4; cursor: default; }
+.action:hover:not([aria-disabled="true"]), .action[aria-expanded="true"] { background: var(--hover); color: var(--text); }
+.action:active:not([aria-disabled="true"]) { transform: scale(0.96); }
+.action[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+.count { font-size: 13px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
 .confirm {
   position: absolute; direction: ltr; bottom: calc(100% + 8px); transform-origin: bottom left;
   padding: 4px; border-radius: 9999px; background: var(--surface); box-shadow: var(--shadow);
   transition: opacity 200ms ease-out, scale 200ms ease-out;
 }
 .bar[data-corner^="top"] .confirm { top: calc(100% + 8px); bottom: auto; }
+.tip {
+  position: absolute; bottom: calc(100% + 8px); direction: ltr; pointer-events: none; white-space: nowrap;
+  padding: 6px 10px; border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); color: var(--text);
+  font-size: 14px; font-weight: 450; line-height: 20px;
+  translate: -50% 0; transform-origin: bottom center; opacity: 0; scale: 0.95;
+  transition: opacity 150ms ease-out, scale 150ms ease-out;
+}
+.tip[data-open] { opacity: 1; scale: 1; transition-duration: 200ms; }
+.tip kbd { margin-left: 8px; font: inherit; color: var(--faint); }
+.tip[data-instant] { transition-duration: 0s; }
+@starting-style { .tip[data-open] { opacity: 0; scale: 0.95; } }
+.bar[data-corner^="top"] .tip { top: calc(100% + 8px); bottom: auto; transform-origin: top center; }
 .bar[data-corner="bottom-right"] .confirm { transform-origin: bottom right; }
 .bar[data-corner="top-left"] .confirm { transform-origin: top left; }
 .bar[data-corner="top-right"] .confirm { transform-origin: top right; }

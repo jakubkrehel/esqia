@@ -7,7 +7,7 @@ import {
   errorText,
 } from "./api";
 import { type Block, readBlock, runAround } from "./blocks";
-import { textOffsetAt } from "./geometry";
+import { blockRect, textOffsetAt } from "./geometry";
 import { type Placement, Run } from "./run";
 import { Store } from "./store";
 
@@ -32,6 +32,20 @@ export const INITIAL_SESSION: SessionSnapshot = {
   run: null,
   writing: false,
 };
+
+function firstVisibleBlock(): Block | null {
+  for (const el of document.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)) {
+    const rect = blockRect(el);
+    if (rect && rect.bottom > 0) {
+      return readBlock(el);
+    }
+  }
+  return null;
+}
+
+function lineAt(source: string, offset: number) {
+  return source.slice(0, offset).split("\n").length;
+}
 
 function files(count: number) {
   return `${count} ${count === 1 ? "file" : "files"}`;
@@ -78,6 +92,10 @@ export class Session extends Store<SessionSnapshot> {
     return this.backend.undo !== undefined;
   }
 
+  get canOpen() {
+    return this.backend.open !== undefined;
+  }
+
   load() {
     this.backend
       .config()
@@ -94,7 +112,9 @@ export class Session extends Store<SessionSnapshot> {
   private refreshChanges = () => {
     this.backend
       .changes()
-      .then(({ files: changed }) => this.update({ changed: changed.length }))
+      .then((changes) =>
+        this.update({ changed: changes.edits ?? changes.files.length })
+      )
       .catch(() => this.update({ changed: 0 }));
   };
 
@@ -215,6 +235,20 @@ export class Session extends Store<SessionSnapshot> {
       await undo(file);
       this.refreshChanges();
       this.notify("Undone");
+    } catch (error) {
+      this.notify(errorText(error), "error");
+    }
+  }
+
+  async openInEditor() {
+    const { open } = this.backend;
+    const block = firstVisibleBlock();
+    if (!(open && block)) {
+      return;
+    }
+    try {
+      const { source } = await this.backend.source(block.file);
+      await open(block.file, lineAt(source, block.start));
     } catch (error) {
       this.notify(errorText(error), "error");
     }

@@ -111,7 +111,7 @@ function LanguageIcon({ lang, title }: { lang: string; title: string }) {
 
 function Heading({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mt-16 mb-5 font-[550] font-text text-gray-1200">
+    <h2 className="mt-16 mb-5 font-[550] font-text text-body text-gray-1200">
       {children}
     </h2>
   );

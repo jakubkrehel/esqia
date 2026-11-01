@@ -1,6 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  type FocusEvent,
+  type PointerEvent,
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { type Corner, startCornerDrag } from "./corner-drag";
-import { CheckIcon, RevertIcon, TrashIcon } from "./icons";
+import { CheckIcon, OpenIcon, ResetIcon, TrashIcon, UndoIcon } from "./icons";
 
 export const OUTLINE_COLORS = [
   { name: "Sky", value: "oklch(74.6% 0.16 232.661)" },
@@ -11,6 +19,94 @@ export const OUTLINE_COLORS = [
 ] as const;
 
 const REVERTED_FOR = 1200;
+const TIP_DELAY = 200;
+const TIP_WARM_FOR = 300;
+
+type TipId = "undo" | "revert" | "open" | "outline";
+
+interface Tip {
+  id: TipId;
+  instant: boolean;
+  open: boolean;
+  x: number;
+}
+
+function useTip() {
+  const [tip, setTip] = useState<Tip | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const open = useRef(false);
+  const warmUntil = useRef(0);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const show = (button: HTMLElement, id: TipId) => {
+    clearTimeout(timer.current);
+    const x = button.offsetLeft + button.offsetWidth / 2;
+    const reveal = (instant: boolean) => {
+      open.current = true;
+      setTip({ id, instant, open: true, x });
+    };
+    if (performance.now() < warmUntil.current) {
+      reveal(true);
+    } else {
+      timer.current = setTimeout(() => reveal(false), TIP_DELAY);
+    }
+  };
+
+  const hide = () => {
+    clearTimeout(timer.current);
+    if (open.current) {
+      open.current = false;
+      warmUntil.current = performance.now() + TIP_WARM_FOR;
+    }
+    setTip((current) => current && { ...current, instant: false, open: false });
+  };
+
+  const bind = (id: TipId) => ({
+    onBlur: hide,
+    onFocus: (event: FocusEvent<HTMLButtonElement>) => {
+      if (event.currentTarget.matches(":focus-visible")) {
+        show(event.currentTarget, id);
+      }
+    },
+    onPointerDown: hide,
+    onPointerEnter: (event: PointerEvent<HTMLButtonElement>) =>
+      show(event.currentTarget, id),
+    onPointerLeave: hide,
+  });
+
+  return { bind, tip };
+}
+
+const MOD =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad/.test(navigator.userAgent)
+    ? "⌘"
+    : "Ctrl+";
+
+function plural(count: number, word: string) {
+  return `${count} ${count === 1 ? word : `${word}s`}`;
+}
+
+function tipLabel(id: TipId, changed: number, outlineName: string): ReactNode {
+  switch (id) {
+    case "undo":
+      return (
+        <>
+          {changed === 0 ? "Nothing to undo" : "Undo"}
+          <kbd>{MOD}Z</kbd>
+        </>
+      );
+    case "revert":
+      return changed === 0
+        ? "Nothing to revert"
+        : `Revert ${plural(changed, "change")}`;
+    case "open":
+      return "Open in editor";
+    default:
+      return `Outline: ${outlineName}`;
+  }
+}
 
 export function Toolbar({
   busy,
@@ -19,9 +115,11 @@ export function Toolbar({
   editing,
   outline,
   onCorner,
+  onOpen,
   onOutline,
   onRevert,
   onToggle,
+  onUndo,
 }: {
   busy: boolean;
   changed: number;
@@ -29,21 +127,21 @@ export function Toolbar({
   editing: boolean;
   outline: string;
   onCorner: (corner: Corner) => void;
+  onOpen?: () => void;
   onOutline: (color: string) => void;
   onRevert: () => Promise<boolean>;
   onToggle: () => void;
+  onUndo?: () => void;
 }) {
-  const [confirmAt, setConfirmAt] = useState<{
-    left: number;
-    right: number;
-  } | null>(null);
-  const [reverting, setReverting] = useState(false);
-  const [reverted, setReverted] = useState(false);
+  const [confirmAt, setConfirmAt] = useState<ConfirmAt | null>(null);
   const revert = useRef<HTMLButtonElement>(null);
   const confirm = useRef<HTMLDivElement>(null);
   const current = OUTLINE_COLORS.findIndex((color) => color.value === outline);
+  const outlineName = OUTLINE_COLORS[current]?.name ?? "Custom";
   const next = OUTLINE_COLORS[(current + 1) % OUTLINE_COLORS.length];
   const confirming = confirmAt !== null && editing;
+  const nothingChanged = changed === 0;
+  const { bind, tip } = useTip();
 
   useEffect(() => {
     if (!confirming) {
@@ -73,13 +171,16 @@ export function Toolbar({
     };
   }, [confirming]);
 
-  useEffect(() => {
-    if (!reverted) {
-      return;
+  const toggleConfirm = (button: HTMLButtonElement) => {
+    if (confirming) {
+      setConfirmAt(null);
+    } else if (!nothingChanged) {
+      setConfirmAt({
+        left: button.offsetLeft,
+        right: button.offsetLeft + button.offsetWidth,
+      });
     }
-    const timer = setTimeout(() => setReverted(false), REVERTED_FOR);
-    return () => clearTimeout(timer);
-  }, [reverted]);
+  };
 
   return (
     <div
@@ -101,76 +202,152 @@ export function Toolbar({
       <div className="tray" inert={!editing}>
         <div className="tray-items">
           <span className="sep" />
+          {onUndo && (
+            <button
+              aria-disabled={nothingChanged}
+              aria-keyshortcuts="Meta+Z Control+Z"
+              aria-label="Undo"
+              className="action"
+              onClick={() => nothingChanged || onUndo()}
+              type="button"
+              {...bind("undo")}
+            >
+              <UndoIcon />
+            </button>
+          )}
           <button
+            aria-disabled={nothingChanged}
             aria-expanded={confirming}
-            aria-label="Revert all changes"
+            aria-label={
+              nothingChanged
+                ? "Revert all changes"
+                : `Revert ${plural(changed, "change")}`
+            }
             className="action"
-            disabled={changed === 0}
-            onClick={(event) => {
-              const button = event.currentTarget;
-              setConfirmAt(
-                confirming
-                  ? null
-                  : {
-                      left: button.offsetLeft,
-                      right: button.offsetLeft + button.offsetWidth,
-                    }
-              );
-            }}
+            onClick={(event) => toggleConfirm(event.currentTarget)}
             ref={revert}
-            title={changed === 0 ? "Nothing to revert" : "Revert all changes"}
             type="button"
+            {...bind("revert")}
           >
-            <RevertIcon />
+            <ResetIcon />
+            {!nothingChanged && <span className="count">{changed}</span>}
           </button>
+          {onOpen && (
+            <button
+              aria-label="Open in editor"
+              className="action"
+              onClick={onOpen}
+              type="button"
+              {...bind("open")}
+            >
+              <OpenIcon />
+            </button>
+          )}
           <button
-            aria-label={`Outline color: ${OUTLINE_COLORS[current]?.name}`}
+            aria-label={`Outline color: ${outlineName}`}
             className="action"
             onClick={() => onOutline(next.value)}
-            title={`Switch outline to ${next.name}`}
             type="button"
+            {...bind("outline")}
           >
             <span className="swatch" style={{ background: outline }} />
           </button>
         </div>
       </div>
-      {confirming && (
-        <div
-          className="confirm"
-          ref={confirm}
-          style={
-            corner.endsWith("right")
-              ? { left: confirmAt.right, translate: "-100% 0" }
-              : { left: confirmAt.left }
-          }
-        >
-          <button
-            autoFocus
-            data-reverted={reverted ? "" : undefined}
-            disabled={changed === 0 && !reverting && !reverted}
-            onClick={async () => {
-              if (reverting || reverted) {
-                return;
-              }
-              setReverting(true);
-              const done = await onRevert();
-              setReverting(false);
-              setReverted(done);
-            }}
-            type="button"
-          >
-            <span className="swap">
-              <span data-shown={reverted ? undefined : ""}>
-                <TrashIcon />
-              </span>
-              <span data-shown={reverted ? "" : undefined}>
-                <CheckIcon />
-              </span>
-            </span>
-            Revert all changes
-          </button>
-        </div>
+      {tip && editing && !confirming && (
+        <ToolbarTip label={tipLabel(tip.id, changed, outlineName)} tip={tip} />
       )}
+      {confirming && (
+        <RevertConfirm
+          at={confirmAt}
+          changed={changed}
+          corner={corner}
+          onRevert={onRevert}
+          ref={confirm}
+        />
+      )}
+    </div>
+  );
+}
+
+interface ConfirmAt {
+  left: number;
+  right: number;
+}
+
+function RevertConfirm({
+  at,
+  changed,
+  corner,
+  onRevert,
+  ref,
+}: {
+  at: ConfirmAt;
+  changed: number;
+  corner: Corner;
+  onRevert: () => Promise<boolean>;
+  ref: Ref<HTMLDivElement>;
+}) {
+  const [reverting, setReverting] = useState(false);
+  const [reverted, setReverted] = useState(false);
+
+  useEffect(() => {
+    if (!reverted) {
+      return;
+    }
+    const timer = setTimeout(() => setReverted(false), REVERTED_FOR);
+    return () => clearTimeout(timer);
+  }, [reverted]);
+
+  return (
+    <div
+      className="confirm"
+      ref={ref}
+      style={
+        corner.endsWith("right")
+          ? { left: at.right, translate: "-100% 0" }
+          : { left: at.left }
+      }
+    >
+      <button
+        autoFocus
+        data-reverted={reverted ? "" : undefined}
+        disabled={changed === 0 && !reverting && !reverted}
+        onClick={async () => {
+          if (reverting || reverted) {
+            return;
+          }
+          setReverting(true);
+          const done = await onRevert();
+          setReverting(false);
+          setReverted(done);
+        }}
+        type="button"
+      >
+        <span className="swap">
+          <span data-shown={reverted ? undefined : ""}>
+            <TrashIcon />
+          </span>
+          <span data-shown={reverted ? "" : undefined}>
+            <CheckIcon />
+          </span>
+        </span>
+        Revert all changes
+      </button>
+    </div>
+  );
+}
+
+function ToolbarTip({ label, tip }: { label: ReactNode; tip: Tip }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="tip"
+      data-instant={tip.instant ? "" : undefined}
+      data-open={tip.open ? "" : undefined}
+      style={{ left: tip.x }}
+    >
+      {label}
     </div>
   );
 }
