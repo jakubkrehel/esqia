@@ -34,7 +34,7 @@ const components: MDXComponents = {
     </h2>
   ),
   li: (props) => (
-    <li className="pl-1 font-text text-body text-text-paragraph" {...props} />
+    <li className="pl-2 font-text text-body text-text-paragraph" {...props} />
   ),
   p: (props) => (
     <p className="font-text text-body text-text-paragraph" {...props} />
@@ -50,7 +50,7 @@ const components: MDXComponents = {
   ),
   ul: (props) => (
     <ul
-      className="my-2 flex list-disc flex-col gap-2 pl-5 marker:text-gray-800"
+      className="my-2 flex list-['-'] flex-col gap-2 pl-5 marker:text-gray-800"
       {...props}
     />
   ),

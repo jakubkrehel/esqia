@@ -95,10 +95,12 @@ export function measureBlock(block: Block): Geometry | null {
     : 0;
   const line = firstLineRect(block.el);
 
-  const center =
-    line && line.top - rect.top < FIRST_LINE_REACH
-      ? line.top + line.height / 2
-      : rect.top + HANDLE / 2;
+  let center = rect.top + HANDLE / 2;
+  if (line && line.top - rect.top < FIRST_LINE_REACH) {
+    center = line.top + line.height / 2;
+  } else if (!line && rect.height < FIRST_LINE_REACH) {
+    center = rect.top + rect.height / 2;
+  }
   return { handleTop: center - HANDLE / 2, radius, rect: toRect(rect) };
 }
 
