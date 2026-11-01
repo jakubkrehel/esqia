@@ -8,6 +8,7 @@ export class ConflictError extends Error {
 }
 
 interface Backend {
+  changes: () => Promise<{ files: string[] }>;
   config: () => Promise<ClientConfig>;
 
   live: boolean;
@@ -19,6 +20,7 @@ interface Backend {
     ops: Op[],
     group?: string
   ) => Promise<{ hash: string }>;
+  revert: () => Promise<{ reverted: string[]; skipped: string[] }>;
   revision: (file: string) => number;
   source: (file: string) => Promise<{ source: string; hash: string }>;
   undo: (file: string) => Promise<{ hash: string }>;
@@ -48,6 +50,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 const sidecar: Backend = {
+  changes: () => request<{ files: string[] }>("/changes"),
   config: () => request<ClientConfig>("/config"),
   live: true,
   mapOffset: (_file, offset) => offset,
@@ -55,6 +58,10 @@ const sidecar: Backend = {
     request<{ hash: string }>("/ops", {
       body: JSON.stringify({ file, group, hash, ops }),
       headers: { "content-type": "application/json" },
+      method: "POST",
+    }),
+  revert: () =>
+    request<{ reverted: string[]; skipped: string[] }>("/revert", {
       method: "POST",
     }),
   revision: () => 0,
@@ -122,6 +129,12 @@ function memory(
   };
 
   return {
+    changes: () =>
+      Promise.resolve({
+        files: [...files]
+          .filter(([, f]) => f.shifts.length > 0)
+          .map(([name]) => name),
+      }),
     config: () => Promise.resolve(config),
     live: false,
     mapOffset: (name, offset, since) => {
@@ -153,6 +166,10 @@ function memory(
       current.hash = `demo-${writes}`;
       return Promise.resolve({ hash: current.hash });
     },
+    revert: () => {
+      location.reload();
+      return Promise.resolve({ reverted: [], skipped: [] });
+    },
     revision: (name) => file(name).shifts.length,
     source: (name) => {
       const current = file(name);
@@ -177,12 +194,14 @@ export function startDemo(
 }
 
 export const api: Backend = {
+  changes: () => backend.changes(),
   config: () => backend.config(),
   get live() {
     return backend.live;
   },
   mapOffset: (file, offset, since) => backend.mapOffset(file, offset, since),
   ops: (file, hash, ops, group) => backend.ops(file, hash, ops, group),
+  revert: () => backend.revert(),
   revision: (file) => backend.revision(file),
   source: (file) => backend.source(file),
   undo: (file) => backend.undo(file),

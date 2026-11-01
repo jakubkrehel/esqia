@@ -209,23 +209,14 @@ async function handle(
 
     case "POST /undo": {
       const body = JSON.parse(await readBody(req, 10_000)) as { file: string };
-      const file = resolveFile(context.root, body.file);
-      const entries = context.history.get(file) ?? [];
-      const last = entries.at(-1);
-      if (!last) {
-        return send(res, 404, { error: "Nothing to undo." });
-      }
-      const source = await readFile(file, "utf8");
-      if (hashSource(source) !== last.afterHash) {
-        entries.length = 0;
-        return send(res, 409, {
-          error: "The file changed in your editor since the last edit here.",
-        });
-      }
-      entries.pop();
-      await writeFile(file, last.before);
-      return send(res, 200, { hash: hashSource(last.before) });
+      return undo(res, context, resolveFile(context.root, body.file));
     }
+
+    case "GET /changes":
+      return send(res, 200, { files: changedFiles(context) });
+
+    case "POST /revert":
+      return send(res, 200, await revertAll(context));
 
     case "POST /upload": {
       const file = resolveFile(
@@ -252,6 +243,52 @@ async function handle(
     default:
       return send(res, 404, { error: "Not found." });
   }
+}
+
+async function undo(res: ServerResponse, context: Context, file: string) {
+  const entries = context.history.get(file) ?? [];
+  const last = entries.at(-1);
+  if (!last) {
+    return send(res, 404, { error: "Nothing to undo." });
+  }
+  const source = await readFile(file, "utf8");
+  if (hashSource(source) !== last.afterHash) {
+    entries.length = 0;
+    return send(res, 409, {
+      error: "The file changed in your editor since the last edit here.",
+    });
+  }
+  entries.pop();
+  await writeFile(file, last.before);
+  return send(res, 200, { hash: hashSource(last.before) });
+}
+
+function changedFiles(context: Context): string[] {
+  return [...context.history]
+    .filter(([, entries]) => entries.length > 0)
+    .map(([file]) => path.relative(context.root, file));
+}
+
+async function revertAll(context: Context) {
+  const reverted: string[] = [];
+  const skipped: string[] = [];
+  for (const [file, entries] of context.history) {
+    const first = entries[0];
+    const last = entries.at(-1);
+    entries.length = 0;
+    if (!(first && last)) {
+      continue;
+    }
+    const name = path.relative(context.root, file);
+    const source = await readFile(file, "utf8");
+    if (hashSource(source) === last.afterHash) {
+      await writeFile(file, first.before);
+      reverted.push(name);
+    } else {
+      skipped.push(name);
+    }
+  }
+  return { reverted, skipped };
 }
 
 function record(

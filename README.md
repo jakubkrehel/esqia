@@ -1,6 +1,6 @@
 # esqia
 
-Edit a Next.js site's MDX from the rendered page during development. Press the feather button in the bottom-left (or ⌘E), click any paragraph or heading and type. Changes save into the `.mdx` file and Fast Refresh renders the real page.
+Edit a Next.js site's MDX from the rendered page during development. Press the square button in the bottom-left (or ⌘E), click any paragraph or heading and type. Changes save into the `.mdx` file and Fast Refresh renders the real page.
 
 ## Setup
 

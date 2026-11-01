@@ -40,6 +40,7 @@ export interface OpenOptions {
   onClose: () => void;
   onError: (message: string) => void;
   onFocus?: (run: Run) => void;
+  onSaved?: () => void;
 }
 
 const SAVE_DELAY = 800;
@@ -64,6 +65,7 @@ export class Run {
   private readonly group = Math.random().toString(36).slice(2);
   private readonly onError: (message: string) => void;
   private readonly onClose: () => void;
+  private readonly onSaved: () => void;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saving: Promise<void> | null = null;
   private wrote = false;
@@ -94,6 +96,7 @@ export class Run {
     this.config = options.config;
     this.onError = options.onError;
     this.onClose = options.onClose;
+    this.onSaved = options.onSaved ?? (() => undefined);
     this.hash = hash;
 
     const first = options.blocks[0];
@@ -339,6 +342,7 @@ export class Run {
     this.wrote = true;
     this.revision = api.revision(this.file);
     this.ranges.set(hash, [this.start, this.start + text.length]);
+    this.onSaved();
   }
 
   close(discard = false): Promise<void> {

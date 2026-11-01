@@ -94,6 +94,13 @@ export function Chrome({ host }: { host: HTMLElement }) {
   const [run, setRun] = useState<Run | null>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [writing, setWriting] = useState(false);
+  const [changed, setChanged] = useState(0);
+  const refreshChanges = () => {
+    api
+      .changes()
+      .then(({ files }) => setChanged(files.length))
+      .catch(() => setChanged(0));
+  };
   const hasBlocks = useSyncExternalStore(
     subscribeToBlocks,
     pageHasBlocks,
@@ -127,6 +134,33 @@ export function Chrome({ host }: { host: HTMLElement }) {
     );
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    api
+      .changes()
+      .then(({ files }) => setChanged(files.length))
+      .catch(() => setChanged(0));
+  }, []);
+
+  async function revertAll() {
+    await closeRun();
+    try {
+      const { reverted, skipped } = await api.revert();
+      setChanged(0);
+      if (skipped.length > 0) {
+        notify(
+          `Reverted ${reverted.length} ${reverted.length === 1 ? "file" : "files"}. Skipped ${skipped.join(", ")}, changed in your editor since.`,
+          "error"
+        );
+      } else if (reverted.length > 0) {
+        notify(
+          `Reverted ${reverted.length} ${reverted.length === 1 ? "file" : "files"}`
+        );
+      }
+    } catch (error) {
+      notify(errorText(error), "error");
+    }
+  }
 
   useEffect(() => {
     api
@@ -192,6 +226,7 @@ export function Chrome({ host }: { host: HTMLElement }) {
         onClose: () => setRun((value) => (value === next ? null : value)),
         onError: (message) => notify(message, "error"),
         onFocus: (focused) => setRun(focused),
+        onSaved: refreshChanges,
       });
       runs.current.add(next);
       lastFile.current = fresh.file;
@@ -229,6 +264,7 @@ export function Chrome({ host }: { host: HTMLElement }) {
         }
       }
       lastFile.current = block.file;
+      refreshChanges();
     } catch (error) {
       notify(errorText(error), "error");
     } finally {
@@ -248,6 +284,7 @@ export function Chrome({ host }: { host: HTMLElement }) {
     }
     try {
       await api.undo(file);
+      refreshChanges();
       notify("Undone");
     } catch (error) {
       notify(errorText(error), "error");
@@ -312,10 +349,12 @@ export function Chrome({ host }: { host: HTMLElement }) {
         ) : (
           <Bubble config={config} run={run} tick={snapshot.selection} />
         ))}
-      <Trigger
+      <Toolbar
         busy={busy}
+        changed={changed}
         demo={!api.live}
         editing={editing}
+        onRevert={revertAll}
         onToggle={() => setMode(toggled)}
       />
       {status && <Status {...status} />}
@@ -366,34 +405,79 @@ function isTyping() {
   );
 }
 
-function Trigger({
+function Toolbar({
   busy,
+  changed,
   demo,
   editing,
+  onRevert,
   onToggle,
 }: {
   busy: boolean;
+  changed: number;
   demo: boolean;
   editing: boolean;
+  onRevert: () => void;
   onToggle: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
   const idleLabel = demo ? "Try editing" : "Edit page";
+
+  useEffect(() => {
+    if (!confirming) {
+      return;
+    }
+    const timer = setTimeout(() => setConfirming(false), 3000);
+    return () => clearTimeout(timer);
+  }, [confirming]);
+
   return (
     <>
-      <button
-        aria-label={editing ? "Stop editing" : "Edit this page"}
-        aria-pressed={editing}
-        className="trigger"
-        data-busy={busy ? "" : undefined}
-        data-mode={editing ? "edit" : "read"}
-        onClick={onToggle}
-        type="button"
-      >
-        <span className="mark" />
-      </button>
-      <div className="label">
-        {editing ? "Stop editing" : idleLabel} <kbd>⌘E</kbd>
+      <div className="bar" data-mode={editing ? "edit" : "read"}>
+        <button
+          aria-label={editing ? "Stop editing" : "Edit this page"}
+          aria-pressed={editing}
+          className="trigger"
+          data-busy={busy ? "" : undefined}
+          onClick={onToggle}
+          type="button"
+        >
+          <span className="mark" />
+        </button>
+        {editing && (
+          <>
+            <span className="sep" />
+            <button
+              aria-label={
+                confirming
+                  ? "Confirm reverting all changes"
+                  : "Revert all changes"
+              }
+              className="action"
+              data-confirming={confirming ? "" : undefined}
+              disabled={changed === 0}
+              onClick={() => {
+                if (confirming) {
+                  setConfirming(false);
+                  onRevert();
+                } else {
+                  setConfirming(true);
+                }
+              }}
+              title={changed === 0 ? "Nothing to revert" : "Revert all changes"}
+              type="button"
+            >
+              <RevertIcon />
+              {confirming && <span>Revert all</span>}
+            </button>
+          </>
+        )}
       </div>
+      {!editing && (
+        <div className="label">
+          {idleLabel} <kbd>⌘E</kbd>
+        </div>
+      )}
     </>
   );
 }
@@ -1129,6 +1213,24 @@ function Status({ text, tone }: { text: string; tone: "info" | "error" }) {
   );
 }
 
+const RevertIcon = () => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="16"
+    viewBox="0 0 16 16"
+    width="16"
+  >
+    <path
+      d="M3.5 6.5h6a3.5 3.5 0 0 1 0 7H7M3.5 6.5 6 4M3.5 6.5 6 9"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+    />
+  </svg>
+);
+
 const PlusIcon = () => (
   <svg
     aria-hidden="true"
@@ -1229,8 +1331,12 @@ export const CHROME_CSS = `
 }
 .layer > * { pointer-events: auto; }
 button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
-.trigger {
+.bar {
   position: fixed; left: calc(20px + env(safe-area-inset-left)); bottom: calc(20px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 4px; border-radius: 9999px;
+}
+.bar[data-mode="edit"] { padding: 4px; background: var(--surface); box-shadow: 0 0 0 1.5px var(--sky), var(--shadow); }
+.trigger {
   width: 36px; height: 36px; border: 0; border-radius: 9999px; outline: none;
   display: grid; place-items: center; cursor: pointer;
   background: var(--surface); color: var(--muted); box-shadow: var(--shadow);
@@ -1239,7 +1345,17 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .trigger:hover { box-shadow: var(--shadow-hover); color: var(--text); }
 .trigger:active { transform: scale(0.96); }
 .trigger:focus-visible { box-shadow: var(--shadow), 0 0 0 4px rgb(0 0 0 / 0.1); }
-.trigger[data-mode="edit"] { color: var(--text); box-shadow: 0 0 0 1.5px var(--sky), var(--shadow); }
+.bar[data-mode="edit"] .trigger { width: 28px; height: 28px; box-shadow: none; color: var(--text); }
+.bar[data-mode="edit"] .trigger:hover { background: var(--hover); }
+.action {
+  height: 28px; min-width: 28px; padding: 0 6px; border: 0; border-radius: 9999px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+.action:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.action:disabled { opacity: 0.4; cursor: default; }
+.action[data-confirming], .action[data-confirming]:hover { padding: 0 10px 0 8px; color: var(--danger); background: color-mix(in oklab, var(--danger) 10%, transparent); }
 .mark { width: 10px; height: 10px; border-radius: 2px; background: currentColor; }
 .trigger[data-busy] .mark { animation: pulse 900ms ease-in-out infinite; }
 .label, .toast {
@@ -1248,8 +1364,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   background: var(--surface); box-shadow: var(--shadow); pointer-events: none !important;
 }
 .label { opacity: 0; transform: translateX(-4px); transition: opacity 150ms ease-out, transform 150ms ease-out; }
-.trigger:hover + .label { opacity: 1; transform: none; }
-.toast { max-width: min(420px, calc(100vw - 84px)); white-space: normal; }
+.bar:hover + .label { opacity: 1; transform: none; }
+.toast { left: calc(20px + env(safe-area-inset-left)); bottom: calc(68px + env(safe-area-inset-bottom)); max-width: min(420px, calc(100vw - 40px)); white-space: normal; }
 .toast[data-tone="error"] { color: var(--danger); }
 kbd { font: inherit; color: var(--faint); margin-left: 4px; }
 .outline {

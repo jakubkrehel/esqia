@@ -58,6 +58,30 @@ describe("sidecar", () => {
     );
   });
 
+  it("reverts every changed file to before the first edit", async () => {
+    const before = readFileSync(path.join(root, file), "utf8");
+    for (const text of ["One.", "Two."]) {
+      const { hash, source } = await (
+        await call(`/source?file=${file}`)
+      ).json();
+      const start = source.indexOf("\n\n") + 2;
+      const end = source.length - 1;
+      await call(
+        "/ops",
+        json({
+          file,
+          hash,
+          ops: [{ end, expected: source.slice(start, end), start, text }],
+        })
+      );
+    }
+    expect((await (await call("/changes")).json()).files).toEqual([file]);
+    const result = await (await call("/revert", { method: "POST" })).json();
+    expect(result).toEqual({ reverted: [file], skipped: [] });
+    expect(readFileSync(path.join(root, file), "utf8")).toBe(before);
+    expect((await (await call("/changes")).json()).files).toEqual([]);
+  });
+
   it("uploads to public/ under the post's folder name", async () => {
     const response = await call("/upload", {
       body: new Uint8Array([1, 2, 3]),
