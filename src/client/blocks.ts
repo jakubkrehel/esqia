@@ -52,10 +52,28 @@ export function runAround(block: Block): Block[] {
 }
 
 export function blockRect(el: HTMLElement): DOMRect | null {
+  if (el.style.display === "none") {
+    return null;
+  }
   const range = document.createRange();
   range.selectNodeContents(el);
   const rect = range.getBoundingClientRect();
+  if (el.dataset.esqiaType === "spacer") {
+    return spacerRect(el, rect);
+  }
   return rect.width === 0 && rect.height === 0 ? null : rect;
+}
+
+function spacerRect(el: HTMLElement, line: DOMRect): DOMRect | null {
+  const column = el.parentElement;
+  if (!column || line.height === 0) {
+    return null;
+  }
+  const box = column.getBoundingClientRect();
+  const style = getComputedStyle(column);
+  const left = box.left + Number.parseFloat(style.paddingLeft);
+  const right = box.right - Number.parseFloat(style.paddingRight);
+  return new DOMRect(left, line.top, right - left, line.height);
 }
 
 export function waitForVersion(
