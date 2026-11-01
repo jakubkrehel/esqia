@@ -4,9 +4,10 @@
   "linter": {
     "includes": ["**", "!**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
     "rules": {
-      "nursery": {
+      "suspicious": {
         "noDuplicateSelectors": "error",
-        "noEmptyObjectKeys": "error"
+        "noEmptyObjectKeys": "error",
+        "useBaseline": "off"
       }
     }
   }

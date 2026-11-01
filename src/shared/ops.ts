@@ -46,42 +46,80 @@ export function moveOps(
   target: BlockRange | null
 ): Op[] {
   const text = source.slice(block.start, block.end);
-  const removal = removalRange(blocks, block);
+  const [removal] = removeOps(source, block);
   const insertAt = target
     ? target.start
     : (blocks.at(-1)?.end ?? source.length);
-  if (insertAt >= removal.start && insertAt <= removal.end) {
+  if (!removal || (insertAt >= removal.start && insertAt <= removal.end)) {
     return [];
   }
 
   return [
-    {
-      end: removal.end,
-      expected: source.slice(removal.start, removal.end),
-      start: removal.start,
-      text: "",
-    },
+    removal,
     target
       ? { end: insertAt, expected: "", start: insertAt, text: `${text}\n\n` }
       : { end: insertAt, expected: "", start: insertAt, text: `\n\n${text}` },
   ];
 }
 
-export function deleteOps(
-  source: string,
-  blocks: BlockRange[],
-  block: BlockRange
-): Op[] {
-  const { start, end } = removalRange(blocks, block);
-  return [{ end, expected: source.slice(start, end), start, text: "" }];
+export const LINE_BREAK = "<br />";
+
+export function insertBreakOps(block: BlockRange): Op[] {
+  return [
+    {
+      end: block.end,
+      expected: "",
+      start: block.end,
+      text: `\n\n${LINE_BREAK}`,
+    },
+  ];
 }
 
-function removalRange(blocks: BlockRange[], block: BlockRange): BlockRange {
-  const index = blocks.findIndex((b) => b.start === block.start);
-  const next = blocks[index + 1];
-  if (next) {
-    return { end: next.start, start: block.start };
+export function removeOps(source: string, range: BlockRange): Op[] {
+  let { start, end } = range;
+  while (start > 0 && /\s/.test(source[start - 1] ?? "")) {
+    start--;
   }
-  const previous = blocks[index - 1];
-  return { end: block.end, start: previous ? previous.end : block.start };
+  while (end < source.length && /\s/.test(source[end] ?? "")) {
+    end++;
+  }
+  let text = "\n\n";
+  if (end === source.length) {
+    text = "\n";
+  } else if (start === 0) {
+    text = "";
+  }
+  const expected = source.slice(start, end);
+  return expected === text ? [] : [{ end, expected, start, text }];
+}
+
+export function mapRange(ops: Op[], range: BlockRange): BlockRange | null {
+  let delta = 0;
+  for (const op of ops) {
+    const insertion = op.start === op.end;
+    const inside = insertion
+      ? op.start > range.start && op.start < range.end
+      : op.start < range.end && op.end > range.start;
+    if (inside) {
+      return null;
+    }
+    if (op.end <= range.start) {
+      delta += op.text.length - (op.end - op.start);
+    }
+  }
+  return { end: range.end + delta, start: range.start + delta };
+}
+
+export function mapSpan(ops: Op[], range: BlockRange): BlockRange {
+  let { start, end } = range;
+  for (const op of ops) {
+    const delta = op.text.length - (op.end - op.start);
+    if (op.start >= range.start && op.start <= range.end) {
+      end += delta;
+    } else if (op.end <= range.start) {
+      start += delta;
+      end += delta;
+    }
+  }
+  return { end, start };
 }

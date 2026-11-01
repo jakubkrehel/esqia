@@ -31,7 +31,5 @@ const withMDX = createMDX({
 });
 
 export default withEsqia(withMDX(nextConfig), {
-  marks: [{ className: "font-libre-baskerville", name: "Serif", tag: "em" }],
-  media: { upload: "public" },
   smartypants: { dashes: false },
 });

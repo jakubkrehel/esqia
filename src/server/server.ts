@@ -7,10 +7,9 @@ import {
   type ServerResponse,
 } from "node:http";
 import path from "node:path";
-import { hashSource } from "../remark";
 import { clientConfig, type EsqiaOptions } from "../shared/config";
+import { hashSource } from "../shared/hash";
 import { applyOps, type Op } from "../shared/ops";
-import { upload } from "./upload";
 
 export type { ClientConfig, EsqiaOptions } from "../shared/config";
 
@@ -218,28 +217,6 @@ async function handle(
     case "POST /revert":
       return send(res, 200, await revertAll(context));
 
-    case "POST /upload": {
-      const file = resolveFile(
-        context.root,
-        firstHeader(req.headers["x-esqia-file"])
-      );
-      const name = path.basename(
-        decodeURIComponent(firstHeader(req.headers["x-esqia-name"]) ?? "upload")
-      );
-      const body = await readBody(req, 200_000_000, true);
-      const uploaded = await upload({
-        body,
-        contentType:
-          firstHeader(req.headers["content-type"]) ??
-          "application/octet-stream",
-        dir: path.basename(path.dirname(file)),
-        name,
-        options: context.options.media ?? {},
-        root: context.root,
-      });
-      return send(res, 200, { url: uploaded });
-    }
-
     default:
       return send(res, 404, { error: "Not found." });
   }
@@ -325,21 +302,7 @@ function resolveFile(root: string, file: string | null | undefined): string {
   return resolved;
 }
 
-function firstHeader(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function readBody(req: IncomingMessage, limit: number): Promise<string>;
-function readBody(
-  req: IncomingMessage,
-  limit: number,
-  binary: true
-): Promise<Buffer>;
-function readBody(
-  req: IncomingMessage,
-  limit: number,
-  binary?: boolean
-): Promise<string | Buffer> {
+function readBody(req: IncomingMessage, limit: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -354,7 +317,7 @@ function readBody(
     });
     req.on("end", () => {
       const buffer = Buffer.concat(chunks);
-      resolve(binary ? buffer : buffer.toString("utf8"));
+      resolve(buffer.toString("utf8"));
     });
     req.on("error", reject);
   });

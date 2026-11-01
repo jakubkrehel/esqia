@@ -21,9 +21,6 @@ export default function Page() {
       ) : (
         <Esqia
           demo={{
-            marks: [
-              { className: "font-libre-baskerville", name: "Serif", tag: "em" },
-            ],
             smartypants: { dashes: false },
             sources: { [CONTENT]: source },
           }}

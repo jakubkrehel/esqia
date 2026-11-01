@@ -1,13 +1,12 @@
-import { createHash } from "node:crypto";
 import path from "node:path";
 import type { Root, RootContent } from "mdast";
 import type { MdxJsxAttribute, MdxJsxFlowElement } from "mdast-util-mdx-jsx";
 import type { VFile } from "vfile";
+import { hashSource } from "./shared/hash";
 import { blockType } from "./shared/markdown";
+import { wrapperAttributes } from "./shared/wrapper";
 
-export function hashSource(source: string): string {
-  return createHash("sha1").update(source).digest("hex").slice(0, 10);
-}
+export { hashSource } from "./shared/hash";
 
 const attribute = (name: string, value: string): MdxJsxAttribute => ({
   name,
@@ -78,11 +77,13 @@ export default function remarkEsqia() {
 
       const wrapper: MdxJsxFlowElement = {
         attributes: [
-          attribute("data-esqia-file", relative),
-          attribute("data-esqia-start", String(start)),
-          attribute("data-esqia-end", String(end)),
-          attribute("data-esqia-type", blockType(node)),
-          attribute("data-esqia-v", version),
+          ...wrapperAttributes({
+            end,
+            file: relative,
+            start,
+            type: blockType(node),
+            version,
+          }).map(([name, value]) => attribute(name, value)),
           displayContents,
         ],
         children: [node as MdxJsxFlowElement["children"][number]],

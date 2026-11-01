@@ -1,67 +1,76 @@
 import { Editor } from "@tiptap/core";
-import type { Node as PMNode } from "@tiptap/pm/model";
-import { TextSelection } from "@tiptap/pm/state";
+import { detectStyle, type MarkdownStyle } from "../shared/markdown";
+import { type BlockRange, type Op, removeOps } from "../shared/ops";
+import { WRAPPER } from "../shared/wrapper";
 import {
-  blockType,
-  detectStyle,
-  type MarkdownStyle,
-  parseMdx,
-} from "../shared/markdown";
-import { api, type ClientConfig, ConflictError } from "./api";
-import { type Block, fileBlocks, waitForVersion } from "./blocks";
+  type Backend,
+  type ClientConfig,
+  ConflictError,
+  errorText,
+} from "./api";
+import { type Block, readRange, stampRange } from "./blocks";
 import {
-  fingerprint,
-  type Original,
-  parseRun,
-  serializeRun,
-  writtenBlocks,
-} from "./convert";
-import { createExtensions, sampleTemplates } from "./editor";
-
-export interface SlashState {
-  query: string;
-  rect: { left: number; top: number; bottom: number };
-}
+  placeCaret,
+  type SlashItem,
+  type SlashMenu,
+  type SlashState,
+  slashItems,
+} from "./commands";
+import { fingerprint, type Original, parseRun, serializeRun } from "./convert";
+import { createExtensions } from "./editor";
+import type { RunPage } from "./page";
+import { Store } from "./store";
+import { sampleTemplates } from "./templates";
 
 export interface RunSnapshot {
-  busy: string | null;
+  revision: number;
   saving: boolean;
-  selection: number;
-  slash: SlashState | null;
+  slash: SlashMenu | null;
 }
 
-export interface OpenOptions {
-  after?: Block;
+export const IDLE_RUN: RunSnapshot = {
+  revision: 0,
+  saving: false,
+  slash: null,
+};
 
+export interface Placement {
+  at: "run" | "after";
   blocks: Block[];
+  mount: (root: HTMLElement) => void;
+  range: BlockRange;
+}
+
+export interface RunOptions {
+  backend: Backend;
   caret?: { index: number; offset: number };
   config: ClientConfig;
   file: string;
+  hash: string;
   onClose: () => void;
   onError: (message: string) => void;
-  onFocus?: (run: Run) => void;
-  onSaved?: () => void;
+  onFocus: (run: Run) => void;
+  onSaved: () => void;
+  placement: Placement;
+  source: string;
 }
 
 const SAVE_DELAY = 800;
 
-export class Run {
+export class Run extends Store<RunSnapshot> {
   readonly file: string;
   readonly root: HTMLElement;
   readonly editor: Editor;
-  readonly config: ClientConfig;
-
-  private slashKeys: ((event: KeyboardEvent) => boolean) | null = null;
 
   private hash: string;
-  private start: number;
   private current: string;
+  private readonly backend: Backend;
+  private readonly config: ClientConfig;
+  private readonly replacing: boolean;
   private readonly prefix: string;
   private readonly originals: Map<string, Original>;
   private readonly style: MarkdownStyle;
-  private readonly ranges = new Map<string, [number, number]>();
-  private readonly hidden = new Set<HTMLElement>();
-  private readonly observer: MutationObserver;
+  private readonly page: RunPage;
   private readonly group = Math.random().toString(36).slice(2);
   private readonly onError: (message: string) => void;
   private readonly onClose: () => void;
@@ -69,85 +78,49 @@ export class Run {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saving: Promise<void> | null = null;
   private wrote = false;
-  private readonly own: HTMLElement[];
-  private revision: number;
   private closing: Promise<void> | null = null;
-  private snapshot: RunSnapshot = {
-    busy: null,
-    saving: false,
-    selection: 0,
-    slash: null,
-  };
-  private listeners = new Set<() => void>();
 
-  static async open(options: OpenOptions): Promise<Run> {
-    const { source, hash } = await api.source(options.file);
-    const version = options.blocks[0]?.version ?? options.after?.version;
-    if (api.live && version && version !== hash) {
-      throw new ConflictError(
-        "The page is behind the file. Wait for it to refresh, then try again."
-      );
-    }
-    return new Run(options, source, hash);
-  }
-
-  private constructor(options: OpenOptions, source: string, hash: string) {
+  constructor(options: RunOptions) {
+    super(IDLE_RUN);
+    const { at, blocks, mount, range } = options.placement;
+    this.backend = options.backend;
     this.file = options.file;
     this.config = options.config;
     this.onError = options.onError;
     this.onClose = options.onClose;
-    this.onSaved = options.onSaved ?? (() => undefined);
-    this.hash = hash;
-
-    const first = options.blocks[0];
-    const last = options.blocks.at(-1);
-
-    this.start = first ? first.start : (options.after?.end ?? source.length);
-    const end = last ? last.end : this.start;
-    this.revision = api.revision(this.file);
-    this.own = options.blocks.map((block) => block.el);
-    this.current = source.slice(this.start, end);
-    this.prefix = first ? "" : "\n\n";
+    this.onSaved = options.onSaved;
+    this.hash = options.hash;
+    this.replacing = at === "run";
+    this.prefix = this.replacing ? "" : "\n\n";
+    this.current = options.source.slice(range.start, range.end);
     this.style = {
-      ...detectStyle(source),
+      ...detectStyle(options.source),
       smartypants: this.config.smartypants,
     };
-    this.ranges.set(hash, [this.start, end]);
 
     const parsed = parseRun(this.current, this.config.smartypants);
     this.originals = parsed.originals;
 
     this.root = document.createElement("div");
     this.root.className = "esqia-editor";
-    if (first) {
-      first.el.before(this.root);
-    } else {
-      options.after?.el.after(this.root);
-    }
+    this.root.setAttribute(WRAPPER.run, this.file);
+    stampRange(this.root, range);
+    mount(this.root);
 
-    const templates = sampleTemplates();
     this.editor = new Editor({
       content: parsed.doc,
       editorProps: {
-        handleDrop: (view, event, _slice, moved) => {
-          if (moved) {
-            return false;
-          }
-          const pos = view.posAtCoords({
-            left: event.clientX,
-            top: event.clientY,
-          })?.pos;
-          return this.handleFiles(event.dataTransfer?.files, pos);
-        },
         handleKeyDown: (_view, event) => this.handleKeyDown(event),
-        handlePaste: (_view, event) =>
-          this.handleFiles(event.clipboardData?.files),
       },
       element: this.root,
       extensions: createExtensions({
         config: this.config,
+        slash: {
+          onChange: (slash) => this.showSlash(slash),
+          onKeyDown: (event) => this.slashKey(event),
+        },
         spacers: this.style.spacers,
-        templates,
+        templates: sampleTemplates(),
       }),
     });
 
@@ -160,24 +133,21 @@ export class Run {
       }
     });
 
-    this.hide();
-    this.observer = new MutationObserver(() => this.hide());
-    this.observer.observe(document.body, {
-      attributeFilter: ["data-esqia-v", "data-esqia-start"],
-      attributes: true,
-      childList: true,
-      subtree: true,
+    this.page = this.backend.page({
+      blocks,
+      editor: this.editor,
+      file: this.file,
+      range,
+      root: this.root,
+      version: this.hash,
     });
 
     this.editor.on("update", () => this.schedule());
-    this.editor.on("focus", () => options.onFocus?.(this));
+    this.editor.on("focus", () => options.onFocus(this));
     this.editor.on("transaction", () =>
-      this.update({
-        selection: this.snapshot.selection + 1,
-        slash: this.readSlash(),
-      })
+      this.update({ revision: this.snapshot.revision + 1 })
     );
-    this.placeCaret(options.caret);
+    placeCaret(this.editor, options.caret);
   }
 
   setEditable(editable: boolean) {
@@ -186,105 +156,62 @@ export class Run {
     }
   }
 
-  private settle(): boolean {
-    const written = writtenBlocks(this.editor.state.doc);
-    const tree = parseMdx(this.current);
-    if (tree.children.length !== written.length) {
-      return false;
-    }
-    const version = this.own[0]?.dataset.esqiaV ?? "demo";
-    const revision = String(api.revision(this.file));
-    written.forEach(({ node, offset }, index) => {
-      const block = tree.children[index];
-      const rendered = this.editor.view.nodeDOM(offset);
-      if (!(block && rendered instanceof HTMLElement)) {
-        return;
-      }
-      const wrapper = document.createElement("div");
-      wrapper.style.display = "contents";
-      Object.assign(wrapper.dataset, {
-        esqiaEnd: String(this.start + (block.position?.end.offset ?? 0)),
-        esqiaFile: this.file,
-        esqiaRev: revision,
-        esqiaStart: String(this.start + (block.position?.start.offset ?? 0)),
-        esqiaType: blockType(block),
-        esqiaV: version,
-      });
-      wrapper.append(
-        node.type.name === "spacer"
-          ? document.createElement("br")
-          : settled(rendered)
-      );
-      this.root.before(wrapper);
-    });
-    this.observer.disconnect();
-    this.editor.destroy();
-    this.root.remove();
-    for (const el of this.own) {
-      el.dataset.esqiaRemoved = "";
-    }
-    return true;
-  }
-
-  private rebase() {
-    this.start = api.mapOffset(this.file, this.start, this.revision);
-    this.revision = api.revision(this.file);
-  }
-
-  setSlashKeys(handler: ((event: KeyboardEvent) => boolean) | null) {
-    this.slashKeys = handler;
-  }
-
-  subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  };
-
-  getSnapshot = () => this.snapshot;
-
-  private update(patch: Partial<RunSnapshot>) {
-    this.snapshot = { ...this.snapshot, ...patch };
-    for (const listener of this.listeners) {
-      listener();
-    }
-  }
-
-  private hide() {
-    if (!api.live) {
-      for (const el of this.own) {
-        el.style.setProperty("display", "none", "important");
-        this.hidden.add(el);
-      }
+  chooseSlash(item: SlashItem) {
+    const { slash } = this.snapshot;
+    if (!slash) {
       return;
     }
-    for (const block of fileBlocks(this.file)) {
-      const range = this.ranges.get(block.version);
-      const inside = range && block.start >= range[0] && block.start < range[1];
-      if (inside && block.el.style.display !== "none") {
-        block.el.style.setProperty("display", "none", "important");
-        this.hidden.add(block.el);
-      } else if (!inside && this.hidden.has(block.el)) {
-        block.el.style.setProperty("display", "contents");
-        this.hidden.delete(block.el);
-      }
-    }
+    this.editor.chain().focus().deleteRange(slash.range).run();
+    item.apply(this.editor);
   }
 
-  private placeCaret(caret: OpenOptions["caret"]) {
-    const { doc } = this.editor.state;
-    let pos = 1;
-    if (caret) {
-      doc.forEach((node, offset, index) => {
-        if (index === caret.index) {
-          pos = offset + 1 + inlinePos(node, caret.offset);
-        }
-      });
+  private showSlash(state: SlashState | null) {
+    if (!state) {
+      this.update({ slash: null });
+      return;
     }
-    const selection = TextSelection.near(
-      doc.resolve(Math.min(pos, doc.content.size))
-    );
-    this.editor.view.dispatch(this.editor.state.tr.setSelection(selection));
-    this.editor.view.focus();
+    const query = state.query.trim().toLowerCase();
+    const previous = this.snapshot.slash;
+    this.update({
+      slash: {
+        ...state,
+        active: previous?.query === query ? previous.active : 0,
+        items: slashItems(this.config, query),
+        query,
+      },
+    });
+  }
+
+  private slashKey(event: KeyboardEvent): boolean {
+    const { slash } = this.snapshot;
+    const count = slash?.items.length ?? 0;
+    if (!slash || count === 0) {
+      return false;
+    }
+    const step = (by: number) => {
+      this.update({
+        slash: { ...slash, active: (slash.active + by + count) % count },
+      });
+      return true;
+    };
+    if (event.key === "ArrowDown" || (event.key === "Tab" && !event.shiftKey)) {
+      return step(1);
+    }
+    if (event.key === "ArrowUp" || (event.key === "Tab" && event.shiftKey)) {
+      return step(-1);
+    }
+    if (event.key === "Enter") {
+      const item = slash.items[slash.active];
+      if (item) {
+        this.chooseSlash(item);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private get start(): number {
+    return readRange(this.root).start;
   }
 
   private schedule() {
@@ -292,11 +219,11 @@ export class Run {
     this.timer = setTimeout(() => this.save(), SAVE_DELAY);
   }
 
-  private async save(): Promise<void> {
+  private async save(closing = false): Promise<void> {
     clearTimeout(this.timer);
     if (this.saving) {
       await this.saving;
-      return this.save();
+      return this.save(closing);
     }
     const body = serializeRun(
       this.editor.state.doc,
@@ -304,24 +231,18 @@ export class Run {
       this.style
     );
     const text = body && this.prefix + body;
-    if (text === this.current) {
+    const emptied = closing && this.replacing && text === "";
+    if (text === this.current && !emptied) {
       return;
     }
 
-    this.rebase();
-    const op = {
-      end: this.start + this.current.length,
-      expected: this.current,
-      start: this.start,
-      text,
-    };
     this.update({ saving: true });
-    this.saving = this.write(op, text)
+    this.saving = (emptied ? this.remove() : this.replace(text))
       .catch((error: unknown) => {
         this.onError(
           error instanceof ConflictError
             ? "Changed in your editor. Reopen the block to keep going."
-            : String(error)
+            : errorText(error)
         );
         void this.close(true);
       })
@@ -332,16 +253,38 @@ export class Run {
     return this.saving;
   }
 
-  private async write(
-    op: { start: number; end: number; expected: string; text: string },
-    text: string
-  ) {
-    const { hash } = await api.ops(this.file, this.hash, [op], this.group);
+  private replace(text: string) {
+    const { start, current } = this;
+    const op = { end: start + current.length, expected: current, start, text };
+    return this.write([op], text, start);
+  }
+
+  private async remove() {
+    const { source } = await this.backend.source(this.file);
+    const range = { end: this.start + this.current.length, start: this.start };
+    if (source.slice(range.start, range.end) !== this.current) {
+      throw new ConflictError("The file changed on disk.");
+    }
+    const ops = removeOps(source, range);
+    const [op] = ops;
+    if (op) {
+      await this.write(ops, "", op.start + op.text.length);
+    }
+  }
+
+  private async write(ops: Op[], text: string, start: number) {
+    const { hash } = await this.backend.ops(
+      this.file,
+      this.hash,
+      ops,
+      this.group
+    );
     this.hash = hash;
     this.current = text;
     this.wrote = true;
-    this.revision = api.revision(this.file);
-    this.ranges.set(hash, [this.start, this.start + text.length]);
+    const range = { end: start + text.length, start };
+    stampRange(this.root, range);
+    this.page.track(hash, range);
     this.onSaved();
   }
 
@@ -349,240 +292,27 @@ export class Run {
     this.closing ??= (async () => {
       clearTimeout(this.timer);
       if (!discard) {
-        await this.save();
+        await this.save(true);
       }
-      if (this.current === "" && this.prefix === "" && !discard) {
-        await this.collapseGap();
-      }
-      if (!api.live) {
-        if (this.settle()) {
-          this.onClose();
-          return;
-        }
-        this.closing = null;
-        this.onClose();
-        return;
-      }
-      if (
-        this.wrote &&
-        !discard &&
-        !(await waitForVersion(this.file, this.hash))
-      ) {
-        location.reload();
-        return;
-      }
-      this.observer.disconnect();
-      this.editor.destroy();
-      this.root.remove();
-      for (const el of this.hidden) {
-        el.style.setProperty("display", "contents");
+      const settled = await this.page.close({
+        discard,
+        version: this.hash,
+        wrote: this.wrote,
+      });
+      if (settled) {
+        this.editor.destroy();
+        this.root.remove();
       }
       this.onClose();
     })();
     return this.closing;
   }
 
-  private async collapseGap() {
-    this.rebase();
-    const { source, hash } = await api.source(this.file);
-    if (hash !== this.hash) {
-      return;
-    }
-    let a = this.start;
-    let b = this.start;
-    while (a > 0 && /\s/.test(source[a - 1] ?? "")) {
-      a--;
-    }
-    while (b < source.length && /\s/.test(source[b] ?? "")) {
-      b++;
-    }
-    let text = "\n\n";
-    if (b === source.length) {
-      text = "\n";
-    } else if (a === 0) {
-      text = "";
-    }
-    const result = await api
-      .ops(
-        this.file,
-        hash,
-        [{ end: b, expected: source.slice(a, b), start: a, text }],
-        this.group
-      )
-      .catch(() => null);
-    if (result) {
-      this.hash = result.hash;
-      this.wrote = true;
-      this.revision = api.revision(this.file);
-    }
-  }
-
   private handleKeyDown(event: KeyboardEvent): boolean {
-    if (this.snapshot.slash && this.slashKeys?.(event)) {
-      return true;
-    }
-    if (event.key === "Escape") {
+    if (event.key === "Escape" && !this.snapshot.slash) {
       void this.close();
       return true;
     }
     return false;
   }
-
-  private readSlash(): SlashState | null {
-    const { $from, empty } = this.editor.state.selection;
-    if (!empty || $from.parent.type.name !== "paragraph" || $from.depth !== 1) {
-      return null;
-    }
-    const text = $from.parent.textContent;
-    const match = /^\/([\w ]{0,24})$/.exec(text);
-    if (!match || $from.parentOffset !== text.length) {
-      return null;
-    }
-    const coords = this.editor.view.coordsAtPos($from.pos);
-    return {
-      query: match[1] ?? "",
-      rect: { bottom: coords.bottom, left: coords.left, top: coords.top },
-    };
-  }
-
-  clearSlashText() {
-    const { $from } = this.editor.state.selection;
-    this.editor
-      .chain()
-      .deleteRange({ from: $from.start(), to: $from.end() })
-      .run();
-  }
-
-  insertBlock(raw: string) {
-    const { $from } = this.editor.state.selection;
-    const node = this.editor.schema.nodes.jsxBlock.create({ raw });
-    const emptyParagraph =
-      $from.depth === 1 &&
-      $from.parent.type.name === "paragraph" &&
-      $from.parent.content.size === 0;
-    const tr = this.editor.state.tr;
-    if (emptyParagraph) {
-      tr.replaceWith($from.before(), $from.after(), node);
-    } else {
-      tr.insert($from.after(1), node);
-    }
-    this.editor.view.dispatch(tr.scrollIntoView());
-    this.editor.view.focus();
-  }
-
-  insertSpacer() {
-    const { $from } = this.editor.state.selection;
-    const { spacer, paragraph } = this.editor.schema.nodes;
-    const tr = this.editor.state.tr.replaceWith($from.before(), $from.after(), [
-      spacer.create(),
-      paragraph.create(),
-    ]);
-    tr.setSelection(TextSelection.near(tr.doc.resolve($from.before() + 2)));
-    this.editor.view.dispatch(tr);
-  }
-
-  private handleFiles(files: FileList | undefined, pos?: number): boolean {
-    const media = [...(files ?? [])].filter((file) =>
-      /^(image|video)\//.test(file.type)
-    );
-    if (media.length === 0) {
-      return false;
-    }
-    if (pos !== undefined) {
-      this.editor.view.dispatch(
-        this.editor.state.tr.setSelection(
-          TextSelection.near(this.editor.state.doc.resolve(pos))
-        )
-      );
-    }
-    void (async () => {
-      for (const file of media) {
-        await this.insertMedia(file);
-      }
-    })();
-    return true;
-  }
-
-  async insertMedia(file: File) {
-    this.update({ busy: `Uploading ${file.name}…` });
-    try {
-      const [{ width, height }, { url }] = await Promise.all([
-        measure(file),
-        api.upload(this.file, file),
-      ]);
-      const template = file.type.startsWith("video/")
-        ? this.config.media.video
-        : this.config.media.image;
-      const raw = template
-        .replaceAll("{url}", url)
-        .replaceAll("{width}", String(width))
-        .replaceAll("{height}", String(height))
-        .replaceAll("{name}", file.name.replace(/\.[^.]+$/, ""));
-      this.insertBlock(raw);
-    } catch (error) {
-      this.onError(
-        `Upload failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    } finally {
-      this.update({ busy: null });
-    }
-  }
-}
-
-function settled(rendered: HTMLElement): HTMLElement {
-  const copy = rendered.cloneNode(true) as HTMLElement;
-  for (const el of [copy, ...copy.querySelectorAll<HTMLElement>("*")]) {
-    el.removeAttribute("contenteditable");
-    el.removeAttribute("draggable");
-    delete el.dataset.placeholder;
-    el.classList.remove("is-empty", "is-editor-empty");
-    if (
-      el.classList.contains("ProseMirror-trailingBreak") ||
-      el.classList.contains("ProseMirror-separator")
-    ) {
-      el.remove();
-    }
-  }
-  return copy;
-}
-
-function inlinePos(node: PMNode, offset: number): number {
-  if (!node.isTextblock) {
-    return 0;
-  }
-  let remaining = offset;
-  let pos = 0;
-  let done = false;
-  node.forEach((child) => {
-    if (done) {
-      return;
-    }
-    const length = child.isText ? (child.text?.length ?? 0) : 1;
-    if (remaining <= length) {
-      pos += remaining;
-      done = true;
-      return;
-    }
-    remaining -= length;
-    pos += child.nodeSize;
-  });
-  return pos;
-}
-
-async function measure(file: File): Promise<{ width: number; height: number }> {
-  if (file.type.startsWith("video/")) {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.src = URL.createObjectURL(file);
-    await new Promise((resolve, reject) => {
-      video.onloadedmetadata = resolve;
-      video.onerror = reject;
-    });
-    URL.revokeObjectURL(video.src);
-    return { height: video.videoHeight, width: video.videoWidth };
-  }
-  const bitmap = await createImageBitmap(file);
-  const size = { height: bitmap.height, width: bitmap.width };
-  bitmap.close();
-  return size;
 }

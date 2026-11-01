@@ -9,13 +9,10 @@ import {
   serializeBlock,
   serializeRun,
 } from "../src/client/convert";
-import { createExtensions, type Templates } from "../src/client/editor";
-import {
-  blockType,
-  detectStyle,
-  EDITABLE,
-  parseMdx,
-} from "../src/shared/markdown";
+import { createExtensions } from "../src/client/editor";
+import type { Templates } from "../src/client/templates";
+import { blockType, detectStyle, parseMdx } from "../src/shared/markdown";
+import { splitRuns } from "../src/shared/runs";
 
 const REPOS = ["../jakub.kr/src/app", "../interfaces/src/app"].map((dir) =>
   path.resolve(import.meta.dirname, "..", dir)
@@ -40,35 +37,24 @@ const schema = getSchema(
   createExtensions({
     config: {
       marks: [],
-      media: { image: "", video: "" },
       smartypants: SMARTYPANTS,
       snippets: [],
     },
+    slash: { onChange: () => undefined, onKeyDown: () => false },
     spacers: true,
     templates: {} as Templates,
   })
 );
 
 function runs(source: string): string[] {
-  const tree = parseMdx(source);
-  const slices: string[] = [];
-  let current: { start: number; end: number } | null = null;
-  for (const node of tree.children) {
-    const start = node.position?.start.offset ?? 0;
-    const end = node.position?.end.offset ?? 0;
-    if (EDITABLE.has(blockType(node))) {
-      current = current ? { end, start: current.start } : { end, start };
-    } else {
-      if (current) {
-        slices.push(source.slice(current.start, current.end));
-      }
-      current = null;
-    }
-  }
-  if (current) {
-    slices.push(source.slice(current.start, current.end));
-  }
-  return slices;
+  const blocks = parseMdx(source).children.map((node) => ({
+    end: node.position?.end.offset ?? 0,
+    start: node.position?.start.offset ?? 0,
+    type: blockType(node),
+  }));
+  return splitRuns(blocks).map((run) =>
+    source.slice(run[0]?.start ?? 0, run.at(-1)?.end ?? 0)
+  );
 }
 
 function strip(node: PMNode) {

@@ -1,5 +1,9 @@
 import type { ClientConfig } from "../shared/config";
 import { applyOps, type Op } from "../shared/ops";
+import { fileWrappers, readBlock } from "./blocks";
+import { DemoPage, syncPage } from "./demo-page";
+import { LivePage } from "./live-page";
+import type { PageOpening, RunPage } from "./page";
 
 export type { ClientConfig };
 
@@ -7,24 +11,24 @@ export class ConflictError extends Error {
   override readonly name = "ConflictError";
 }
 
-interface Backend {
+export function errorText(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export interface Backend {
   changes: () => Promise<{ files: string[] }>;
   config: () => Promise<ClientConfig>;
-
-  live: boolean;
-
-  mapOffset: (file: string, offset: number, since: number) => number;
+  notice: string | null;
   ops: (
     file: string,
     hash: string,
     ops: Op[],
     group?: string
   ) => Promise<{ hash: string }>;
+  page: (opening: PageOpening) => RunPage;
   revert: () => Promise<{ reverted: string[]; skipped: string[] }>;
-  revision: (file: string) => number;
   source: (file: string) => Promise<{ source: string; hash: string }>;
-  undo: (file: string) => Promise<{ hash: string }>;
-  upload: (file: string, blob: File) => Promise<{ url: string }>;
+  undo?: (file: string) => Promise<{ hash: string }>;
 }
 
 const url = process.env.NEXT_PUBLIC_ESQIA_URL;
@@ -49,22 +53,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body;
 }
 
-const sidecar: Backend = {
+export const sidecar: Backend = {
   changes: () => request<{ files: string[] }>("/changes"),
   config: () => request<ClientConfig>("/config"),
-  live: true,
-  mapOffset: (_file, offset) => offset,
+  notice: null,
   ops: (file, hash, ops, group) =>
     request<{ hash: string }>("/ops", {
       body: JSON.stringify({ file, group, hash, ops }),
       headers: { "content-type": "application/json" },
       method: "POST",
     }),
+  page: (opening) => new LivePage(opening),
   revert: () =>
     request<{ reverted: string[]; skipped: string[] }>("/revert", {
       method: "POST",
     }),
-  revision: () => 0,
   source: (file) =>
     request<{ source: string; hash: string }>(
       `/source?file=${encodeURIComponent(file)}`
@@ -75,31 +78,14 @@ const sidecar: Backend = {
       headers: { "content-type": "application/json" },
       method: "POST",
     }),
-  upload: (file, blob) =>
-    request<{ url: string }>("/upload", {
-      body: blob,
-      headers: {
-        "content-type": blob.type || "application/octet-stream",
-        "x-esqia-file": file,
-        "x-esqia-name": encodeURIComponent(blob.name),
-      },
-      method: "POST",
-    }),
 };
-
-interface Shift {
-  at: number;
-  delta: number;
-  end: number;
-}
 
 interface MemoryFile {
   hash: string;
-  shifts: Shift[];
   source: string;
 }
 
-function memory(
+export function memoryBackend(
   sources: Record<string, string>,
   config: ClientConfig
 ): Backend {
@@ -115,13 +101,9 @@ function memory(
     if (source === undefined) {
       throw new Error(`esqia: the demo has no source for ${name}.`);
     }
-
-    const rendered = document.querySelector<HTMLElement>(
-      `[data-esqia-file="${CSS.escape(name)}"]`
-    )?.dataset.esqiaV;
+    const rendered = fileWrappers(name)[0];
     const created: MemoryFile = {
-      hash: rendered ?? "demo",
-      shifts: [],
+      hash: (rendered && readBlock(rendered).version) || "demo",
       source,
     };
     files.set(name, created);
@@ -132,78 +114,35 @@ function memory(
     changes: () =>
       Promise.resolve({
         files: [...files]
-          .filter(([, f]) => f.shifts.length > 0)
+          .filter(([name, f]) => f.source !== sources[name])
           .map(([name]) => name),
       }),
     config: () => Promise.resolve(config),
-    live: false,
-    mapOffset: (name, offset, since) => {
-      let mapped = offset;
-      for (const shift of file(name).shifts.slice(since)) {
-        const inserted = shift.at === shift.end;
-        if (inserted ? mapped >= shift.at : mapped >= shift.end) {
-          mapped += shift.delta;
-        }
-      }
-      return mapped;
-    },
+    notice: "Edits stay in this tab. Install esqia to save them to your files.",
     ops: (name, _hash, ops) => {
       const current = file(name);
-      const result = applyOps(current.source, ops);
+      const before = current.source;
+      const result = applyOps(before, ops);
       if (!result.ok) {
         return Promise.reject(new ConflictError(result.reason));
-      }
-
-      for (const op of [...ops].sort((a, b) => b.start - a.start)) {
-        current.shifts.push({
-          at: op.start,
-          delta: op.text.length - (op.end - op.start),
-          end: op.end,
-        });
       }
       current.source = result.source;
       writes += 1;
       current.hash = `demo-${writes}`;
+      syncPage(
+        { after: current.source, before, file: name, ops },
+        current.hash
+      );
       return Promise.resolve({ hash: current.hash });
     },
+    page: (opening) => new DemoPage(opening, () => file(opening.file).source),
     revert: () => {
       location.reload();
       return Promise.resolve({ reverted: [], skipped: [] });
     },
-    revision: (name) => file(name).shifts.length,
     source: (name) => {
       const current = file(name);
       return Promise.resolve({ hash: current.hash, source: current.source });
     },
-    undo: () =>
-      Promise.reject(
-        new Error("Undo saves to your files, so it needs the dev server.")
-      ),
-    upload: (_name, blob) =>
-      Promise.resolve({ url: URL.createObjectURL(blob) }),
   };
 }
-
-let backend: Backend = sidecar;
-
-export function startDemo(
-  sources: Record<string, string>,
-  config: ClientConfig
-) {
-  backend = memory(sources, config);
-}
-
-export const api: Backend = {
-  changes: () => backend.changes(),
-  config: () => backend.config(),
-  get live() {
-    return backend.live;
-  },
-  mapOffset: (file, offset, since) => backend.mapOffset(file, offset, since),
-  ops: (file, hash, ops, group) => backend.ops(file, hash, ops, group),
-  revert: () => backend.revert(),
-  revision: (file) => backend.revision(file),
-  source: (file) => backend.source(file),
-  undo: (file) => backend.undo(file),
-  upload: (file, blob) => backend.upload(file, blob),
-};

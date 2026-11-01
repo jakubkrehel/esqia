@@ -21,7 +21,7 @@ const json = (body: unknown) => ({
 beforeAll(async () => {
   mkdirSync(path.join(root, "posts/hello"), { recursive: true });
   writeFileSync(path.join(root, file), "# Hello\n\nFirst.\n");
-  await startSidecar(root, { media: { upload: "public" } });
+  await startSidecar(root, {});
 });
 
 describe("sidecar", () => {
@@ -80,23 +80,6 @@ describe("sidecar", () => {
     expect(result).toEqual({ reverted: [file], skipped: [] });
     expect(readFileSync(path.join(root, file), "utf8")).toBe(before);
     expect((await (await call("/changes")).json()).files).toEqual([]);
-  });
-
-  it("uploads to public/ under the post's folder name", async () => {
-    const response = await call("/upload", {
-      body: new Uint8Array([1, 2, 3]),
-      headers: {
-        "content-type": "image/png",
-        "x-esqia-file": file,
-        "x-esqia-name": "shot.png",
-      },
-      method: "POST",
-    });
-    const { url: uploaded } = await response.json();
-    expect(uploaded).toBe("/hello/shot.png");
-    expect([...readFileSync(path.join(root, "public/hello/shot.png"))]).toEqual(
-      [1, 2, 3]
-    );
   });
 
   it("answers CORS preflight for this machine and the local network only", async () => {

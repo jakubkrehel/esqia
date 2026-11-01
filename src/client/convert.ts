@@ -11,6 +11,7 @@ import {
   straighten,
   stringifyBlock,
 } from "../shared/markdown";
+import { LINE_BREAK } from "../shared/ops";
 
 export interface Original {
   fingerprint: string;
@@ -231,7 +232,7 @@ export function serializeBlock(node: PMNode, style: MarkdownStyle): string {
         style
       );
     case "spacer":
-      return node.attrs.raw || "<br />";
+      return node.attrs.raw || LINE_BREAK;
     default:
       return node.attrs.raw;
   }
