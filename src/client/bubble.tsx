@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Anchored } from "./anchored";
 import type { ClientConfig } from "./api";
 import { markOpen } from "./editor";
-import { CodeIcon, LinkIcon } from "./icons";
+import { BoldIcon, CodeIcon, ItalicIcon, LinkIcon } from "./icons";
 import type { Run } from "./run";
 
 const SHOW_DELAY = 100;
@@ -83,10 +83,10 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
     >
       {linking === null ? (
         <>
-          {button(<b>B</b>, "Bold", editor.isActive("bold"), () =>
+          {button(<BoldIcon />, "Bold", editor.isActive("bold"), () =>
             chain().toggleBold().run()
           )}
-          {button(<i>I</i>, "Italic", editor.isActive("italic"), () =>
+          {button(<ItalicIcon />, "Italic", editor.isActive("italic"), () =>
             chain().toggleItalic().run()
           )}
           {button(<CodeIcon />, "Code", editor.isActive("code"), () =>

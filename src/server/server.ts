@@ -19,6 +19,11 @@ interface HistoryEntry {
   group?: string;
 }
 
+interface RedoEntry {
+  after: string;
+  before: string;
+}
+
 const HISTORY_LIMIT = 100;
 
 export interface Sidecar {
@@ -82,7 +87,13 @@ function listen(
   token: string,
   options: EsqiaOptions
 ): Promise<boolean> {
-  const context: Context = { history: new Map(), options, root, token };
+  const context: Context = {
+    history: new Map(),
+    options,
+    redo: new Map(),
+    root,
+    token,
+  };
   const server = createServer((req, res) => {
     handle(req, res, context).catch((error: unknown) => {
       send(res, 500, {
@@ -103,6 +114,7 @@ function listen(
 interface Context {
   history: Map<string, HistoryEntry[]>;
   options: EsqiaOptions;
+  redo: Map<string, RedoEntry[]>;
   root: string;
   token: string;
 }
@@ -202,6 +214,7 @@ async function handle(
           before: source,
           group: body.group,
         });
+        context.redo.delete(file);
       }
       return send(res, 200, { hash: afterHash });
     }
@@ -209,6 +222,11 @@ async function handle(
     case "POST /undo": {
       const body = JSON.parse(await readBody(req, 10_000)) as { file: string };
       return undo(res, context, resolveFile(context.root, body.file));
+    }
+
+    case "POST /redo": {
+      const body = JSON.parse(await readBody(req, 10_000)) as { file: string };
+      return redo(res, context, resolveFile(context.root, body.file));
     }
 
     case "GET /changes":
@@ -237,7 +255,33 @@ async function undo(res: ServerResponse, context: Context, file: string) {
   }
   entries.pop();
   await writeFile(file, last.before);
+  context.redo.set(file, [
+    ...(context.redo.get(file) ?? []),
+    { after: source, before: last.before },
+  ]);
   return send(res, 200, { hash: hashSource(last.before) });
+}
+
+async function redo(res: ServerResponse, context: Context, file: string) {
+  const entries = context.redo.get(file) ?? [];
+  const last = entries.at(-1);
+  if (!last) {
+    return send(res, 404, { error: "Nothing to redo." });
+  }
+  const source = await readFile(file, "utf8");
+  if (source !== last.before) {
+    context.redo.delete(file);
+    return send(res, 409, {
+      error: "The file changed in your editor since the last undo here.",
+    });
+  }
+  entries.pop();
+  await writeFile(file, last.after);
+  record(context.history, file, {
+    afterHash: hashSource(last.after),
+    before: last.before,
+  });
+  return send(res, 200, { hash: hashSource(last.after) });
 }
 
 function changes(context: Context) {
@@ -247,12 +291,17 @@ function changes(context: Context) {
   return {
     edits: touched.reduce((sum, [, entries]) => sum + entries.length, 0),
     files: touched.map(([file]) => path.relative(context.root, file)),
+    redos: [...context.redo.values()].reduce(
+      (sum, entries) => sum + entries.length,
+      0
+    ),
   };
 }
 
 async function revertAll(context: Context) {
   const reverted: string[] = [];
   const skipped: string[] = [];
+  context.redo.clear();
   for (const [file, entries] of context.history) {
     const first = entries[0];
     const last = entries.at(-1);

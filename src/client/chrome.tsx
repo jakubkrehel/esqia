@@ -82,7 +82,7 @@ export function Chrome({
     () =>
       new Session(backend, (text, tone = "info") => setToast({ text, tone }))
   );
-  const { changed, config, run, writing } = useSyncExternalStore(
+  const { changed, config, redoable, run, writing } = useSyncExternalStore(
     session.subscribe,
     session.getSnapshot,
     () => INITIAL_SESSION
@@ -126,6 +126,7 @@ export function Chrome({
   useShortcuts({
     editing: mode === "edit",
     hasRun: () => session.getSnapshot().run !== null,
+    onRedo: session.canRedo ? () => session.redo() : undefined,
     onToggle: () => setMode(toggled),
     onUndo: session.canUndo ? () => session.undo() : undefined,
   });
@@ -174,10 +175,12 @@ export function Chrome({
         onCorner={setCorner}
         onOpen={session.canOpen ? () => session.openInEditor() : undefined}
         onOutline={setOutline}
+        onRedo={session.canRedo ? () => session.redo() : undefined}
         onRevert={() => session.revert()}
         onToggle={() => setMode(toggled)}
         onUndo={session.canUndo ? () => session.undo() : undefined}
         outline={outline}
+        redoable={redoable}
       />
       {toast && <Status corner={corner} {...toast} />}
     </div>
@@ -189,6 +192,7 @@ const toggled = (mode: Mode): Mode => (mode === "edit" ? "read" : "edit");
 function useShortcuts(options: {
   editing: boolean;
   hasRun: () => boolean;
+  onRedo?: () => void;
   onToggle: () => void;
   onUndo?: () => void;
 }) {
@@ -201,9 +205,9 @@ function useShortcuts(options: {
         options.onToggle();
         return;
       }
+      const step = event.shiftKey ? options.onRedo : options.onUndo;
       if (
-        !(options.editing && mod && options.onUndo) ||
-        event.shiftKey ||
+        !(options.editing && mod && step) ||
         key !== "z" ||
         options.hasRun() ||
         isTyping()
@@ -211,7 +215,7 @@ function useShortcuts(options: {
         return;
       }
       event.preventDefault();
-      options.onUndo();
+      step();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

@@ -16,7 +16,7 @@ export function errorText(error: unknown) {
 }
 
 export interface Backend {
-  changes: () => Promise<{ edits?: number; files: string[] }>;
+  changes: () => Promise<{ edits?: number; files: string[]; redos?: number }>;
   config: () => Promise<ClientConfig>;
   notice: string | null;
   open?: (file: string, line: number) => Promise<void>;
@@ -27,6 +27,7 @@ export interface Backend {
     group?: string
   ) => Promise<{ hash: string }>;
   page: (opening: PageOpening) => RunPage;
+  redo?: (file: string) => Promise<{ hash: string }>;
   revert: () => Promise<{ reverted: string[]; skipped: string[] }>;
   source: (file: string) => Promise<{ source: string; hash: string }>;
   undo?: (file: string) => Promise<{ hash: string }>;
@@ -55,7 +56,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const sidecar: Backend = {
-  changes: () => request<{ edits?: number; files: string[] }>("/changes"),
+  changes: () =>
+    request<{ edits?: number; files: string[]; redos?: number }>("/changes"),
   config: () => request<ClientConfig>("/config"),
   notice: null,
   open: async (file, line) => {
@@ -76,6 +78,12 @@ export const sidecar: Backend = {
       method: "POST",
     }),
   page: (opening) => new LivePage(opening),
+  redo: (file) =>
+    request<{ hash: string }>("/redo", {
+      body: JSON.stringify({ file }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    }),
   revert: () =>
     request<{ reverted: string[]; skipped: string[] }>("/revert", {
       method: "POST",

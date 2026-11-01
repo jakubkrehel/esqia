@@ -22,6 +22,7 @@ export type BuildOps = (source: string, block: Block) => Op[];
 export interface SessionSnapshot {
   changed: number;
   config: ClientConfig | null;
+  redoable: number;
   run: Run | null;
   writing: boolean;
 }
@@ -29,6 +30,7 @@ export interface SessionSnapshot {
 export const INITIAL_SESSION: SessionSnapshot = {
   changed: 0,
   config: null,
+  redoable: 0,
   run: null,
   writing: false,
 };
@@ -92,6 +94,10 @@ export class Session extends Store<SessionSnapshot> {
     return this.backend.undo !== undefined;
   }
 
+  get canRedo() {
+    return this.backend.redo !== undefined;
+  }
+
   get canOpen() {
     return this.backend.open !== undefined;
   }
@@ -113,9 +119,12 @@ export class Session extends Store<SessionSnapshot> {
     this.backend
       .changes()
       .then((changes) =>
-        this.update({ changed: changes.edits ?? changes.files.length })
+        this.update({
+          changed: changes.edits ?? changes.files.length,
+          redoable: changes.redos ?? 0,
+        })
       )
-      .catch(() => this.update({ changed: 0 }));
+      .catch(() => this.update({ changed: 0, redoable: 0 }));
   };
 
   private async freshSource(block: Block) {
@@ -223,18 +232,28 @@ export class Session extends Store<SessionSnapshot> {
     }
   }
 
-  async undo() {
-    const { undo } = this.backend;
+  undo() {
+    return this.step(this.backend.undo, "Undone");
+  }
+
+  redo() {
+    return this.step(this.backend.redo, "Redone");
+  }
+
+  private async step(
+    apply: ((file: string) => Promise<unknown>) | undefined,
+    done: string
+  ) {
     const file =
       this.lastFile ??
       document.querySelector(BLOCK_SELECTOR)?.getAttribute(WRAPPER.file);
-    if (!(undo && file)) {
+    if (!(apply && file)) {
       return;
     }
     try {
-      await undo(file);
+      await apply(file);
       this.refreshChanges();
-      this.notify("Undone");
+      this.notify(done);
     } catch (error) {
       this.notify(errorText(error), "error");
     }
@@ -258,7 +277,7 @@ export class Session extends Store<SessionSnapshot> {
     await this.close();
     try {
       const { reverted, skipped } = await this.backend.revert();
-      this.update({ changed: 0 });
+      this.update({ changed: 0, redoable: 0 });
       if (skipped.length === 0) {
         return true;
       }

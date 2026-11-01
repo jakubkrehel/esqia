@@ -8,7 +8,14 @@ import {
   useState,
 } from "react";
 import { type Corner, startCornerDrag } from "./corner-drag";
-import { CheckIcon, OpenIcon, ResetIcon, TrashIcon, UndoIcon } from "./icons";
+import {
+  CheckIcon,
+  OpenIcon,
+  RedoIcon,
+  ResetIcon,
+  TrashIcon,
+  UndoIcon,
+} from "./icons";
 
 export const OUTLINE_COLORS = [
   { name: "Sky", value: "oklch(74.6% 0.16 232.661)" },
@@ -22,7 +29,7 @@ const REVERTED_FOR = 1200;
 const TIP_DELAY = 200;
 const TIP_WARM_FOR = 300;
 
-type TipId = "undo" | "revert" | "open" | "outline";
+type TipId = "undo" | "redo" | "revert" | "open" | "outline";
 
 interface Tip {
   id: TipId;
@@ -88,13 +95,25 @@ function plural(count: number, word: string) {
   return `${count} ${count === 1 ? word : `${word}s`}`;
 }
 
-function tipLabel(id: TipId, changed: number, outlineName: string): ReactNode {
+function tipLabel(
+  id: TipId,
+  changed: number,
+  redoable: number,
+  outlineName: string
+): ReactNode {
   switch (id) {
     case "undo":
       return (
         <>
           {changed === 0 ? "Nothing to undo" : "Undo"}
           <kbd>{MOD}Z</kbd>
+        </>
+      );
+    case "redo":
+      return (
+        <>
+          {redoable === 0 ? "Nothing to redo" : "Redo"}
+          <kbd>{MOD}⇧Z</kbd>
         </>
       );
     case "revert":
@@ -117,9 +136,11 @@ export function Toolbar({
   onCorner,
   onOpen,
   onOutline,
+  onRedo,
   onRevert,
   onToggle,
   onUndo,
+  redoable,
 }: {
   busy: boolean;
   changed: number;
@@ -129,9 +150,11 @@ export function Toolbar({
   onCorner: (corner: Corner) => void;
   onOpen?: () => void;
   onOutline: (color: string) => void;
+  onRedo?: () => void;
   onRevert: () => Promise<boolean>;
   onToggle: () => void;
   onUndo?: () => void;
+  redoable: number;
 }) {
   const [confirmAt, setConfirmAt] = useState<ConfirmAt | null>(null);
   const revert = useRef<HTMLButtonElement>(null);
@@ -215,6 +238,19 @@ export function Toolbar({
               <UndoIcon />
             </button>
           )}
+          {onRedo && (
+            <button
+              aria-disabled={redoable === 0}
+              aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
+              aria-label="Redo"
+              className="action"
+              onClick={() => redoable === 0 || onRedo()}
+              type="button"
+              {...bind("redo")}
+            >
+              <RedoIcon />
+            </button>
+          )}
           <button
             aria-disabled={nothingChanged}
             aria-expanded={confirming}
@@ -255,7 +291,10 @@ export function Toolbar({
         </div>
       </div>
       {tip && editing && !confirming && (
-        <ToolbarTip label={tipLabel(tip.id, changed, outlineName)} tip={tip} />
+        <ToolbarTip
+          label={tipLabel(tip.id, changed, redoable, outlineName)}
+          tip={tip}
+        />
       )}
       {confirming && (
         <RevertConfirm

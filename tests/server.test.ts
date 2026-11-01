@@ -56,6 +56,18 @@ describe("sidecar", () => {
     expect(readFileSync(path.join(root, file), "utf8")).toBe(
       "# Hello\n\nFirst.\n"
     );
+    expect((await (await call("/changes")).json()).redos).toBe(1);
+
+    expect((await call("/redo", json({ file }))).status).toBe(200);
+    expect(readFileSync(path.join(root, file), "utf8")).toBe(
+      "# Hello\n\nSecond.\n"
+    );
+    expect((await call("/redo", json({ file }))).status).toBe(404);
+
+    expect((await call("/undo", json({ file }))).status).toBe(200);
+    expect(readFileSync(path.join(root, file), "utf8")).toBe(
+      "# Hello\n\nFirst.\n"
+    );
   });
 
   it("reverts every changed file to before the first edit", async () => {
