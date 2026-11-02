@@ -1,45 +1,108 @@
 import type { Editor } from "@tiptap/core";
+import type { ClientConfig } from "../shared/config";
+import { type MemoryStore, memoryStore } from "../shared/history";
 import { type BlockType, blockType, parseMdx } from "../shared/markdown";
 import { type BlockRange, mapRange, mapSpan, type Op } from "../shared/ops";
-import { WRAPPER, type WrapperFields } from "../shared/wrapper";
+import type { WrapperFields } from "../shared/wrapper";
+import { type Backend, memoryBackend } from "./api";
 import {
   createWrapper,
   fileWrappers,
+  hideBlock,
   markRemoved,
+  readBlock,
   readRange,
+  restoreRemoved,
   stampRange,
+  stampVersion,
   stampWrapper,
 } from "./blocks";
 import { writtenBlocks } from "./convert";
-import type { PageClosing, PageOpening, RunPage } from "./page";
+import type { PageClosing, PageOpening, PageSync, RunPage } from "./page";
 
-const ignore = () => undefined;
+export function demoEditing(
+  sources: Record<string, string>,
+  config: ClientConfig
+): { backend: Backend; sync: PageSync } {
+  const store = memoryStore((file) => {
+    const source = sources[file];
+    if (source === undefined) {
+      throw new Error(`esqia: the demo has no source for ${file}.`);
+    }
+    const rendered = fileWrappers(file)[0];
+    return {
+      hash: (rendered && readBlock(rendered).version) || "demo",
+      source,
+    };
+  });
+  return { backend: memoryBackend(store, config), sync: demoSync(store) };
+}
 
-export class DemoPage implements RunPage {
+function demoSync(store: MemoryStore): PageSync {
+  const open = new Set<DemoPage>();
+
+  return {
+    applied({ file, hash, ops, run }) {
+      const runs = [...open].filter((page) => page.file === file);
+      for (const page of runs) {
+        page.track(
+          hash,
+          page === run?.page ? run.range : mapSpan(ops, page.range)
+        );
+      }
+      const edit = {
+        after: store.text(file),
+        before: store.previous(file),
+        file,
+        ops,
+      };
+      syncPage(edit, hash, runs);
+    },
+    open(opening) {
+      const page = new DemoPage(
+        opening,
+        () => store.text(opening.file),
+        () => open.delete(page)
+      );
+      open.add(page);
+      return page;
+    },
+  };
+}
+
+class DemoPage implements RunPage {
+  readonly file: string;
+  readonly root: HTMLElement;
+  range: BlockRange;
   private readonly editor: Editor;
-  private readonly file: string;
   private readonly own: HTMLElement[];
-  private readonly root: HTMLElement;
   private readonly source: () => string;
+  private readonly onClose: () => void;
 
   constructor(
-    { blocks, editor, file, root }: PageOpening,
-    source: () => string
+    { blocks, editor, file, range, root }: PageOpening,
+    source: () => string,
+    onClose: () => void
   ) {
     this.editor = editor;
     this.file = file;
+    this.range = range;
     this.root = root;
     this.source = source;
+    this.onClose = onClose;
     this.own = blocks.map((block) => block.el);
     for (const el of this.own) {
-      el.style.setProperty("display", "none", "important");
+      hideBlock(el);
     }
   }
 
-  readonly track = ignore;
+  track(_version: string, range: BlockRange) {
+    this.range = range;
+  }
 
   close({ version }: PageClosing) {
-    const range = readRange(this.root);
+    this.onClose();
+    const { range } = this;
     const text = this.source().slice(range.start, range.end);
     const blocks = parseMdx(text).children;
     const written = writtenBlocks(this.editor.state.doc);
@@ -107,12 +170,6 @@ function settled(rendered: HTMLElement): HTMLElement {
   return copy;
 }
 
-function runRoots(file: string): HTMLElement[] {
-  return [...document.querySelectorAll<HTMLElement>(`[${WRAPPER.run}]`)].filter(
-    (el) => el.getAttribute(WRAPPER.run) === file
-  );
-}
-
 interface PageEdit {
   after: string;
   before: string;
@@ -120,7 +177,7 @@ interface PageEdit {
   ops: Op[];
 }
 
-export function syncPage(edit: PageEdit, version: string) {
+function syncPage(edit: PageEdit, version: string, runs: DemoPage[]) {
   const { after, before, file, ops } = edit;
   const placed: { el: HTMLElement; start: number }[] = [];
   const orphans: { el: HTMLElement; text: string }[] = [];
@@ -129,18 +186,14 @@ export function syncPage(edit: PageEdit, version: string) {
     const mapped = mapRange(ops, range);
     if (mapped) {
       stampRange(el, mapped);
-      el.setAttribute(WRAPPER.version, version);
+      stampVersion(el, version);
       placed.push({ el, start: mapped.start });
     } else {
       orphans.push({ el, text: before.slice(range.start, range.end) });
     }
   }
-  const runs: BlockRange[] = [];
-  for (const root of runRoots(file)) {
-    const range = mapSpan(ops, readRange(root));
-    stampRange(root, range);
-    runs.push(range);
-    placed.push({ el: root, start: range.start });
+  for (const run of runs) {
+    placed.push({ el: run.root, start: run.range.start });
   }
 
   for (const node of parseMdx(after).children) {
@@ -148,7 +201,7 @@ export function syncPage(edit: PageEdit, version: string) {
     const end = node.position?.end.offset ?? 0;
     const owned =
       placed.some((p) => p.start === start) ||
-      runs.some((run) => start >= run.start && end <= run.end);
+      runs.some(({ range }) => start >= range.start && end <= range.end);
     if (owned) {
       continue;
     }
@@ -172,8 +225,7 @@ function adoptOrphan(
   const index = orphans.findIndex((orphan) => orphan.text === text);
   const orphan = index >= 0 ? orphans.splice(index, 1)[0] : undefined;
   if (orphan) {
-    orphan.el.removeAttribute(WRAPPER.removed);
-    orphan.el.style.setProperty("display", "contents");
+    restoreRemoved(orphan.el);
     stampWrapper(orphan.el, fields);
     return orphan.el;
   }

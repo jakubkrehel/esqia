@@ -6,6 +6,8 @@ import remarkParse from "remark-parse";
 import remarkSmartypants from "remark-smartypants";
 import { unified } from "unified";
 
+export const LINE_BREAK = "<br />";
+
 export type BlockType =
   | "paragraph"
   | "heading"

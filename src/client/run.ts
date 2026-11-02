@@ -1,37 +1,28 @@
 import { Editor } from "@tiptap/core";
+import type { ClientConfig } from "../shared/config";
 import { detectStyle, type MarkdownStyle } from "../shared/markdown";
-import { type BlockRange, type Op, removeOps } from "../shared/ops";
-import { WRAPPER } from "../shared/wrapper";
-import {
-  type Backend,
-  type ClientConfig,
-  ConflictError,
-  errorText,
-} from "./api";
-import { type Block, readRange, stampRange } from "./blocks";
-import {
-  placeCaret,
-  type SlashItem,
-  type SlashMenu,
-  type SlashState,
-  slashItems,
-} from "./commands";
+import type { BlockRange } from "../shared/ops";
+import { ConflictError, errorText } from "./api";
+import type { Block } from "./blocks";
+import { placeCaret } from "./commands";
 import { fingerprint, type Original, parseRun, serializeRun } from "./convert";
+import { Draft } from "./draft";
 import { createExtensions } from "./editor";
+import type { FileEdits } from "./file-edits";
+import type { RunIntent } from "./intents";
 import type { RunPage } from "./page";
+import { SlashMenuStore } from "./slash-menu";
 import { Store } from "./store";
 import { sampleTemplates } from "./templates";
 
 export interface RunSnapshot {
   revision: number;
   saving: boolean;
-  slash: SlashMenu | null;
 }
 
 export const IDLE_RUN: RunSnapshot = {
   revision: 0,
   saving: false,
-  slash: null,
 };
 
 export interface Placement {
@@ -42,9 +33,9 @@ export interface Placement {
 }
 
 export interface RunOptions {
-  backend: Backend;
   caret?: { index: number; offset: number };
   config: ClientConfig;
+  edits: FileEdits;
   file: string;
   hash: string;
   onClose: () => void;
@@ -61,13 +52,11 @@ export class Run extends Store<RunSnapshot> {
   readonly file: string;
   readonly root: HTMLElement;
   readonly editor: Editor;
+  readonly slash: SlashMenuStore;
 
   private hash: string;
-  private current: string;
-  private readonly backend: Backend;
-  private readonly config: ClientConfig;
-  private readonly replacing: boolean;
-  private readonly prefix: string;
+  private readonly draft: Draft;
+  private readonly edits: FileEdits;
   private readonly originals: Map<string, Original>;
   private readonly style: MarkdownStyle;
   private readonly page: RunPage;
@@ -83,30 +72,27 @@ export class Run extends Store<RunSnapshot> {
   constructor(options: RunOptions) {
     super(IDLE_RUN);
     const { at, blocks, mount, range } = options.placement;
-    this.backend = options.backend;
+    const { config } = options;
+    this.edits = options.edits;
     this.file = options.file;
-    this.config = options.config;
     this.onError = options.onError;
     this.onClose = options.onClose;
     this.onSaved = options.onSaved;
     this.hash = options.hash;
-    this.replacing = at === "run";
-    this.prefix = this.replacing ? "" : "\n\n";
-    this.current = options.source.slice(range.start, range.end);
+    this.draft = new Draft(at, options.source, range);
     this.style = {
       ...detectStyle(options.source),
-      smartypants: this.config.smartypants,
+      smartypants: config.smartypants,
     };
 
-    const parsed = parseRun(this.current, this.config.smartypants);
+    const parsed = parseRun(this.draft.text, config.smartypants);
     this.originals = parsed.originals;
 
     this.root = document.createElement("div");
     this.root.className = "esqia-editor";
-    this.root.setAttribute(WRAPPER.run, this.file);
-    stampRange(this.root, range);
     mount(this.root);
 
+    this.slash = new SlashMenuStore(config, () => this.editor);
     this.editor = new Editor({
       content: parsed.doc,
       editorProps: {
@@ -114,11 +100,8 @@ export class Run extends Store<RunSnapshot> {
       },
       element: this.root,
       extensions: createExtensions({
-        config: this.config,
-        slash: {
-          onChange: (slash) => this.showSlash(slash),
-          onKeyDown: (event) => this.slashKey(event),
-        },
+        config,
+        slash: { onChange: this.slash.show, onKeyDown: this.slash.key },
         spacers: this.style.spacers,
         templates: sampleTemplates(),
       }),
@@ -133,7 +116,7 @@ export class Run extends Store<RunSnapshot> {
       }
     });
 
-    this.page = this.backend.page({
+    this.page = this.edits.open({
       blocks,
       editor: this.editor,
       file: this.file,
@@ -156,64 +139,6 @@ export class Run extends Store<RunSnapshot> {
     }
   }
 
-  chooseSlash(item: SlashItem) {
-    const { slash } = this.snapshot;
-    if (!slash) {
-      return;
-    }
-    this.editor.chain().focus().deleteRange(slash.range).run();
-    item.apply(this.editor);
-  }
-
-  private showSlash(state: SlashState | null) {
-    if (!state) {
-      this.update({ slash: null });
-      return;
-    }
-    const query = state.query.trim().toLowerCase();
-    const previous = this.snapshot.slash;
-    this.update({
-      slash: {
-        ...state,
-        active: previous?.query === query ? previous.active : 0,
-        items: slashItems(this.config, query),
-        query,
-      },
-    });
-  }
-
-  private slashKey(event: KeyboardEvent): boolean {
-    const { slash } = this.snapshot;
-    const count = slash?.items.length ?? 0;
-    if (!slash || count === 0) {
-      return false;
-    }
-    const step = (by: number) => {
-      this.update({
-        slash: { ...slash, active: (slash.active + by + count) % count },
-      });
-      return true;
-    };
-    if (event.key === "ArrowDown" || (event.key === "Tab" && !event.shiftKey)) {
-      return step(1);
-    }
-    if (event.key === "ArrowUp" || (event.key === "Tab" && event.shiftKey)) {
-      return step(-1);
-    }
-    if (event.key === "Enter") {
-      const item = slash.items[slash.active];
-      if (item) {
-        this.chooseSlash(item);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  private get start(): number {
-    return readRange(this.root).start;
-  }
-
   private schedule() {
     clearTimeout(this.timer);
     this.timer = setTimeout(() => this.save(), SAVE_DELAY);
@@ -230,14 +155,13 @@ export class Run extends Store<RunSnapshot> {
       this.originals,
       this.style
     );
-    const text = body && this.prefix + body;
-    const emptied = closing && this.replacing && text === "";
-    if (text === this.current && !emptied) {
+    const intent = this.draft.next(body, closing);
+    if (!intent) {
       return;
     }
 
     this.update({ saving: true });
-    this.saving = (emptied ? this.remove() : this.replace(text))
+    this.saving = this.persist(intent)
       .catch((error: unknown) => {
         this.onError(
           error instanceof ConflictError
@@ -253,38 +177,17 @@ export class Run extends Store<RunSnapshot> {
     return this.saving;
   }
 
-  private replace(text: string) {
-    const { start, current } = this;
-    const op = { end: start + current.length, expected: current, start, text };
-    return this.write([op], text, start);
-  }
-
-  private async remove() {
-    const { source } = await this.backend.source(this.file);
-    const range = { end: this.start + this.current.length, start: this.start };
-    if (source.slice(range.start, range.end) !== this.current) {
-      throw new ConflictError("The file changed on disk.");
+  private async persist(intent: RunIntent) {
+    const written = await this.edits.applyRun(this.file, this.hash, intent, {
+      group: this.group,
+      page: this.page,
+    });
+    if (!written) {
+      return;
     }
-    const ops = removeOps(source, range);
-    const [op] = ops;
-    if (op) {
-      await this.write(ops, "", op.start + op.text.length);
-    }
-  }
-
-  private async write(ops: Op[], text: string, start: number) {
-    const { hash } = await this.backend.ops(
-      this.file,
-      this.hash,
-      ops,
-      this.group
-    );
-    this.hash = hash;
-    this.current = text;
+    this.hash = written.hash;
+    this.draft.saved(intent, written.range);
     this.wrote = true;
-    const range = { end: start + text.length, start };
-    stampRange(this.root, range);
-    this.page.track(hash, range);
     this.onSaved();
   }
 
@@ -309,7 +212,7 @@ export class Run extends Store<RunSnapshot> {
   }
 
   private handleKeyDown(event: KeyboardEvent): boolean {
-    if (event.key === "Escape" && !this.snapshot.slash) {
+    if (event.key === "Escape" && !this.slash.open) {
       void this.close();
       return true;
     }

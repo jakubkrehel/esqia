@@ -105,14 +105,12 @@ describe.skipIf(files.length === 0)("round trip over real content", () => {
             schema,
             parseRun(text, SMARTYPANTS).doc
           ).firstChild;
-          if (block.textContent !== block.textContent.trim()) {
-            expect(reparsed && serializeBlock(reparsed, style)).toBe(text);
-            return;
-          }
-          expect({ block: reparsed && strip(reparsed), text }).toEqual({
-            block: strip(block),
-            text,
-          });
+          const padded = block.textContent !== block.textContent.trim();
+          const actual = padded
+            ? { text: reparsed && serializeBlock(reparsed, style) }
+            : { block: reparsed && strip(reparsed), text };
+          const expected = padded ? { text } : { block: strip(block), text };
+          expect(actual).toEqual(expected);
         });
       }
     });

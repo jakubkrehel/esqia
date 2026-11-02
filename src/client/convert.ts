@@ -5,13 +5,13 @@ import type { MdxJsxTextElement } from "mdast-util-mdx-jsx";
 import {
   blockType,
   curl,
+  LINE_BREAK,
   type MarkdownStyle,
   parseMdx,
   type Smartypants,
   straighten,
   stringifyBlock,
 } from "../shared/markdown";
-import { LINE_BREAK } from "../shared/ops";
 
 export interface Original {
   fingerprint: string;

@@ -1,11 +1,11 @@
 import type { ClientConfig } from "../shared/config";
-import { applyOps, type Op } from "../shared/ops";
-import { fileWrappers, readBlock } from "./blocks";
-import { DemoPage, syncPage } from "./demo-page";
-import { LivePage } from "./live-page";
-import type { PageOpening, RunPage } from "./page";
-
-export type { ClientConfig };
+import {
+  type Changes,
+  EditHistory,
+  type FileStore,
+  type Outcome,
+} from "../shared/history";
+import type { Op } from "../shared/ops";
 
 export class ConflictError extends Error {
   override readonly name = "ConflictError";
@@ -16,7 +16,7 @@ export function errorText(error: unknown) {
 }
 
 export interface Backend {
-  changes: () => Promise<{ edits?: number; files: string[]; redos?: number }>;
+  changes: () => Promise<Changes>;
   config: () => Promise<ClientConfig>;
   notice: string | null;
   open?: (file: string, line: number) => Promise<void>;
@@ -26,7 +26,6 @@ export interface Backend {
     ops: Op[],
     group?: string
   ) => Promise<{ hash: string }>;
-  page: (opening: PageOpening) => RunPage;
   redo?: (file: string) => Promise<{ hash: string }>;
   revert: () => Promise<{ reverted: string[]; skipped: string[] }>;
   source: (file: string) => Promise<{ source: string; hash: string }>;
@@ -55,9 +54,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body;
 }
 
+const post = (body: unknown): RequestInit => ({
+  body: JSON.stringify(body),
+  headers: { "content-type": "application/json" },
+  method: "POST",
+});
+
 export const sidecar: Backend = {
-  changes: () =>
-    request<{ edits?: number; files: string[]; redos?: number }>("/changes"),
+  changes: () => request<Changes>("/changes"),
   config: () => request<ClientConfig>("/config"),
   notice: null,
   open: async (file, line) => {
@@ -72,18 +76,8 @@ export const sidecar: Backend = {
     }
   },
   ops: (file, hash, ops, group) =>
-    request<{ hash: string }>("/ops", {
-      body: JSON.stringify({ file, group, hash, ops }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    }),
-  page: (opening) => new LivePage(opening),
-  redo: (file) =>
-    request<{ hash: string }>("/redo", {
-      body: JSON.stringify({ file }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    }),
+    request<{ hash: string }>("/ops", post({ file, group, hash, ops })),
+  redo: (file) => request<{ hash: string }>("/redo", post({ file })),
   revert: () =>
     request<{ reverted: string[]; skipped: string[] }>("/revert", {
       method: "POST",
@@ -92,78 +86,31 @@ export const sidecar: Backend = {
     request<{ source: string; hash: string }>(
       `/source?file=${encodeURIComponent(file)}`
     ),
-  undo: (file) =>
-    request<{ hash: string }>("/undo", {
-      body: JSON.stringify({ file }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    }),
+  undo: (file) => request<{ hash: string }>("/undo", post({ file })),
 };
 
-interface MemoryFile {
-  hash: string;
-  source: string;
-}
-
-export function memoryBackend(
-  sources: Record<string, string>,
-  config: ClientConfig
-): Backend {
-  const files = new Map<string, MemoryFile>();
-  let writes = 0;
-
-  const file = (name: string): MemoryFile => {
-    const existing = files.get(name);
-    if (existing) {
-      return existing;
-    }
-    const source = sources[name];
-    if (source === undefined) {
-      throw new Error(`esqia: the demo has no source for ${name}.`);
-    }
-    const rendered = fileWrappers(name)[0];
-    const created: MemoryFile = {
-      hash: (rendered && readBlock(rendered).version) || "demo",
-      source,
-    };
-    files.set(name, created);
-    return created;
-  };
+export function memoryBackend(store: FileStore, config: ClientConfig): Backend {
+  const history = new EditHistory(store);
 
   return {
-    changes: () =>
-      Promise.resolve({
-        edits: writes,
-        files: [...files]
-          .filter(([name, f]) => f.source !== sources[name])
-          .map(([name]) => name),
-      }),
+    changes: () => Promise.resolve(history.changes()),
     config: () => Promise.resolve(config),
     notice: "Edits stay in this tab. Install esqia to save them to your files.",
-    ops: (name, _hash, ops) => {
-      const current = file(name);
-      const before = current.source;
-      const result = applyOps(before, ops);
-      if (!result.ok) {
-        return Promise.reject(new ConflictError(result.reason));
-      }
-      current.source = result.source;
-      writes += 1;
-      current.hash = `demo-${writes}`;
-      syncPage(
-        { after: current.source, before, file: name, ops },
-        current.hash
-      );
-      return Promise.resolve({ hash: current.hash });
-    },
-    page: (opening) => new DemoPage(opening, () => file(opening.file).source),
+    ops: async (name, hash, ops, group) =>
+      settled(await history.apply(name, hash, ops, group)),
     revert: () => {
       location.reload();
       return Promise.resolve({ reverted: [], skipped: [] });
     },
-    source: (name) => {
-      const current = file(name);
-      return Promise.resolve({ hash: current.hash, source: current.source });
-    },
+    source: (name) => history.source(name),
   };
+}
+
+function settled(outcome: Outcome): { hash: string } {
+  if (!outcome.ok) {
+    throw outcome.reason === "conflict"
+      ? new ConflictError(outcome.error)
+      : new Error(outcome.error);
+  }
+  return { hash: outcome.hash };
 }

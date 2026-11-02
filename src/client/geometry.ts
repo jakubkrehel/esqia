@@ -1,5 +1,11 @@
-import { BLOCK_SELECTOR, WRAPPER } from "../shared/wrapper";
-import { type Block, fileBlocks, readBlock } from "./blocks";
+import { WRAPPER } from "../shared/wrapper";
+import {
+  type Block,
+  fileBlocks,
+  isHidden,
+  pageWrappers,
+  readBlock,
+} from "./blocks";
 
 export interface Rect {
   height: number;
@@ -23,7 +29,7 @@ const FIRST_LINE_REACH = 64;
 
 export function hitTest(x: number, y: number): Block | null {
   let best: { block: Block; area: number } | null = null;
-  for (const el of document.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)) {
+  for (const el of pageWrappers()) {
     const rect = blockRect(el);
     if (!rect) {
       continue;
@@ -149,7 +155,7 @@ export function box(rect: Rect) {
 }
 
 export function blockRect(el: HTMLElement): DOMRect | null {
-  if (el.style.display === "none") {
+  if (isHidden(el)) {
     return null;
   }
   const range = document.createRange();

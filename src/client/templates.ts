@@ -1,4 +1,4 @@
-import { BLOCK_SELECTOR } from "../shared/wrapper";
+import { pageWrappers, readBlock } from "./blocks";
 
 export interface Rendered {
   contentDOM?: HTMLElement;
@@ -26,9 +26,9 @@ const INLINE_TAGS = new Set([
 ]);
 
 export function sampleTemplates(): Templates {
-  const wrappers = [...document.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)];
+  const blocks = pageWrappers().map(readBlock);
   const ofType = (type: string) =>
-    wrappers.filter((wrapper) => wrapper.dataset.esqiaType === type);
+    blocks.filter((block) => block.type === type).map((block) => block.el);
 
   const paragraphs = ofType("paragraph")
     .map((wrapper) => wrapper.firstElementChild)

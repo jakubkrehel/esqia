@@ -9,22 +9,10 @@ import {
 import path from "node:path";
 import { clientConfig, type EsqiaOptions } from "../shared/config";
 import { hashSource } from "../shared/hash";
-import { applyOps, type Op } from "../shared/ops";
+import { EditHistory, type FileStore, type Outcome } from "../shared/history";
+import type { Op } from "../shared/ops";
 
 export type { ClientConfig, EsqiaOptions } from "../shared/config";
-
-interface HistoryEntry {
-  afterHash: string;
-  before: string;
-  group?: string;
-}
-
-interface RedoEntry {
-  after: string;
-  before: string;
-}
-
-const HISTORY_LIMIT = 100;
 
 export interface Sidecar {
   token: string;
@@ -88,9 +76,8 @@ function listen(
   options: EsqiaOptions
 ): Promise<boolean> {
   const context: Context = {
-    history: new Map(),
+    history: new EditHistory(fileStore(root)),
     options,
-    redo: new Map(),
     root,
     token,
   };
@@ -112,11 +99,23 @@ function listen(
 }
 
 interface Context {
-  history: Map<string, HistoryEntry[]>;
+  history: EditHistory;
   options: EsqiaOptions;
-  redo: Map<string, RedoEntry[]>;
   root: string;
   token: string;
+}
+
+function fileStore(root: string): FileStore {
+  return {
+    read: async (file) => {
+      const source = await readFile(path.join(root, file), "utf8");
+      return { hash: hashSource(source), source };
+    },
+    write: async (file, source) => {
+      await writeFile(path.join(root, file), source);
+      return hashSource(source);
+    },
+  };
 }
 
 const PRIVATE_HOST =
@@ -140,7 +139,7 @@ async function handle(
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "content-type, x-esqia-token, x-esqia-file, x-esqia-name"
+      "content-type, x-esqia-token"
     );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
@@ -179,8 +178,7 @@ async function handle(
 
     case "GET /source": {
       const file = resolveFile(context.root, url.searchParams.get("file"));
-      const source = await readFile(file, "utf8");
-      return send(res, 200, { hash: hashSource(source), source });
+      return send(res, 200, await context.history.source(file));
     }
 
     case "POST /ops": {
@@ -191,152 +189,47 @@ async function handle(
         group?: string;
       };
       const file = resolveFile(context.root, body.file);
-      const source = await readFile(file, "utf8");
-      if (hashSource(source) !== body.hash) {
-        return send(res, 409, {
-          error: "The file changed on disk.",
-          hash: hashSource(source),
-        });
-      }
-      const result = applyOps(source, body.ops);
-      if (!result.ok) {
-        return send(res, 409, {
-          error: result.reason,
-          hash: hashSource(source),
-        });
-      }
-
-      const afterHash = hashSource(result.source);
-      if (afterHash !== body.hash) {
-        await writeFile(file, result.source);
-        record(context.history, file, {
-          afterHash,
-          before: source,
-          group: body.group,
-        });
-        context.redo.delete(file);
-      }
-      return send(res, 200, { hash: afterHash });
+      return reply(
+        res,
+        await context.history.apply(file, body.hash, body.ops, body.group)
+      );
     }
 
     case "POST /undo": {
       const body = JSON.parse(await readBody(req, 10_000)) as { file: string };
-      return undo(res, context, resolveFile(context.root, body.file));
+      return reply(
+        res,
+        await context.history.undo(resolveFile(context.root, body.file))
+      );
     }
 
     case "POST /redo": {
       const body = JSON.parse(await readBody(req, 10_000)) as { file: string };
-      return redo(res, context, resolveFile(context.root, body.file));
+      return reply(
+        res,
+        await context.history.redo(resolveFile(context.root, body.file))
+      );
     }
 
     case "GET /changes":
-      return send(res, 200, changes(context));
+      return send(res, 200, context.history.changes());
 
     case "POST /revert":
-      return send(res, 200, await revertAll(context));
+      return send(res, 200, await context.history.revertAll());
 
     default:
       return send(res, 404, { error: "Not found." });
   }
 }
 
-async function undo(res: ServerResponse, context: Context, file: string) {
-  const entries = context.history.get(file) ?? [];
-  const last = entries.at(-1);
-  if (!last) {
-    return send(res, 404, { error: "Nothing to undo." });
+function reply(res: ServerResponse, outcome: Outcome) {
+  if (outcome.ok) {
+    return send(res, 200, { hash: outcome.hash });
   }
-  const source = await readFile(file, "utf8");
-  if (hashSource(source) !== last.afterHash) {
-    entries.length = 0;
-    return send(res, 409, {
-      error: "The file changed in your editor since the last edit here.",
-    });
-  }
-  entries.pop();
-  await writeFile(file, last.before);
-  context.redo.set(file, [
-    ...(context.redo.get(file) ?? []),
-    { after: source, before: last.before },
-  ]);
-  return send(res, 200, { hash: hashSource(last.before) });
-}
-
-async function redo(res: ServerResponse, context: Context, file: string) {
-  const entries = context.redo.get(file) ?? [];
-  const last = entries.at(-1);
-  if (!last) {
-    return send(res, 404, { error: "Nothing to redo." });
-  }
-  const source = await readFile(file, "utf8");
-  if (source !== last.before) {
-    context.redo.delete(file);
-    return send(res, 409, {
-      error: "The file changed in your editor since the last undo here.",
-    });
-  }
-  entries.pop();
-  await writeFile(file, last.after);
-  record(context.history, file, {
-    afterHash: hashSource(last.after),
-    before: last.before,
+  return send(res, outcome.reason === "conflict" ? 409 : 404, {
+    error: outcome.error,
+    hash: outcome.hash,
   });
-  return send(res, 200, { hash: hashSource(last.after) });
-}
-
-function changes(context: Context) {
-  const touched = [...context.history].filter(
-    ([, entries]) => entries.length > 0
-  );
-  return {
-    edits: touched.reduce((sum, [, entries]) => sum + entries.length, 0),
-    files: touched.map(([file]) => path.relative(context.root, file)),
-    redos: [...context.redo.values()].reduce(
-      (sum, entries) => sum + entries.length,
-      0
-    ),
-  };
-}
-
-async function revertAll(context: Context) {
-  const reverted: string[] = [];
-  const skipped: string[] = [];
-  context.redo.clear();
-  for (const [file, entries] of context.history) {
-    const first = entries[0];
-    const last = entries.at(-1);
-    entries.length = 0;
-    if (!(first && last)) {
-      continue;
-    }
-    const name = path.relative(context.root, file);
-    const source = await readFile(file, "utf8");
-    if (hashSource(source) === last.afterHash) {
-      await writeFile(file, first.before);
-      reverted.push(name);
-    } else {
-      skipped.push(name);
-    }
-  }
-  return { reverted, skipped };
-}
-
-function record(
-  history: Map<string, HistoryEntry[]>,
-  file: string,
-  entry: HistoryEntry
-) {
-  const entries = history.get(file) ?? [];
-  const last = entries.at(-1);
-  if (last && entry.group && last.group === entry.group) {
-    last.afterHash = entry.afterHash;
-  } else {
-    entries.push(entry);
-    if (entries.length > HISTORY_LIMIT) {
-      entries.shift();
-    }
-  }
-  history.set(file, entries);
 }
 
 function resolveFile(root: string, file: string | null | undefined): string {
@@ -352,7 +245,7 @@ function resolveFile(root: string, file: string | null | undefined): string {
   ) {
     throw new Error(`Refusing to touch ${file}.`);
   }
-  return resolved;
+  return path.relative(root, resolved).split(path.sep).join("/");
 }
 
 function readBody(req: IncomingMessage, limit: number): Promise<string> {

@@ -1,13 +1,17 @@
-import type { Op } from "../shared/ops";
-import { BLOCK_SELECTOR, WRAPPER } from "../shared/wrapper";
+import type { ClientConfig } from "../shared/config";
+import { type Backend, errorText } from "./api";
 import {
-  type Backend,
-  type ClientConfig,
-  ConflictError,
-  errorText,
-} from "./api";
-import { type Block, readBlock, runAround } from "./blocks";
+  type Block,
+  fileBlocks,
+  firstFile,
+  pageWrappers,
+  readBlock,
+  runAround,
+} from "./blocks";
+import { FileEdits } from "./file-edits";
 import { blockRect, textOffsetAt } from "./geometry";
+import type { Intent } from "./intents";
+import type { PageSync } from "./page";
 import { type Placement, Run } from "./run";
 import { Store } from "./store";
 
@@ -16,8 +20,6 @@ export type OpenTarget =
   | { at: "after"; block: Block };
 
 export type Notify = (text: string, tone?: "info" | "error") => void;
-
-export type BuildOps = (source: string, block: Block) => Op[];
 
 export interface SessionSnapshot {
   changed: number;
@@ -36,7 +38,7 @@ export const INITIAL_SESSION: SessionSnapshot = {
 };
 
 function firstVisibleBlock(): Block | null {
-  for (const el of document.querySelectorAll<HTMLElement>(BLOCK_SELECTOR)) {
+  for (const el of pageWrappers()) {
     const rect = blockRect(el);
     if (rect && rect.bottom > 0) {
       return readBlock(el);
@@ -82,11 +84,13 @@ export class Session extends Store<SessionSnapshot> {
   private lastFile: string | null = null;
   private noticed = false;
   private readonly backend: Backend;
+  private readonly edits: FileEdits;
   private readonly notify: Notify;
 
-  constructor(backend: Backend, notify: Notify) {
+  constructor(backend: Backend, sync: PageSync, notify: Notify) {
     super(INITIAL_SESSION);
     this.backend = backend;
+    this.edits = new FileEdits(backend, sync);
     this.notify = notify;
   }
 
@@ -119,23 +123,10 @@ export class Session extends Store<SessionSnapshot> {
     this.backend
       .changes()
       .then((changes) =>
-        this.update({
-          changed: changes.edits ?? changes.files.length,
-          redoable: changes.redos ?? 0,
-        })
+        this.update({ changed: changes.edits, redoable: changes.redos })
       )
       .catch(() => this.update({ changed: 0, redoable: 0 }));
   };
-
-  private async freshSource(block: Block) {
-    const fetched = await this.backend.source(block.file);
-    if (fetched.hash !== block.version) {
-      throw new ConflictError(
-        "The page is behind the file. Wait for it to refresh, then try again."
-      );
-    }
-    return fetched;
-  }
 
   setEditable(editable: boolean) {
     if (!editable) {
@@ -183,11 +174,11 @@ export class Session extends Store<SessionSnapshot> {
     const index = place.blocks.findIndex((b) => b.el === el);
 
     try {
-      const { source, hash } = await this.freshSource(fresh);
+      const { source, hash } = await this.edits.read(fresh.file, fresh.version);
       const next = new Run({
-        backend: this.backend,
         caret: index >= 0 ? { index, offset: offset ?? 0 } : undefined,
         config,
+        edits: this.edits,
         file: fresh.file,
         hash,
         onClose: () => {
@@ -213,16 +204,29 @@ export class Session extends Store<SessionSnapshot> {
     }
   }
 
-  async write(el: HTMLElement, build: BuildOps) {
+  removeBlock(block: Block) {
+    return this.edit(block.el, (fresh) => ({ kind: "remove", range: fresh }));
+  }
+
+  insertBreak(block: Block) {
+    return this.edit(block.el, (fresh) => ({ kind: "break", range: fresh }));
+  }
+
+  moveBlock(block: Block, target: Block | null) {
+    return this.edit(block.el, (fresh) => ({
+      blocks: fileBlocks(fresh.file),
+      kind: "move",
+      range: fresh,
+      target: target && readBlock(target.el),
+    }));
+  }
+
+  private async edit(el: HTMLElement, intent: (block: Block) => Intent) {
     this.update({ writing: true });
     try {
       await this.close();
       const block = readBlock(el);
-      const { source, hash } = await this.freshSource(block);
-      const ops = build(source, block);
-      if (ops.length > 0) {
-        await this.backend.ops(block.file, hash, ops);
-      }
+      await this.edits.apply(block.file, block.version, intent(block));
       this.lastFile = block.file;
       this.refreshChanges();
     } catch (error) {
@@ -244,9 +248,7 @@ export class Session extends Store<SessionSnapshot> {
     apply: ((file: string) => Promise<unknown>) | undefined,
     done: string
   ) {
-    const file =
-      this.lastFile ??
-      document.querySelector(BLOCK_SELECTOR)?.getAttribute(WRAPPER.file);
+    const file = this.lastFile ?? firstFile();
     if (!(apply && file)) {
       return;
     }

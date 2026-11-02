@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LINE_BREAK } from "../shared/ops";
+import { LINE_BREAK } from "../shared/markdown";
 import { Anchored } from "./anchored";
 import type { Block } from "./blocks";
 import {

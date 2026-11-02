@@ -1,9 +1,8 @@
 import type { Editor } from "@tiptap/core";
-import type { Node as PMNode } from "@tiptap/pm/model";
-import { TextSelection } from "@tiptap/pm/state";
-import { LINE_BREAK } from "../shared/ops";
-import type { ClientConfig } from "./api";
-import { spacerInPlace } from "./editor";
+import type { Node as PMNode, ResolvedPos } from "@tiptap/pm/model";
+import { TextSelection, type Transaction } from "@tiptap/pm/state";
+import type { ClientConfig } from "../shared/config";
+import { LINE_BREAK } from "../shared/markdown";
 
 export interface SlashState {
   query: string;
@@ -121,4 +120,11 @@ function inlinePos(node: PMNode, offset: number): number {
     pos += child.nodeSize;
   });
   return pos;
+}
+
+export function spacerInPlace(tr: Transaction, $from: ResolvedPos) {
+  const { paragraph, spacer } = tr.doc.type.schema.nodes;
+  const before = $from.before();
+  tr.replaceWith(before, $from.after(), [spacer.create(), paragraph.create()]);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(before + 2)));
 }

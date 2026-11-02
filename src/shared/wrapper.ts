@@ -4,7 +4,6 @@ export const WRAPPER = {
   end: "data-esqia-end",
   file: "data-esqia-file",
   removed: "data-esqia-removed",
-  run: "data-esqia-run",
   start: "data-esqia-start",
   type: "data-esqia-type",
   version: "data-esqia-v",

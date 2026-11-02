@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { clientConfig, type EsqiaOptions } from "../shared/config";
-import { configured, memoryBackend, sidecar } from "./api";
+import { configured, sidecar } from "./api";
 import { Chrome } from "./chrome";
+import { demoEditing } from "./demo-page";
+import { liveSync } from "./live-page";
 import { CHROME_CSS, PAGE_CSS } from "./styles";
 
 export interface EsqiaProps {
@@ -14,9 +16,9 @@ export function Esqia({ demo }: EsqiaProps) {
     if (!(demo || configured)) {
       return;
     }
-    const backend = demo
-      ? memoryBackend(demo.sources, clientConfig(demo))
-      : sidecar;
+    const { backend, sync } = demo
+      ? demoEditing(demo.sources, clientConfig(demo))
+      : { backend: sidecar, sync: liveSync };
     const host = document.createElement("esqia-ui");
     const shadow = host.attachShadow({ mode: "open" });
     const chromeStyle = document.createElement("style");
@@ -47,7 +49,7 @@ export function Esqia({ demo }: EsqiaProps) {
     });
 
     const root = createRoot(mount);
-    root.render(<Chrome backend={backend} host={host} />);
+    root.render(<Chrome backend={backend} host={host} sync={sync} />);
 
     return () => {
       media.removeEventListener("change", syncTheme);

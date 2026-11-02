@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { EDITABLE } from "../shared/markdown";
-import { BLOCK_SELECTOR, readBlock } from "./blocks";
+import { blockAt } from "./blocks";
 import type { Session } from "./session";
 
 export function usePageClicks(
@@ -34,8 +34,7 @@ export function usePageClicks(
         }
         return;
       }
-      const wrapper = target.closest<HTMLElement>(BLOCK_SELECTOR);
-      const block = wrapper && readBlock(wrapper);
+      const block = blockAt(target);
       if (!(block && EDITABLE.has(block.type))) {
         return;
       }

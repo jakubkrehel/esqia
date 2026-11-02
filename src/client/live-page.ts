@@ -1,9 +1,14 @@
 import type { BlockRange } from "../shared/ops";
 import { WRAPPER } from "../shared/wrapper";
-import { fileBlocks } from "./blocks";
-import type { PageClosing, PageOpening, RunPage } from "./page";
+import { fileBlocks, hideBlock, isHidden, showBlock } from "./blocks";
+import type { PageClosing, PageOpening, PageSync, RunPage } from "./page";
 
-export class LivePage implements RunPage {
+export const liveSync: PageSync = {
+  applied: ({ hash, run }) => run?.page.track(hash, run.range),
+  open: (opening) => new LivePage(opening),
+};
+
+class LivePage implements RunPage {
   private readonly file: string;
   private readonly ranges = new Map<string, BlockRange>();
   private readonly hidden = new Set<HTMLElement>();
@@ -33,7 +38,7 @@ export class LivePage implements RunPage {
     }
     this.observer.disconnect();
     for (const el of this.hidden) {
-      el.style.setProperty("display", "contents");
+      showBlock(el);
     }
     return true;
   }
@@ -43,11 +48,11 @@ export class LivePage implements RunPage {
       const range = this.ranges.get(block.version);
       const inside =
         range && block.start >= range.start && block.start < range.end;
-      if (inside && block.el.style.display !== "none") {
-        block.el.style.setProperty("display", "none", "important");
+      if (inside && !isHidden(block.el)) {
+        hideBlock(block.el);
         this.hidden.add(block.el);
       } else if (!inside && this.hidden.has(block.el)) {
-        block.el.style.setProperty("display", "contents");
+        showBlock(block.el);
         this.hidden.delete(block.el);
       }
     }

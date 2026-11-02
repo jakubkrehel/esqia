@@ -16,7 +16,11 @@ export class Store<T> {
   getSnapshot = () => this.snapshot;
 
   protected update(patch: Partial<T>) {
-    this.snapshot = { ...this.snapshot, ...patch };
+    this.set({ ...this.snapshot, ...patch });
+  }
+
+  protected set(snapshot: T) {
+    this.snapshot = snapshot;
     for (const listener of this.listeners) {
       listener();
     }

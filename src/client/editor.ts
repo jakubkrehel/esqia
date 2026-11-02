@@ -22,12 +22,11 @@ import {
   Placeholder,
   UndoRedo,
 } from "@tiptap/extensions";
-import type { DOMOutputSpec, ResolvedPos } from "@tiptap/pm/model";
-import { TextSelection, type Transaction } from "@tiptap/pm/state";
+import type { DOMOutputSpec } from "@tiptap/pm/model";
 import Suggestion from "@tiptap/suggestion";
-import { LINE_BREAK } from "../shared/ops";
-import type { ClientConfig } from "./api";
-import type { SlashState } from "./commands";
+import type { ClientConfig } from "../shared/config";
+import { LINE_BREAK } from "../shared/markdown";
+import { type SlashState, spacerInPlace } from "./commands";
 import { jsxBlockPreview, type Rendered, type Templates } from "./templates";
 
 const blockId = {
@@ -275,13 +274,6 @@ function quotesAsTyped(ellipsis: boolean) {
     ...Object.fromEntries(off.map((rule) => [rule, false])),
     ...(ellipsis ? {} : { ellipsis: false }),
   });
-}
-
-export function spacerInPlace(tr: Transaction, $from: ResolvedPos) {
-  const { paragraph, spacer } = tr.doc.type.schema.nodes;
-  const before = $from.before();
-  tr.replaceWith(before, $from.after(), [spacer.create(), paragraph.create()]);
-  tr.setSelection(TextSelection.near(tr.doc.resolve(before + 2)));
 }
 
 function splitWithSpacer(editor: Editor, auto: boolean): boolean {

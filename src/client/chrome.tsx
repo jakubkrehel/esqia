@@ -1,12 +1,13 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { insertBreakOps, moveOps, removeOps } from "../shared/ops";
+import type { ClientConfig } from "../shared/config";
 import type { Backend } from "./api";
 import { BlockControls } from "./block-controls";
-import { BLOCK_SELECTOR, fileBlocks, readBlock } from "./blocks";
+import { pageHasBlocks } from "./blocks";
 import { Bubble } from "./bubble";
 import { CORNERS } from "./corner-drag";
+import type { PageSync } from "./page";
 import { usePageClicks } from "./page-clicks";
-import { IDLE_RUN } from "./run";
+import { IDLE_RUN, type Run } from "./run";
 import { INITIAL_SESSION, Session } from "./session";
 import { Slash } from "./slash";
 import { OUTLINE_COLORS, Status, Toolbar } from "./toolbar";
@@ -20,6 +21,7 @@ const OUTLINE_KEY = "esqia:outline";
 const CORNER_KEY = "esqia:corner";
 const OUTLINES: string[] = OUTLINE_COLORS.map((color) => color.value);
 const unsubscribed = () => () => undefined;
+const noSlash = () => null;
 
 function readStored<T extends string>(
   key: string,
@@ -61,14 +63,14 @@ function subscribeToBlocks(onChange: () => void) {
   return () => observer.disconnect();
 }
 
-const pageHasBlocks = () => document.querySelector(BLOCK_SELECTOR) !== null;
-
 export function Chrome({
   backend,
   host,
+  sync,
 }: {
   backend: Backend;
   host: HTMLElement;
+  sync: PageSync;
 }) {
   const [mode, setMode] = useStored(MODE_KEY, MODES, "read");
   const [toast, setToast] = useState<Toast>(null);
@@ -80,7 +82,9 @@ export function Chrome({
   const [corner, setCorner] = useStored(CORNER_KEY, CORNERS, "bottom-left");
   const [session] = useState(
     () =>
-      new Session(backend, (text, tone = "info") => setToast({ text, tone }))
+      new Session(backend, sync, (text, tone = "info") =>
+        setToast({ text, tone })
+      )
   );
   const { changed, config, redoable, run, writing } = useSyncExternalStore(
     session.subscribe,
@@ -149,28 +153,12 @@ export function Chrome({
         <BlockControls
           host={host}
           onActivate={(target) => session.open(target)}
-          onBreak={(block) =>
-            session.write(block.el, (_source, fresh) => insertBreakOps(fresh))
-          }
-          onDelete={(block) => session.write(block.el, removeOps)}
-          onMove={(block, target) =>
-            session.write(block.el, (source, fresh) =>
-              moveOps(
-                source,
-                fileBlocks(fresh.file),
-                fresh,
-                target && readBlock(target.el)
-              )
-            )
-          }
+          onBreak={(block) => session.insertBreak(block)}
+          onDelete={(block) => session.removeBlock(block)}
+          onMove={(block, target) => session.moveBlock(block, target)}
         />
       )}
-      {run &&
-        (snapshot.slash ? (
-          <Slash run={run} slash={snapshot.slash} />
-        ) : (
-          <Bubble config={config} run={run} />
-        ))}
+      {run && <RunMenu config={config} run={run} />}
       <Toolbar
         busy={busy}
         changed={changed}
@@ -188,6 +176,19 @@ export function Chrome({
       />
       {toast && <Status corner={corner} {...toast} />}
     </div>
+  );
+}
+
+function RunMenu({ config, run }: { config: ClientConfig; run: Run }) {
+  const slash = useSyncExternalStore(
+    run.slash.subscribe,
+    run.slash.getSnapshot,
+    noSlash
+  );
+  return slash ? (
+    <Slash run={run} slash={slash} />
+  ) : (
+    <Bubble config={config} run={run} />
   );
 }
 

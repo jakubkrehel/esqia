@@ -23,7 +23,7 @@ export function Slash({ run, slash }: { run: Run; slash: SlashMenu }) {
           hint={item.hint}
           key={item.id}
           label={item.label}
-          onSelect={() => run.chooseSlash(item)}
+          onSelect={() => run.slash.choose(item)}
           option
         />
       ))}

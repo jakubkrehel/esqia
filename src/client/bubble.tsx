@@ -1,7 +1,7 @@
 import { posToDOMRect } from "@tiptap/core";
 import { type ReactNode, useEffect, useState } from "react";
+import type { ClientConfig } from "../shared/config";
 import { Anchored } from "./anchored";
-import type { ClientConfig } from "./api";
 import { markOpen } from "./editor";
 import { BoldIcon, CodeIcon, ItalicIcon, LinkIcon } from "./icons";
 import type { Run } from "./run";
