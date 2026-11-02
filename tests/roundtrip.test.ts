@@ -105,6 +105,10 @@ describe.skipIf(files.length === 0)("round trip over real content", () => {
             schema,
             parseRun(text, SMARTYPANTS).doc
           ).firstChild;
+          if (block.textContent !== block.textContent.trim()) {
+            expect(reparsed && serializeBlock(reparsed, style)).toBe(text);
+            return;
+          }
           expect({ block: reparsed && strip(reparsed), text }).toEqual({
             block: strip(block),
             text,

@@ -287,7 +287,11 @@ function inlineToMdast(block: PMNode, style: MarkdownStyle): PhrasingContent[] {
     }
   });
 
-  return hoistWhitespace(root);
+  const children = hoistWhitespace(root);
+  trimEdges(children);
+  return children.filter(
+    (child) => child.type !== "text" || child.value !== ""
+  );
 }
 
 function trimEdges(children: PhrasingContent[]): {
