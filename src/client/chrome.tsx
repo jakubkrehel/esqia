@@ -121,6 +121,10 @@ export function Chrome({
 
   useEffect(() => {
     host.style.setProperty("--outline", outline);
+    document.documentElement.style.setProperty("--esqia-outline", outline);
+    return () => {
+      document.documentElement.style.removeProperty("--esqia-outline");
+    };
   }, [outline, host]);
 
   useShortcuts({

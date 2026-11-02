@@ -18,6 +18,7 @@ import {
 } from "./icons";
 
 export const OUTLINE_COLORS = [
+  { name: "Gray", value: "oklch(70.8% 0 0)" },
   { name: "Sky", value: "oklch(74.6% 0.16 232.661)" },
   { name: "Violet", value: "oklch(70.2% 0.183 293.541)" },
   { name: "Pink", value: "oklch(71.8% 0.202 349.761)" },
@@ -91,39 +92,28 @@ const MOD =
     ? "⌘"
     : "Ctrl+";
 
-function plural(count: number, word: string) {
-  return `${count} ${count === 1 ? word : `${word}s`}`;
-}
-
-function tipLabel(
-  id: TipId,
-  changed: number,
-  redoable: number,
-  outlineName: string
-): ReactNode {
+function tipLabel(id: TipId): ReactNode {
   switch (id) {
     case "undo":
       return (
         <>
-          {changed === 0 ? "Nothing to undo" : "Undo"}
+          Undo
           <kbd>{MOD}Z</kbd>
         </>
       );
     case "redo":
       return (
         <>
-          {redoable === 0 ? "Nothing to redo" : "Redo"}
+          Redo
           <kbd>{MOD}⇧Z</kbd>
         </>
       );
     case "revert":
-      return changed === 0
-        ? "Nothing to revert"
-        : `Revert ${plural(changed, "change")}`;
+      return "Revert all changes";
     case "open":
       return "Open in editor";
     default:
-      return `Outline: ${outlineName}`;
+      return "Theme";
   }
 }
 
@@ -164,6 +154,11 @@ export function Toolbar({
   const next = OUTLINE_COLORS[(current + 1) % OUTLINE_COLORS.length];
   const confirming = confirmAt !== null && editing;
   const nothingChanged = changed === 0;
+  const disabled: Partial<Record<TipId, boolean>> = {
+    redo: redoable === 0,
+    revert: nothingChanged,
+    undo: nothingChanged,
+  };
   const { bind, tip } = useTip();
 
   useEffect(() => {
@@ -254,11 +249,7 @@ export function Toolbar({
           <button
             aria-disabled={nothingChanged}
             aria-expanded={confirming}
-            aria-label={
-              nothingChanged
-                ? "Revert all changes"
-                : `Revert ${plural(changed, "change")}`
-            }
+            aria-label="Revert all changes"
             className="action"
             onClick={(event) => toggleConfirm(event.currentTarget)}
             ref={revert}
@@ -266,7 +257,6 @@ export function Toolbar({
             {...bind("revert")}
           >
             <ResetIcon />
-            {!nothingChanged && <span className="count">{changed}</span>}
           </button>
           {onOpen && (
             <button
@@ -280,7 +270,7 @@ export function Toolbar({
             </button>
           )}
           <button
-            aria-label={`Outline color: ${outlineName}`}
+            aria-label={`Theme: ${outlineName}`}
             className="action"
             onClick={() => onOutline(next.value)}
             type="button"
@@ -290,11 +280,8 @@ export function Toolbar({
           </button>
         </div>
       </div>
-      {tip && editing && !confirming && (
-        <ToolbarTip
-          label={tipLabel(tip.id, changed, redoable, outlineName)}
-          tip={tip}
-        />
+      {tip && editing && !confirming && !disabled[tip.id] && (
+        <ToolbarTip label={tipLabel(tip.id)} tip={tip} />
       )}
       {confirming && (
         <RevertConfirm
