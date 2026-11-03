@@ -15,6 +15,8 @@ export const CHROME_CSS = `
   --danger: oklch(0.577 0.245 27.325);
   --success: oklch(0.627 0.194 149.214);
   --shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06), 0 2px 4px 0 rgb(0 0 0 / 0.04);
+  font: 500 14px/1.25 var(--font-sans, -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased; color: var(--text);
 }
 :host([data-theme="dark"]) {
   --surface: oklch(0.178 0 0);
@@ -30,8 +32,6 @@ export const CHROME_CSS = `
 * { box-sizing: border-box; }
 .layer {
   position: fixed; inset: 0; pointer-events: none; z-index: 2147483000;
-  font: 500 14px/1.25 var(--font-sans, -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif);
-  -webkit-font-smoothing: antialiased; color: var(--text);
 }
 .layer > * { pointer-events: auto; }
 button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
@@ -47,6 +47,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   background: var(--surface); box-shadow: var(--shadow);
   transition: padding 350ms var(--expand), box-shadow 200ms ease-out;
 }
+.bar[data-inline] { position: relative; inset: auto; width: fit-content; }
 .bar[data-mode="edit"] { padding-inline-end: 4px; }
 .bar[data-corner$="right"] { direction: rtl; }
 .bar[data-dragging], .bar[data-dragging] * { cursor: grabbing; }
@@ -110,7 +111,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .swap > * { grid-area: 1 / 1; display: grid; opacity: 0; scale: 0.5; filter: blur(2px); transition: opacity 200ms ease-out, scale 200ms ease-out, filter 200ms ease-out; }
 .swap > [data-shown] { opacity: 1; scale: 1; filter: none; }
 .swatch { width: 12px; height: 12px; border-radius: 9999px; transition: background-color 200ms ease-out; }
-.mark { width: 10px; height: 10px; border-radius: 2px; background: currentColor; }
+.mark { width: 16px; height: 16px; }
 .trigger[data-busy] .mark { animation: pulse 900ms ease-in-out infinite; }
 .toast {
   position: fixed; max-width: min(420px, calc(100vw - 40px)); padding: 6px 12px; border-radius: 8px;

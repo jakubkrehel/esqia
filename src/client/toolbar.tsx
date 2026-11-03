@@ -10,6 +10,7 @@ import {
 import { type Corner, startCornerDrag } from "./corner-drag";
 import {
   CheckIcon,
+  MarkIcon,
   OpenIcon,
   RedoIcon,
   ResetIcon,
@@ -122,6 +123,7 @@ export function Toolbar({
   changed,
   corner,
   editing,
+  inline,
   outline,
   onCorner,
   onOpen,
@@ -136,6 +138,7 @@ export function Toolbar({
   changed: number;
   corner: Corner;
   editing: boolean;
+  inline: boolean;
   outline: string;
   onCorner: (corner: Corner) => void;
   onOpen?: () => void;
@@ -204,8 +207,11 @@ export function Toolbar({
     <div
       className="bar"
       data-corner={corner}
+      data-inline={inline ? "" : undefined}
       data-mode={editing ? "edit" : "read"}
-      onPointerDown={(event) => startCornerDrag(event, corner, onCorner)}
+      onPointerDown={
+        inline ? undefined : (event) => startCornerDrag(event, corner, onCorner)
+      }
     >
       <button
         aria-label={editing ? "Stop editing" : "Edit this page"}
@@ -215,7 +221,7 @@ export function Toolbar({
         onClick={onToggle}
         type="button"
       >
-        <span className="mark" />
+        <MarkIcon />
       </button>
       <div className="tray" inert={!editing}>
         <div className="tray-items">

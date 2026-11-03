@@ -66,10 +66,12 @@ function subscribeToBlocks(onChange: () => void) {
 export function Chrome({
   backend,
   host,
+  inline,
   sync,
 }: {
   backend: Backend;
   host: HTMLElement;
+  inline: boolean;
   sync: PageSync;
 }) {
   const [mode, setMode] = useStored(MODE_KEY, MODES, "read");
@@ -79,7 +81,8 @@ export function Chrome({
     OUTLINES,
     OUTLINE_COLORS[0].value
   );
-  const [corner, setCorner] = useStored(CORNER_KEY, CORNERS, "bottom-left");
+  const [stored, setCorner] = useStored(CORNER_KEY, CORNERS, "bottom-left");
+  const corner = inline ? "bottom-left" : stored;
   const [session] = useState(
     () =>
       new Session(backend, sync, (text, tone = "info") =>
@@ -146,36 +149,43 @@ export function Chrome({
 
   const editing = mode === "edit";
   const busy = snapshot.saving || writing;
+  const toolbar = (
+    <Toolbar
+      busy={busy}
+      changed={changed}
+      corner={corner}
+      editing={editing}
+      inline={inline}
+      onCorner={setCorner}
+      onOpen={session.canOpen ? () => session.openInEditor() : undefined}
+      onOutline={setOutline}
+      onRedo={session.canRedo ? () => session.redo() : undefined}
+      onRevert={() => session.revert()}
+      onToggle={() => setMode(toggled)}
+      onUndo={session.canUndo ? () => session.undo() : undefined}
+      outline={outline}
+      redoable={redoable}
+    />
+  );
 
   return (
-    <div className="layer">
-      {editing && (
-        <BlockControls
-          host={host}
-          onActivate={(target) => session.open(target)}
-          onBreak={(block) => session.insertBreak(block)}
-          onDelete={(block) => session.removeBlock(block)}
-          onMove={(block, target) => session.moveBlock(block, target)}
-        />
-      )}
-      {run && <RunMenu config={config} run={run} />}
-      <Toolbar
-        busy={busy}
-        changed={changed}
-        corner={corner}
-        editing={editing}
-        onCorner={setCorner}
-        onOpen={session.canOpen ? () => session.openInEditor() : undefined}
-        onOutline={setOutline}
-        onRedo={session.canRedo ? () => session.redo() : undefined}
-        onRevert={() => session.revert()}
-        onToggle={() => setMode(toggled)}
-        onUndo={session.canUndo ? () => session.undo() : undefined}
-        outline={outline}
-        redoable={redoable}
-      />
-      {toast && <Status corner={corner} {...toast} />}
-    </div>
+    <>
+      <div className="layer">
+        {editing && (
+          <BlockControls
+            host={host}
+            onActivate={(target) => session.open(target)}
+            onBreak={(block) => session.insertBreak(block)}
+            onDelete={(block) => session.removeBlock(block)}
+            onMove={(block, target) => session.moveBlock(block, target)}
+          />
+        )}
+        {run && <RunMenu config={config} run={run} />}
+        {!inline && toolbar}
+        {toast && <Status corner={corner} {...toast} />}
+      </div>
+      {inline && toolbar}
+    </>
   );
 }
 

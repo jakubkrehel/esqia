@@ -13,6 +13,7 @@ import {
   ReactIcon,
   TypescriptIcon,
 } from "@/components/icons";
+import { Kbd } from "@/components/kbd";
 
 const NEXT_CONFIG = `import { withEsqia } from "esqia/next";
 
@@ -121,34 +122,34 @@ function Paragraph({ children }: { children: ReactNode }) {
   return <p className="font-text text-body text-text-paragraph">{children}</p>;
 }
 
-function Key({ children }: { children: ReactNode }) {
+function InlineCode({ children }: { children: ReactNode }) {
   return <code className="code-inline">{children}</code>;
 }
 
 export function Docs() {
   return (
     <>
+      <Heading>Shortcuts</Heading>
+      <ul className="my-2 flex list-['-'] flex-col gap-2 pl-5 marker:text-gray-800">
+        <li className="pl-2 font-text text-body text-text-paragraph">
+          <Kbd>⌘</Kbd> <Kbd>E</Kbd> switches between reading and editing.
+        </li>
+        <li className="pl-2 font-text text-body text-text-paragraph">
+          <Kbd>Esc</Kbd> or clicking away saves and hands the page back.
+        </li>
+        <li className="pl-2 font-text text-body text-text-paragraph">
+          <Kbd>⌘</Kbd> <Kbd>Z</Kbd> outside the editor undoes the last change.
+        </li>
+      </ul>
       <Heading>Setup</Heading>
       <Paragraph>Add the remark plugin last and wrap your config.</Paragraph>
       <CodeBlock code={NEXT_CONFIG} lang="ts" title="next.config.ts" />
       <Paragraph>Then mount it once in your root layout.</Paragraph>
       <CodeBlock code={LAYOUT} lang="tsx" title="app/layout.tsx" />
       <Paragraph>
-        Outside of <Key>next dev</Key> nothing is added and your config is
-        returned untouched.
+        Outside of <InlineCode>next dev</InlineCode> nothing is added and your
+        config is returned untouched.
       </Paragraph>
-      <Heading>Shortcuts</Heading>
-      <ul className="my-2 flex list-['-'] flex-col gap-2 pl-5 marker:text-gray-800">
-        <li className="pl-2 font-text text-body text-text-paragraph">
-          <Key>⌘</Key> <Key>E</Key> switches between reading and editing.
-        </li>
-        <li className="pl-2 font-text text-body text-text-paragraph">
-          <Key>Esc</Key> or clicking away saves and hands the page back.
-        </li>
-        <li className="pl-2 font-text text-body text-text-paragraph">
-          <Key>⌘</Key> <Key>Z</Key> outside the editor undoes the last change.
-        </li>
-      </ul>
     </>
   );
 }

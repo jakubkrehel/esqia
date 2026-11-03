@@ -9,9 +9,10 @@ import { CHROME_CSS, PAGE_CSS } from "./styles";
 
 export interface EsqiaProps {
   demo?: EsqiaOptions & { sources: Record<string, string> };
+  toolbar?: string;
 }
 
-export function Esqia({ demo }: EsqiaProps) {
+export function Esqia({ demo, toolbar }: EsqiaProps) {
   useEffect(() => {
     if (!(demo || configured)) {
       return;
@@ -25,7 +26,10 @@ export function Esqia({ demo }: EsqiaProps) {
     chromeStyle.textContent = CHROME_CSS;
     const mount = document.createElement("div");
     shadow.append(chromeStyle, mount);
-    document.body.append(host);
+    const anchor = toolbar
+      ? document.querySelector<HTMLElement>(toolbar)
+      : null;
+    (anchor ?? document.body).append(host);
 
     const pageStyle = document.createElement("style");
     pageStyle.dataset.esqia = "";
@@ -49,7 +53,14 @@ export function Esqia({ demo }: EsqiaProps) {
     });
 
     const root = createRoot(mount);
-    root.render(<Chrome backend={backend} host={host} sync={sync} />);
+    root.render(
+      <Chrome
+        backend={backend}
+        host={host}
+        inline={anchor !== null}
+        sync={sync}
+      />
+    );
 
     return () => {
       media.removeEventListener("change", syncTheme);
@@ -60,7 +71,7 @@ export function Esqia({ demo }: EsqiaProps) {
         pageStyle.remove();
       }, 0);
     };
-  }, [demo]);
+  }, [demo, toolbar]);
 
   return null;
 }
