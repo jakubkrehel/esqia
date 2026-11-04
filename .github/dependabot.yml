@@ -6,15 +6,29 @@ updates:
     schedule:
       interval: weekly
     groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       npm:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       github-actions:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
