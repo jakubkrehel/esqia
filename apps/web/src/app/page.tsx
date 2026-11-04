@@ -22,18 +22,16 @@ export default function Page() {
         </p>
       </header>
       <InstallCard />
-      <div className="mt-10 h-9" id="esqia-toolbar" />
       <Content />
       <Docs />
       {process.env.NODE_ENV === "development" ? (
-        <Esqia toolbar="#esqia-toolbar" />
+        <Esqia />
       ) : (
         <Esqia
           demo={{
             smartypants: { dashes: false },
             sources: { [CONTENT]: source },
           }}
-          toolbar="#esqia-toolbar"
         />
       )}
     </main>

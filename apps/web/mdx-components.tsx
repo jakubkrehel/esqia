@@ -1,5 +1,6 @@
 import type { MDXComponents } from "mdx/types";
 import type { ComponentProps } from "react";
+import { Point } from "@/components/point";
 
 function Code({ className, ...props }: ComponentProps<"code">) {
   const isBlock =
@@ -42,8 +43,12 @@ const components: MDXComponents = {
   li: (props) => (
     <li className="pl-2 font-text text-body text-text-paragraph" {...props} />
   ),
+  Point,
   p: (props) => (
-    <p className="font-text text-body text-text-paragraph" {...props} />
+    <p
+      className="relative font-text text-body text-text-paragraph has-[>[data-point]]:my-4 has-[>[data-point]]:pl-10"
+      {...props}
+    />
   ),
   pre: (props) => (
     <pre

@@ -1,11 +1,15 @@
 import type { BlockRange } from "../shared/ops";
 import { WRAPPER } from "../shared/wrapper";
+import { sidecar } from "./api";
 import { fileBlocks, hideBlock, isHidden, showBlock } from "./blocks";
-import type { PageClosing, PageOpening, PageSync, RunPage } from "./page";
+import type { EditingHost, PageClosing, PageOpening, RunPage } from "./page";
 
-export const liveSync: PageSync = {
-  applied: ({ hash, run }) => run?.page.track(hash, run.range),
-  open: (opening) => new LivePage(opening),
+export const liveHost: EditingHost = {
+  backend: sidecar,
+  sync: {
+    applied: ({ hash, run }) => run?.page.track(hash, run.range),
+    open: (opening) => new LivePage(opening),
+  },
 };
 
 class LivePage implements RunPage {

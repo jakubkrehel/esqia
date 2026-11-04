@@ -1,10 +1,4 @@
-import {
-  type BlockRange,
-  insertBreakOps,
-  moveOps,
-  type Op,
-  removeOps,
-} from "../shared/ops";
+import { type BlockRange, moveOps, type Op, removeOps } from "../shared/ops";
 
 export type RunIntent =
   | { kind: "replace"; op: Op }
@@ -17,8 +11,7 @@ export type Intent =
       range: BlockRange;
       target: BlockRange | null;
       blocks: BlockRange[];
-    }
-  | { kind: "break"; range: BlockRange };
+    };
 
 export async function intentOps(
   intent: Intent,
@@ -36,8 +29,6 @@ export async function intentOps(
         intent.range,
         intent.target
       );
-    case "break":
-      return insertBreakOps(intent.range);
     default:
       return [];
   }

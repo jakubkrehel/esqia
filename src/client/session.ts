@@ -1,23 +1,14 @@
+import type { Editor } from "@tiptap/core";
 import type { ClientConfig } from "../shared/config";
 import { type Backend, errorText } from "./api";
-import {
-  type Block,
-  fileBlocks,
-  firstFile,
-  pageWrappers,
-  readBlock,
-  runAround,
-} from "./blocks";
+import { type Block, fileBlocks, firstFile, readBlock } from "./blocks";
 import { FileEdits } from "./file-edits";
-import { blockRect, textOffsetAt } from "./geometry";
+import { firstVisibleBlock } from "./geometry";
 import type { Intent } from "./intents";
-import type { PageSync } from "./page";
-import { type Placement, Run } from "./run";
+import { type OpenTarget, prepareOpening } from "./opening";
+import type { EditingHost } from "./page";
+import { Run } from "./run";
 import { Store } from "./store";
-
-export type OpenTarget =
-  | { at: "run"; block: Block; caret?: { x: number; y: number } }
-  | { at: "after"; block: Block };
 
 export type Notify = (text: string, tone?: "info" | "error") => void;
 
@@ -37,45 +28,12 @@ export const INITIAL_SESSION: SessionSnapshot = {
   writing: false,
 };
 
-function firstVisibleBlock(): Block | null {
-  for (const el of pageWrappers()) {
-    const rect = blockRect(el);
-    if (rect && rect.bottom > 0) {
-      return readBlock(el);
-    }
-  }
-  return null;
-}
-
 function lineAt(source: string, offset: number) {
   return source.slice(0, offset).split("\n").length;
 }
 
 function files(count: number) {
   return `${count} ${count === 1 ? "file" : "files"}`;
-}
-
-function placement(target: OpenTarget, block: Block): Placement | null {
-  if (target.at === "after") {
-    return {
-      at: "after",
-      blocks: [],
-      mount: (root) => block.el.after(root),
-      range: { end: block.end, start: block.end },
-    };
-  }
-  const blocks = runAround(block);
-  const first = blocks[0];
-  const last = blocks.at(-1);
-  if (!(first && last)) {
-    return null;
-  }
-  return {
-    at: "run",
-    blocks,
-    mount: (root) => first.el.before(root),
-    range: { end: last.end, start: first.start },
-  };
 }
 
 export class Session extends Store<SessionSnapshot> {
@@ -87,7 +45,7 @@ export class Session extends Store<SessionSnapshot> {
   private readonly edits: FileEdits;
   private readonly notify: Notify;
 
-  constructor(backend: Backend, sync: PageSync, notify: Notify) {
+  constructor({ backend, sync }: EditingHost, notify: Notify) {
     super(INITIAL_SESSION);
     this.backend = backend;
     this.edits = new FileEdits(backend, sync);
@@ -152,34 +110,26 @@ export class Session extends Store<SessionSnapshot> {
     return this.closing;
   }
 
-  async open(target: OpenTarget) {
+  async open(target: OpenTarget): Promise<Run | undefined> {
     const { config } = this.snapshot;
     if (!config) {
       return;
     }
-    const { el } = target.block;
-    const offset =
-      target.at === "run" && target.caret
-        ? textOffsetAt(el, target.caret.x, target.caret.y)
-        : null;
+    const opening = prepareOpening(target);
     await this.close();
-    if (!el.isConnected) {
+    const resolved = opening();
+    if (!resolved) {
       return;
     }
-    const fresh = readBlock(el);
-    const place = placement(target, fresh);
-    if (!place) {
-      return;
-    }
-    const index = place.blocks.findIndex((b) => b.el === el);
+    const { caret, file, placement, version } = resolved;
 
     try {
-      const { source, hash } = await this.edits.read(fresh.file, fresh.version);
+      const { source, hash } = await this.edits.read(file, version);
       const next = new Run({
-        caret: index >= 0 ? { index, offset: offset ?? 0 } : undefined,
+        caret,
         config,
         edits: this.edits,
-        file: fresh.file,
+        file,
         hash,
         onClose: () => {
           if (this.snapshot.run === next) {
@@ -189,27 +139,31 @@ export class Session extends Store<SessionSnapshot> {
         onError: (message) => this.notify(message, "error"),
         onFocus: (focused) => this.update({ run: focused }),
         onSaved: this.refreshChanges,
-        placement: place,
+        placement,
         source,
       });
       this.runs.add(next);
-      this.lastFile = fresh.file;
+      this.lastFile = file;
       this.update({ run: next });
       if (this.backend.notice && !this.noticed) {
         this.noticed = true;
         this.notify(this.backend.notice);
       }
+      return next;
     } catch (error) {
       this.notify(errorText(error), "error");
     }
   }
 
-  removeBlock(block: Block) {
-    return this.edit(block.el, (fresh) => ({ kind: "remove", range: fresh }));
+  async insertAfter(block: Block, apply: (editor: Editor) => void) {
+    const run = await this.open({ at: "after", block });
+    if (run) {
+      apply(run.editor);
+    }
   }
 
-  insertBreak(block: Block) {
-    return this.edit(block.el, (fresh) => ({ kind: "break", range: fresh }));
+  removeBlock(block: Block) {
+    return this.edit(block.el, (fresh) => ({ kind: "remove", range: fresh }));
   }
 
   moveBlock(block: Block, target: Block | null) {

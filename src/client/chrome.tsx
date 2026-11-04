@@ -1,11 +1,11 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { ClientConfig } from "../shared/config";
-import type { Backend } from "./api";
 import { BlockControls } from "./block-controls";
 import { pageHasBlocks } from "./blocks";
 import { Bubble } from "./bubble";
+import { slashItems } from "./commands";
 import { CORNERS } from "./corner-drag";
-import type { PageSync } from "./page";
+import type { EditingHost } from "./page";
 import { usePageClicks } from "./page-clicks";
 import { IDLE_RUN, type Run } from "./run";
 import { INITIAL_SESSION, Session } from "./session";
@@ -64,15 +64,13 @@ function subscribeToBlocks(onChange: () => void) {
 }
 
 export function Chrome({
-  backend,
+  editingHost,
   host,
   inline,
-  sync,
 }: {
-  backend: Backend;
+  editingHost: EditingHost;
   host: HTMLElement;
   inline: boolean;
-  sync: PageSync;
 }) {
   const [mode, setMode] = useStored(MODE_KEY, MODES, "read");
   const [toast, setToast] = useState<Toast>(null);
@@ -85,7 +83,7 @@ export function Chrome({
   const corner = inline ? "bottom-left" : stored;
   const [session] = useState(
     () =>
-      new Session(backend, sync, (text, tone = "info") =>
+      new Session(editingHost, (text, tone = "info") =>
         setToast({ text, tone })
       )
   );
@@ -174,9 +172,9 @@ export function Chrome({
         {editing && (
           <BlockControls
             host={host}
-            onActivate={(target) => session.open(target)}
-            onBreak={(block) => session.insertBreak(block)}
+            inserts={slashItems(config, "")}
             onDelete={(block) => session.removeBlock(block)}
+            onInsert={(block, item) => session.insertAfter(block, item.apply)}
             onMove={(block, target) => session.moveBlock(block, target)}
           />
         )}

@@ -18,7 +18,6 @@ const withMDX = createMDX({
 });
 
 export default withEsqia(withMDX(nextConfig), {
-  marks: [{ className: "font-libre-baskerville", name: "Serif", tag: "em" }],
   snippets: [{ name: "Demo", source: "<Demo />" }],
   media: { path: "{dir}/" },
 });

@@ -1,4 +1,4 @@
-import type { BlockType } from "../shared/markdown";
+import { type BlockType, EDITABLE } from "../shared/markdown";
 import type { BlockRange } from "../shared/ops";
 import { runAround as sharedRunAround } from "../shared/runs";
 import {
@@ -25,9 +25,10 @@ export function readBlock(el: HTMLElement): Block {
   };
 }
 
-export function blockAt(target: Element): Block | null {
+export function editableBlockAt(target: Element): Block | null {
   const el = target.closest<HTMLElement>(LIVE_SELECTOR);
-  return el && readBlock(el);
+  const block = el && readBlock(el);
+  return block && EDITABLE.has(block.type) ? block : null;
 }
 
 export function pageWrappers(): HTMLElement[] {

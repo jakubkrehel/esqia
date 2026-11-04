@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/core";
 import type { BlockRange, Op } from "../shared/ops";
+import type { Backend } from "./api";
 import type { Block } from "./blocks";
 
 export interface PageOpening {
@@ -32,4 +33,9 @@ export interface AppliedEdit {
 export interface PageSync {
   applied: (edit: AppliedEdit) => void;
   open: (opening: PageOpening) => RunPage;
+}
+
+export interface EditingHost {
+  backend: Backend;
+  sync: PageSync;
 }

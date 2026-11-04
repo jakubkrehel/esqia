@@ -1,10 +1,16 @@
 import type { Editor } from "@tiptap/core";
 import type { ClientConfig } from "../shared/config";
-import { type MemoryStore, memoryStore } from "../shared/history";
+import {
+  EditHistory,
+  type FileStore,
+  type MemoryStore,
+  memoryStore,
+  type Outcome,
+} from "../shared/history";
 import { type BlockType, blockType, parseMdx } from "../shared/markdown";
 import { type BlockRange, mapRange, mapSpan, type Op } from "../shared/ops";
 import type { WrapperFields } from "../shared/wrapper";
-import { type Backend, memoryBackend } from "./api";
+import { type Backend, ConflictError } from "./api";
 import {
   createWrapper,
   fileWrappers,
@@ -17,13 +23,19 @@ import {
   stampVersion,
   stampWrapper,
 } from "./blocks";
-import { writtenBlocks } from "./convert";
-import type { PageClosing, PageOpening, PageSync, RunPage } from "./page";
+import type {
+  EditingHost,
+  PageClosing,
+  PageOpening,
+  PageSync,
+  RunPage,
+} from "./page";
+import { writtenBlocks } from "./serialize-run";
 
-export function demoEditing(
+export function demoHost(
   sources: Record<string, string>,
   config: ClientConfig
-): { backend: Backend; sync: PageSync } {
+): EditingHost {
   const store = memoryStore((file) => {
     const source = sources[file];
     if (source === undefined) {
@@ -36,6 +48,32 @@ export function demoEditing(
     };
   });
   return { backend: memoryBackend(store, config), sync: demoSync(store) };
+}
+
+export function memoryBackend(store: FileStore, config: ClientConfig): Backend {
+  const history = new EditHistory(store);
+
+  return {
+    changes: () => Promise.resolve(history.changes()),
+    config: () => Promise.resolve(config),
+    notice: "Edits stay in this tab. Install esqia to save them to your files.",
+    ops: async (name, hash, ops, group) =>
+      writtenHash(await history.apply(name, hash, ops, group)),
+    revert: () => {
+      location.reload();
+      return Promise.resolve({ reverted: [], skipped: [] });
+    },
+    source: (name) => history.source(name),
+  };
+}
+
+function writtenHash(outcome: Outcome): { hash: string } {
+  if (!outcome.ok) {
+    throw outcome.reason === "conflict"
+      ? new ConflictError(outcome.error)
+      : new Error(outcome.error);
+  }
+  return { hash: outcome.hash };
 }
 
 function demoSync(store: MemoryStore): PageSync {

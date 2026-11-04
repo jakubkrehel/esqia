@@ -122,6 +122,10 @@ export function createExtensions({
       name: "jsxInline",
       renderHTML: ({ node }) => {
         const raw: string = node.attrs.raw;
+        const rendered = templates.component(raw);
+        if (rendered) {
+          return spec(rendered);
+        }
         const name = /^<([\w.]+)/.exec(raw)?.[1];
         return [
           "span",
@@ -159,6 +163,10 @@ export function createExtensions({
         );
         if (configured) {
           return [configured.tag, { class: configured.className }, 0];
+        }
+        const rendered = templates.componentMark(mark.attrs.open);
+        if (rendered) {
+          return spec(rendered);
         }
         return [
           "span",

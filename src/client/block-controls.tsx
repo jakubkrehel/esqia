@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { LINE_BREAK } from "../shared/markdown";
 import { Anchored } from "./anchored";
 import type { Block } from "./blocks";
+import type { SlashItem } from "./commands";
 import {
   box,
   dropTarget,
@@ -13,7 +13,6 @@ import {
 } from "./geometry";
 import { GripIcon, PlusIcon, TrashIcon } from "./icons";
 import { MenuItem } from "./menu-item";
-import type { OpenTarget } from "./session";
 
 interface Drag {
   block: Block;
@@ -21,35 +20,24 @@ interface Drag {
   moved: boolean;
 }
 
-type MenuKind = "add" | "block";
-
-interface BlockAction {
-  hint?: string;
-  label: string;
-  select: (block: Block) => void;
-  tone?: "danger";
-}
-
 interface BlockControlsProps {
   host: HTMLElement;
-  onActivate: (target: OpenTarget) => void;
-  onBreak: (block: Block) => void;
+  inserts: SlashItem[];
   onDelete: (block: Block) => void;
+  onInsert: (block: Block, item: SlashItem) => void;
   onMove: (block: Block, target: Block | null) => void;
 }
 
 export function BlockControls({
   host,
-  onActivate,
+  inserts,
   onMove,
-  onBreak,
+  onInsert,
   onDelete,
 }: BlockControlsProps) {
   const [hover, setHover] = useState<Block | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
-  const [menu, setMenu] = useState<{ block: Block; kind: MenuKind } | null>(
-    null
-  );
+  const [menu, setMenu] = useState<Block | null>(null);
   const gutter = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -122,27 +110,13 @@ export function BlockControls({
       setHover(null);
       if (moved) {
         onMove(block, dropTarget(block, up.clientY).target);
-      } else if (measureBlock(block)) {
-        setMenu({ block, kind: "block" });
       }
     };
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
   };
 
-  const addParagraph = (block: Block) => onActivate({ at: "after", block });
-  const actions: Record<MenuKind, BlockAction[]> = {
-    add: [
-      { label: "Paragraph", select: addParagraph },
-      { hint: LINE_BREAK, label: "Line break", select: onBreak },
-    ],
-    block: [
-      { label: "Add paragraph below", select: addParagraph },
-      { label: "Delete block", select: onDelete, tone: "danger" },
-    ],
-  };
-
-  const block = drag?.block ?? menu?.block ?? hover;
+  const block = drag?.block ?? menu ?? hover;
   const geometry = block && measureBlock(block);
 
   return (
@@ -157,11 +131,9 @@ export function BlockControls({
             }}
           />
           <Gutter
-            adding={menu?.kind === "add"}
-            gripping={Boolean(drag) || menu?.kind === "block"}
-            onAdd={() =>
-              setMenu(menu?.kind === "add" ? null : { block, kind: "add" })
-            }
+            adding={Boolean(menu)}
+            gripping={Boolean(drag)}
+            onAdd={() => setMenu(menu ? null : block)}
             onDelete={() => {
               setHover(null);
               onDelete(block);
@@ -185,20 +157,19 @@ export function BlockControls({
       {menu && (
         <Anchored
           className="panel menu"
-          context={menu.block.el}
+          context={menu.el}
           placement="bottom-start"
           rect={() => gutter.current?.getBoundingClientRect() ?? null}
         >
-          {actions[menu.kind].map((action) => (
+          {inserts.map((item) => (
             <MenuItem
-              hint={action.hint}
-              key={action.label}
-              label={action.label}
+              hint={item.hint}
+              key={item.label}
+              label={item.label}
               onSelect={() => {
                 setMenu(null);
-                action.select(menu.block);
+                onInsert(menu, item);
               }}
-              tone={action.tone}
             />
           ))}
         </Anchored>
@@ -239,7 +210,7 @@ function Gutter({
         <PlusIcon />
       </button>
       <button
-        aria-label="Drag to move, click for options"
+        aria-label="Drag to move"
         className="grip"
         data-active={gripping ? "" : undefined}
         onPointerDown={onGrip}

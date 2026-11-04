@@ -62,7 +62,7 @@ async function CodeBlock({
 
   return (
     <figure className="preview-code my-8 overflow-hidden">
-      <figcaption className="mx-1 mt-1 flex items-center justify-between gap-2 rounded-xl border border-preview-border bg-gray-100 py-1.5 pr-1.5 pl-3">
+      <figcaption className="mx-1 mt-1 flex items-center justify-between gap-2 rounded-xl bg-gray-100 py-1.5 shadow-custom pr-1.5 pl-3">
         <span className="flex min-w-0 items-center gap-2">
           <LanguageIcon lang={lang} title={title} />
           <span className="truncate font-mono text-[13px] text-gray-1100">
@@ -130,14 +130,14 @@ export function Docs() {
   return (
     <>
       <Heading>Shortcuts</Heading>
-      <ul className="my-2 flex list-['-'] flex-col gap-2 pl-5 marker:text-gray-800">
-        <li className="pl-2 font-text text-body text-text-paragraph">
+      <ul className="my-2 flex flex-col gap-2">
+        <li className="font-text text-body text-text-paragraph">
           <Kbd>⌘</Kbd> <Kbd>E</Kbd> switches between reading and editing.
         </li>
-        <li className="pl-2 font-text text-body text-text-paragraph">
+        <li className="font-text text-body text-text-paragraph">
           <Kbd>Esc</Kbd> or clicking away saves and hands the page back.
         </li>
-        <li className="pl-2 font-text text-body text-text-paragraph">
+        <li className="font-text text-body text-text-paragraph">
           <Kbd>⌘</Kbd> <Kbd>Z</Kbd> outside the editor undoes the last change.
         </li>
       </ul>

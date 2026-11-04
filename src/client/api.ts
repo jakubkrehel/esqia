@@ -1,10 +1,5 @@
 import type { ClientConfig } from "../shared/config";
-import {
-  type Changes,
-  EditHistory,
-  type FileStore,
-  type Outcome,
-} from "../shared/history";
+import type { Changes } from "../shared/history";
 import type { Op } from "../shared/ops";
 
 export class ConflictError extends Error {
@@ -88,29 +83,3 @@ export const sidecar: Backend = {
     ),
   undo: (file) => request<{ hash: string }>("/undo", post({ file })),
 };
-
-export function memoryBackend(store: FileStore, config: ClientConfig): Backend {
-  const history = new EditHistory(store);
-
-  return {
-    changes: () => Promise.resolve(history.changes()),
-    config: () => Promise.resolve(config),
-    notice: "Edits stay in this tab. Install esqia to save them to your files.",
-    ops: async (name, hash, ops, group) =>
-      settled(await history.apply(name, hash, ops, group)),
-    revert: () => {
-      location.reload();
-      return Promise.resolve({ reverted: [], skipped: [] });
-    },
-    source: (name) => history.source(name),
-  };
-}
-
-function settled(outcome: Outcome): { hash: string } {
-  if (!outcome.ok) {
-    throw outcome.reason === "conflict"
-      ? new ConflictError(outcome.error)
-      : new Error(outcome.error);
-  }
-  return { hash: outcome.hash };
-}

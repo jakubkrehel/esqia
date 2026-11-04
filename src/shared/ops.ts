@@ -1,5 +1,3 @@
-import { LINE_BREAK } from "./markdown";
-
 export interface Op {
   end: number;
   expected: string;
@@ -61,17 +59,6 @@ export function moveOps(
     target
       ? { end: insertAt, expected: "", start: insertAt, text: `${text}\n\n` }
       : { end: insertAt, expected: "", start: insertAt, text: `\n\n${text}` },
-  ];
-}
-
-export function insertBreakOps(block: BlockRange): Op[] {
-  return [
-    {
-      end: block.end,
-      expected: "",
-      start: block.end,
-      text: `\n\n${LINE_BREAK}`,
-    },
   ];
 }
 

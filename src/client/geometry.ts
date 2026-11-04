@@ -179,27 +179,12 @@ function spacerRect(el: HTMLElement, line: DOMRect): DOMRect | null {
   return new DOMRect(left, line.top, right - left, line.height);
 }
 
-export function textOffsetAt(
-  el: HTMLElement,
-  x: number,
-  y: number
-): number | null {
-  let node: Node | null = null;
-  let offset = 0;
-  if (document.caretPositionFromPoint) {
-    const position = document.caretPositionFromPoint(x, y);
-    node = position?.offsetNode ?? null;
-    offset = position?.offset ?? 0;
-  } else {
-    const range = document.caretRangeFromPoint?.(x, y);
-    node = range?.startContainer ?? null;
-    offset = range?.startOffset ?? 0;
+export function firstVisibleBlock(): Block | null {
+  for (const el of pageWrappers()) {
+    const rect = blockRect(el);
+    if (rect && rect.bottom > 0) {
+      return readBlock(el);
+    }
   }
-  if (!node || !el.contains(node)) {
-    return null;
-  }
-  const range = document.createRange();
-  range.setStart(el, 0);
-  range.setEnd(node, offset);
-  return range.toString().length;
+  return null;
 }

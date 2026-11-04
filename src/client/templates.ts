@@ -1,4 +1,7 @@
-import { pageWrappers, readBlock } from "./blocks";
+import type { PhrasingContent } from "mdast";
+import { parseMdx } from "../shared/markdown";
+import { type Block, pageWrappers, readBlock } from "./blocks";
+import { sliceOf } from "./parse-run";
 
 export interface Rendered {
   contentDOM?: HTMLElement;
@@ -9,6 +12,8 @@ export interface Templates {
   block: (
     kind: "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "pre"
   ) => Rendered;
+  component: (raw: string) => Rendered | null;
+  componentMark: (open: string) => Rendered | null;
   mark: (kind: "strong" | "em" | "code" | "a") => Rendered;
 }
 
@@ -25,8 +30,12 @@ const INLINE_TAGS = new Set([
   "MARK",
 ]);
 
-export function sampleTemplates(): Templates {
+export function sampleTemplates(file: string, source: string): Templates {
   const blocks = pageWrappers().map(readBlock);
+  const components = renderedComponents(
+    blocks.filter((block) => block.file === file && block.type === "paragraph"),
+    source
+  );
   const ofType = (type: string) =>
     blocks.filter((block) => block.type === type).map((block) => block.el);
 
@@ -77,17 +86,103 @@ export function sampleTemplates(): Templates {
       const rendered = textTemplate(sample);
       return retag(rendered, kind);
     },
+    component(raw) {
+      const sample = components.elements.get(raw);
+      return sample ? { dom: sampleClone(sample, true) } : null;
+    },
+    componentMark(open) {
+      const sample = components.marks.get(open);
+      if (!sample) {
+        return null;
+      }
+      const dom = sampleClone(sample, false);
+      return { contentDOM: dom, dom };
+    },
     mark(kind) {
       const sample = marks[kind];
       if (!sample) {
         return bare(kind);
       }
-      const dom = sample.cloneNode(false) as HTMLElement;
-      dom.removeAttribute("id");
+      const dom = sampleClone(sample, false);
       dom.removeAttribute("href");
       return { contentDOM: dom, dom };
     },
   };
+}
+
+const LAYOUT_PROPERTIES = [
+  "flex-direction",
+  "flex-wrap",
+  "align-items",
+  "justify-items",
+  "grid-template-columns",
+  "row-gap",
+  "column-gap",
+] as const;
+
+export function matchLayout(editor: HTMLElement, root: HTMLElement) {
+  let parent = root.parentElement;
+  while (parent && getComputedStyle(parent).display === "contents") {
+    parent = parent.parentElement;
+  }
+  if (!parent) {
+    return;
+  }
+  const layout = getComputedStyle(parent);
+  if (!/flex|grid/.test(layout.display)) {
+    return;
+  }
+  for (const property of LAYOUT_PROPERTIES) {
+    editor.style.setProperty(property, layout.getPropertyValue(property));
+  }
+  editor.style.display = layout.display.includes("grid") ? "grid" : "flex";
+}
+
+function renderedComponents(
+  paragraphs: Block[],
+  source: string
+): { elements: Map<string, HTMLElement>; marks: Map<string, HTMLElement> } {
+  const elements = new Map<string, HTMLElement>();
+  const marks = new Map<string, HTMLElement>();
+  const nodes = new Map(
+    parseMdx(source).children.map((node) => [node.position?.start.offset, node])
+  );
+  for (const { el, start } of paragraphs) {
+    const rendered = el.firstElementChild;
+    const node = nodes.get(start);
+    if (!(rendered && node?.type === "paragraph")) {
+      continue;
+    }
+    const inline = node.children.filter(
+      (child: PhrasingContent) => child.type !== "text"
+    );
+    const children = [...rendered.children];
+    if (inline.length !== children.length) {
+      continue;
+    }
+    inline.forEach((child, index) => {
+      const element = children[index];
+      if (
+        !(child.type === "mdxJsxTextElement" && element instanceof HTMLElement)
+      ) {
+        return;
+      }
+      const open = child.position?.start.offset;
+      const first = child.children[0]?.position?.start.offset;
+      if (first === undefined) {
+        elements.set(sliceOf(child, source), element);
+      } else if (open !== undefined) {
+        marks.set(source.slice(open, first), element);
+      }
+    });
+  }
+  return { elements, marks };
+}
+
+function sampleClone(sample: HTMLElement, deep: boolean): HTMLElement {
+  const dom = sample.cloneNode(deep) as HTMLElement;
+  dom.removeAttribute("id");
+  return dom;
 }
 
 function directText(el: Element): number {

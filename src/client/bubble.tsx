@@ -6,7 +6,7 @@ import { markOpen } from "./editor";
 import { BoldIcon, CodeIcon, ItalicIcon, LinkIcon } from "./icons";
 import type { Run } from "./run";
 
-const SHOW_DELAY = 100;
+const SHOW_DELAY = 400;
 
 export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
   const { editor } = run;
@@ -21,7 +21,7 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
   const setLinking = (href: string | null) =>
     setLinkDraft(href === null ? null : { from, href });
   const inCode = editor.isActive("codeBlock");
-  const settled = useSettledPointer(editor.view.dom);
+  const settled = useSettledSelection(editor.view.dom, `${from}:${to}`);
 
   const open = !(
     empty ||
@@ -141,27 +141,30 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
   );
 }
 
-function useSettledPointer(target: HTMLElement): boolean {
-  const [settled, setSettled] = useState(true);
+function useSettledSelection(target: HTMLElement, selection: string) {
+  const [pressed, setPressed] = useState(false);
+  const [settledOn, setSettledOn] = useState<string | null>(null);
+
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const press = () => {
-      clearTimeout(timer);
-      setSettled(false);
-    };
-    const release = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => setSettled(true), SHOW_DELAY);
-    };
+    const press = () => setPressed(true);
+    const release = () => setPressed(false);
     target.addEventListener("pointerdown", press);
     window.addEventListener("pointerup", release);
     window.addEventListener("pointercancel", release);
     return () => {
-      clearTimeout(timer);
       target.removeEventListener("pointerdown", press);
       window.removeEventListener("pointerup", release);
       window.removeEventListener("pointercancel", release);
     };
   }, [target]);
-  return settled;
+
+  useEffect(() => {
+    if (pressed) {
+      return;
+    }
+    const timer = setTimeout(() => setSettledOn(selection), SHOW_DELAY);
+    return () => clearTimeout(timer);
+  }, [pressed, selection]);
+
+  return !pressed && settledOn === selection;
 }

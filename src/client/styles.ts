@@ -5,10 +5,14 @@ export const CHROME_CSS = `
   all: initial;
   --surface: oklch(1 0 0);
   --hover: oklch(0.972 0 0);
+  --menu-hover: oklch(0.955 0 0);
+  --toolbar-hover: oklch(0.872 0.01 258.338);
   --line: oklch(0.931 0 0);
   --text: oklch(0.244 0 0);
   --muted: oklch(0.54 0 0);
   --faint: oklch(0.61 0 0);
+  --key-fill: rgb(20 20 19 / 0.03);
+  --key-line: rgb(20 20 19 / 0.05);
   --sky: oklch(74.6% 0.16 232.661);
   --outline: var(--sky);
   --expand: cubic-bezier(0.32, 0.72, 0, 1);
@@ -21,10 +25,14 @@ export const CHROME_CSS = `
 :host([data-theme="dark"]) {
   --surface: oklch(0.178 0 0);
   --hover: oklch(0.213 0 0);
+  --menu-hover: oklch(0.252 0 0);
+  --toolbar-hover: var(--hover);
   --line: oklch(0.264 0 0);
   --text: oklch(0.949 0 0);
   --muted: oklch(0.773 0 0);
   --faint: oklch(0.583 0 0);
+  --key-fill: rgb(198 198 198 / 0.06);
+  --key-line: rgb(255 255 255 / 0.05);
   --danger: oklch(0.704 0.191 22.216);
   --success: oklch(0.723 0.219 149.579);
   --shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
@@ -83,13 +91,21 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .bar[data-corner^="top"] .confirm { top: calc(100% + 8px); bottom: auto; }
 .tip {
   position: absolute; bottom: calc(100% + 8px); direction: ltr; pointer-events: none; white-space: nowrap;
+  display: flex; align-items: center; gap: 8px;
   padding: 6px 10px; border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); color: var(--text);
   font-size: 14px; font-weight: 450; line-height: 20px;
   translate: -50% 0; transform-origin: bottom center; opacity: 0; scale: 0.95;
   transition: opacity 150ms ease-out, scale 150ms ease-out;
 }
 .tip[data-open] { opacity: 1; scale: 1; transition-duration: 200ms; }
-.tip kbd { margin-left: 8px; font: inherit; color: var(--faint); }
+.tip:has(.keys) { padding-right: 6px; }
+.tip .keys { display: flex; align-items: center; gap: 2px; }
+.tip kbd {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; height: 20px; min-width: 20px;
+  border: 1px solid var(--key-line); border-radius: 4px; background: var(--key-fill); color: var(--muted);
+  font-family: inherit; font-size: 11px; font-weight: 450; line-height: 16px; text-transform: uppercase; user-select: none;
+}
+.tip kbd[data-glyph="⌘"] { padding-top: 0.5px; }
 .tip[data-instant] { transition-duration: 0s; }
 @starting-style { .tip[data-open] { opacity: 0; scale: 0.95; } }
 .bar[data-corner^="top"] .tip { top: calc(100% + 8px); bottom: auto; transform-origin: top center; }
@@ -150,13 +166,13 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   13.01% { opacity: 1; scale: 0.98; animation-timing-function: linear(0, 0.367 10%, 0.6 20%, 0.747 30%, 0.84 40%, 0.899 50%, 0.936 60%, 0.974 80%, 1); }
   100% { opacity: 0; scale: 0.98; }
 }
-.toolbar { display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 9999px; white-space: nowrap; }
+.toolbar { display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 9999px; white-space: nowrap; }
 .toolbar button {
   height: 28px; min-width: 28px; padding: 0 6px; border: 0; border-radius: 9999px;
   display: inline-grid; place-items: center; background: transparent; color: var(--muted); cursor: pointer;
-  transition: background-color 200ms ease-out, color 200ms ease-out;
+  transition: color 200ms ease-out;
 }
-.toolbar button:hover { background: var(--hover); color: var(--text); }
+.toolbar button:hover { background: var(--toolbar-hover); color: var(--text); }
 .toolbar button[aria-pressed="true"] { background: var(--hover); color: var(--text); }
 .toolbar input {
   height: 32px; width: 260px; padding: 0 12px; border: 0; background: transparent;
@@ -173,10 +189,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent;
   text-align: left; cursor: pointer;
-  transition: background-color 200ms ease-out, color 200ms ease-out;
 }
-.menu button:hover, .menu button[data-active] { background: var(--hover); }
-.menu button[data-tone="danger"] { color: var(--danger); }
+.menu button:hover, .menu button[data-active] { background: var(--menu-hover); }
 .hint { color: var(--faint); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 @keyframes pulse { 50% { opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) {

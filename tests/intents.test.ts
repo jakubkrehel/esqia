@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { intentOps, spanAfter } from "../src/client/intents";
 import { blockType, parseMdx } from "../src/shared/markdown";
-import { insertBreakOps, moveOps, removeOps } from "../src/shared/ops";
+import { moveOps, removeOps } from "../src/shared/ops";
 
 const source = "# Title\n\nFirst.\n\n<br />\n\nSecond.\n\n<Demo />\n";
 const blocks = parseMdx(source).children.map((node) => ({
@@ -21,9 +21,6 @@ describe("intents", () => {
     await expect(
       intentOps({ kind: "remove", range: first }, read)
     ).resolves.toEqual(removeOps(source, first));
-    await expect(
-      intentOps({ kind: "break", range: first }, read)
-    ).resolves.toEqual(insertBreakOps(first));
     await expect(
       intentOps({ blocks, kind: "move", range: second, target: first }, read)
     ).resolves.toEqual(moveOps(source, blocks, second, first));

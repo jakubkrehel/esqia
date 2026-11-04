@@ -1,6 +1,5 @@
 import { useEffect } from "react";
-import { EDITABLE } from "../shared/markdown";
-import { blockAt } from "./blocks";
+import { editableBlockAt } from "./blocks";
 import type { Session } from "./session";
 
 export function usePageClicks(
@@ -34,8 +33,8 @@ export function usePageClicks(
         }
         return;
       }
-      const block = blockAt(target);
-      if (!(block && EDITABLE.has(block.type))) {
+      const block = editableBlockAt(target);
+      if (!block) {
         return;
       }
       event.preventDefault();

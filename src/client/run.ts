@@ -1,19 +1,17 @@
-import { Editor } from "@tiptap/core";
+import { Editor, getSchema } from "@tiptap/core";
 import type { ClientConfig } from "../shared/config";
-import { detectStyle, type MarkdownStyle } from "../shared/markdown";
-import type { BlockRange } from "../shared/ops";
-import { ConflictError, errorText } from "./api";
-import type { Block } from "./blocks";
-import { placeCaret } from "./commands";
-import { fingerprint, type Original, parseRun, serializeRun } from "./convert";
-import { Draft } from "./draft";
+import { detectStyle } from "../shared/markdown";
+import { type Caret, placeCaret } from "./caret";
 import { createExtensions } from "./editor";
 import type { FileEdits } from "./file-edits";
-import type { RunIntent } from "./intents";
+import type { Placement } from "./opening";
 import type { RunPage } from "./page";
+import { parseRun } from "./parse-run";
+import { RunSave } from "./run-save";
+import { serializeRun } from "./serialize-run";
 import { SlashMenuStore } from "./slash-menu";
 import { Store } from "./store";
-import { sampleTemplates } from "./templates";
+import { matchLayout, sampleTemplates } from "./templates";
 
 export interface RunSnapshot {
   revision: number;
@@ -25,15 +23,8 @@ export const IDLE_RUN: RunSnapshot = {
   saving: false,
 };
 
-export interface Placement {
-  at: "run" | "after";
-  blocks: Block[];
-  mount: (root: HTMLElement) => void;
-  range: BlockRange;
-}
-
 export interface RunOptions {
-  caret?: { index: number; offset: number };
+  caret?: Caret;
   config: ClientConfig;
   edits: FileEdits;
   file: string;
@@ -46,90 +37,81 @@ export interface RunOptions {
   source: string;
 }
 
-const SAVE_DELAY = 800;
-
 export class Run extends Store<RunSnapshot> {
   readonly file: string;
   readonly root: HTMLElement;
   readonly editor: Editor;
   readonly slash: SlashMenuStore;
 
-  private hash: string;
-  private readonly draft: Draft;
-  private readonly edits: FileEdits;
-  private readonly originals: Map<string, Original>;
-  private readonly style: MarkdownStyle;
   private readonly page: RunPage;
-  private readonly group = Math.random().toString(36).slice(2);
-  private readonly onError: (message: string) => void;
+  private readonly saves: RunSave;
   private readonly onClose: () => void;
-  private readonly onSaved: () => void;
-  private timer: ReturnType<typeof setTimeout> | undefined;
-  private saving: Promise<void> | null = null;
-  private wrote = false;
   private closing: Promise<void> | null = null;
 
   constructor(options: RunOptions) {
     super(IDLE_RUN);
     const { at, blocks, mount, range } = options.placement;
-    const { config } = options;
-    this.edits = options.edits;
-    this.file = options.file;
-    this.onError = options.onError;
+    const { config, edits, file, hash, source } = options;
+    this.file = file;
     this.onClose = options.onClose;
-    this.onSaved = options.onSaved;
-    this.hash = options.hash;
-    this.draft = new Draft(at, options.source, range);
-    this.style = {
-      ...detectStyle(options.source),
-      smartypants: config.smartypants,
-    };
-
-    const parsed = parseRun(this.draft.text, config.smartypants);
-    this.originals = parsed.originals;
+    const style = { ...detectStyle(source), smartypants: config.smartypants };
 
     this.root = document.createElement("div");
     this.root.className = "esqia-editor";
     mount(this.root);
 
     this.slash = new SlashMenuStore(config, () => this.editor);
+    const extensions = createExtensions({
+      config,
+      slash: { onChange: this.slash.show, onKeyDown: this.slash.key },
+      spacers: style.spacers,
+      templates: sampleTemplates(file, source),
+    });
+    const { doc, originals } = parseRun(
+      source.slice(range.start, range.end),
+      getSchema(extensions),
+      config.smartypants
+    );
     this.editor = new Editor({
-      content: parsed.doc,
+      content: doc.toJSON(),
       editorProps: {
         handleKeyDown: (_view, event) => this.handleKeyDown(event),
       },
       element: this.root,
-      extensions: createExtensions({
-        config,
-        slash: { onChange: this.slash.show, onKeyDown: this.slash.key },
-        spacers: this.style.spacers,
-        templates: sampleTemplates(),
-      }),
+      extensions,
     });
 
-    this.editor.state.doc.forEach((node) => {
-      const original = node.attrs.id
-        ? this.originals.get(node.attrs.id)
-        : undefined;
-      if (original) {
-        original.fingerprint = fingerprint(node);
-      }
-    });
-
-    this.page = this.edits.open({
+    this.page = edits.open({
       blocks,
       editor: this.editor,
-      file: this.file,
+      file,
       range,
       root: this.root,
-      version: this.hash,
+      version: hash,
+    });
+    this.saves = new RunSave({
+      at,
+      body: () => serializeRun(this.editor.state.doc, originals, style),
+      edits,
+      file,
+      hash,
+      onFailed: (message) => {
+        options.onError(message);
+        void this.close(true);
+      },
+      onSaved: options.onSaved,
+      onSaving: (saving) => this.update({ saving }),
+      page: this.page,
+      range,
+      source,
     });
 
-    this.editor.on("update", () => this.schedule());
+    this.editor.on("update", () => this.saves.schedule());
     this.editor.on("focus", () => options.onFocus(this));
     this.editor.on("transaction", () =>
       this.update({ revision: this.snapshot.revision + 1 })
     );
+    matchLayout(this.editor.view.dom, this.root);
     placeCaret(this.editor, options.caret);
   }
 
@@ -139,68 +121,14 @@ export class Run extends Store<RunSnapshot> {
     }
   }
 
-  private schedule() {
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.save(), SAVE_DELAY);
-  }
-
-  private async save(closing = false): Promise<void> {
-    clearTimeout(this.timer);
-    if (this.saving) {
-      await this.saving;
-      return this.save(closing);
-    }
-    const body = serializeRun(
-      this.editor.state.doc,
-      this.originals,
-      this.style
-    );
-    const intent = this.draft.next(body, closing);
-    if (!intent) {
-      return;
-    }
-
-    this.update({ saving: true });
-    this.saving = this.persist(intent)
-      .catch((error: unknown) => {
-        this.onError(
-          error instanceof ConflictError
-            ? "Changed in your editor. Reopen the block to keep going."
-            : errorText(error)
-        );
-        void this.close(true);
-      })
-      .finally(() => {
-        this.saving = null;
-        this.update({ saving: false });
-      });
-    return this.saving;
-  }
-
-  private async persist(intent: RunIntent) {
-    const written = await this.edits.applyRun(this.file, this.hash, intent, {
-      group: this.group,
-      page: this.page,
-    });
-    if (!written) {
-      return;
-    }
-    this.hash = written.hash;
-    this.draft.saved(intent, written.range);
-    this.wrote = true;
-    this.onSaved();
-  }
-
   close(discard = false): Promise<void> {
     this.closing ??= (async () => {
-      clearTimeout(this.timer);
-      if (!discard) {
-        await this.save(true);
-      }
+      this.saves.cancel();
+      const kept = !discard && (await this.saves.finish());
       const settled = await this.page.close({
-        discard,
-        version: this.hash,
-        wrote: this.wrote,
+        discard: !kept,
+        version: this.saves.version,
+        wrote: this.saves.wrote,
       });
       if (settled) {
         this.editor.destroy();

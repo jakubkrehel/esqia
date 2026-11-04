@@ -45,7 +45,7 @@
 
   :root,
   .light-tokens {
-    --color-gray-background: #fcfcfc;
+    --color-gray-background: #ffffff;
     --color-gray-100: oklch(0.991 0 0);
     --color-gray-200: oklch(0.972 0 0);
     --color-gray-300: oklch(0.955 0 0);

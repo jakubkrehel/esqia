@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { blockType, parseMdx } from "../src/shared/markdown";
 import {
   applyOps,
-  insertBreakOps,
   mapRange,
   mapSpan,
   moveOps,
@@ -89,12 +88,6 @@ describe("ops", () => {
     );
   });
 
-  it("adds a line break after a block", () => {
-    expect(apply(insertBreakOps(blocks[1]))).toBe(
-      "# Title\n\nFirst.\n\n<br />\n\n<br />\n\nSecond.\n\n<Demo />\n"
-    );
-  });
-
   it("removes a span with the gap around it", () => {
     const remove = (text: string, start: number, end = start) => {
       const result = applyOps(text, removeOps(text, { end, start }));
@@ -119,18 +112,6 @@ describe("mapping ranges through ops", () => {
     for (const block of blocks.slice(0, 4)) {
       expect(text(moved, mapRange(ops, block))).toBe(text(source, block));
     }
-  });
-
-  it("leaves a block in place when a line break is added after it", () => {
-    const ops = insertBreakOps(blocks[1]);
-    const after = apply(ops);
-    expect(mapRange(ops, blocks[1])).toEqual({
-      end: blocks[1].end,
-      start: blocks[1].start,
-    });
-    const next = mapRange(ops, blocks[2]);
-    expect(next && after.slice(next.start, next.end)).toBe("<br />");
-    expect(next?.start).toBe(blocks[2].start + 8);
   });
 
   it("grows an open run with its own edits", () => {

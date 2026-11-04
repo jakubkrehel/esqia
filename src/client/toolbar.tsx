@@ -1,12 +1,4 @@
-import {
-  type FocusEvent,
-  type PointerEvent,
-  type ReactNode,
-  type Ref,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type Ref, useEffect, useRef, useState } from "react";
 import { type Corner, startCornerDrag } from "./corner-drag";
 import {
   CheckIcon,
@@ -17,6 +9,7 @@ import {
   TrashIcon,
   UndoIcon,
 } from "./icons";
+import { ToolbarTip, useTip } from "./toolbar-tip";
 
 export const OUTLINE_COLORS = [
   { name: "Gray", value: "oklch(70.8% 0 0)" },
@@ -28,96 +21,6 @@ export const OUTLINE_COLORS = [
 ] as const;
 
 const REVERTED_FOR = 1200;
-const TIP_DELAY = 200;
-const TIP_WARM_FOR = 300;
-
-type TipId = "undo" | "redo" | "revert" | "open" | "outline";
-
-interface Tip {
-  id: TipId;
-  instant: boolean;
-  open: boolean;
-  x: number;
-}
-
-function useTip() {
-  const [tip, setTip] = useState<Tip | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const open = useRef(false);
-  const warmUntil = useRef(0);
-
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  const show = (button: HTMLElement, id: TipId) => {
-    clearTimeout(timer.current);
-    const x = button.offsetLeft + button.offsetWidth / 2;
-    const reveal = (instant: boolean) => {
-      open.current = true;
-      setTip({ id, instant, open: true, x });
-    };
-    if (performance.now() < warmUntil.current) {
-      reveal(true);
-    } else {
-      timer.current = setTimeout(() => reveal(false), TIP_DELAY);
-    }
-  };
-
-  const hide = () => {
-    clearTimeout(timer.current);
-    if (open.current) {
-      open.current = false;
-      warmUntil.current = performance.now() + TIP_WARM_FOR;
-    }
-    setTip((current) => current && { ...current, instant: false, open: false });
-  };
-
-  const bind = (id: TipId) => ({
-    onBlur: hide,
-    onFocus: (event: FocusEvent<HTMLButtonElement>) => {
-      if (event.currentTarget.matches(":focus-visible")) {
-        show(event.currentTarget, id);
-      }
-    },
-    onPointerDown: hide,
-    onPointerEnter: (event: PointerEvent<HTMLButtonElement>) =>
-      show(event.currentTarget, id),
-    onPointerLeave: hide,
-  });
-
-  return { bind, tip };
-}
-
-const MOD =
-  typeof navigator !== "undefined" &&
-  /Mac|iPhone|iPad/.test(navigator.userAgent)
-    ? "⌘"
-    : "Ctrl+";
-
-function tipLabel(id: TipId): ReactNode {
-  switch (id) {
-    case "undo":
-      return (
-        <>
-          Undo
-          <kbd>{MOD}Z</kbd>
-        </>
-      );
-    case "redo":
-      return (
-        <>
-          Redo
-          <kbd>{MOD}⇧Z</kbd>
-        </>
-      );
-    case "revert":
-      return "Revert all changes";
-    case "open":
-      return "Open in editor";
-    default:
-      return "Theme";
-  }
-}
-
 export function Toolbar({
   busy,
   changed,
@@ -157,11 +60,6 @@ export function Toolbar({
   const next = OUTLINE_COLORS[(current + 1) % OUTLINE_COLORS.length];
   const confirming = confirmAt !== null && editing;
   const nothingChanged = changed === 0;
-  const disabled: Partial<Record<TipId, boolean>> = {
-    redo: redoable === 0,
-    revert: nothingChanged,
-    undo: nothingChanged,
-  };
   const { bind, tip } = useTip();
 
   useEffect(() => {
@@ -286,9 +184,7 @@ export function Toolbar({
           </button>
         </div>
       </div>
-      {tip && editing && !confirming && !disabled[tip.id] && (
-        <ToolbarTip label={tipLabel(tip.id)} tip={tip} />
-      )}
+      {tip && editing && !confirming && <ToolbarTip tip={tip} />}
       {confirming && (
         <RevertConfirm
           at={confirmAt}
@@ -366,20 +262,6 @@ function RevertConfirm({
         </span>
         Revert all changes
       </button>
-    </div>
-  );
-}
-
-function ToolbarTip({ label, tip }: { label: ReactNode; tip: Tip }) {
-  return (
-    <div
-      aria-hidden="true"
-      className="tip"
-      data-instant={tip.instant ? "" : undefined}
-      data-open={tip.open ? "" : undefined}
-      style={{ left: tip.x }}
-    >
-      {label}
     </div>
   );
 }

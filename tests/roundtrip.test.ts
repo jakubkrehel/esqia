@@ -3,13 +3,13 @@ import path from "node:path";
 import { getSchema } from "@tiptap/core";
 import { Node as PMNode } from "@tiptap/pm/model";
 import { describe, expect, it } from "vitest";
+import { createExtensions } from "../src/client/editor";
+import { parseRun } from "../src/client/parse-run";
 import {
   fingerprint,
-  parseRun,
   serializeBlock,
   serializeRun,
-} from "../src/client/convert";
-import { createExtensions } from "../src/client/editor";
+} from "../src/client/serialize-run";
 import type { Templates } from "../src/client/templates";
 import { blockType, detectStyle, parseMdx } from "../src/shared/markdown";
 import { splitRuns } from "../src/shared/runs";
@@ -84,27 +84,17 @@ describe.skipIf(files.length === 0)("round trip over real content", () => {
 
     it(`${name}: untouched runs are written back byte for byte`, () => {
       for (const slice of runs(source)) {
-        const { doc, originals } = parseRun(slice, SMARTYPANTS);
-        const node = PMNode.fromJSON(schema, doc);
-        node.forEach((child) => {
-          const original = originals.get(child.attrs.id);
-          if (original) {
-            original.fingerprint = fingerprint(child);
-          }
-        });
-        expect(serializeRun(node, originals, style)).toBe(slice);
+        const { doc, originals } = parseRun(slice, schema, SMARTYPANTS);
+        expect(serializeRun(doc, originals, style)).toBe(slice);
       }
     });
 
     it(`${name}: every block survives serialize → parse`, () => {
       for (const slice of runs(source)) {
-        const node = PMNode.fromJSON(schema, parseRun(slice, SMARTYPANTS).doc);
+        const node = parseRun(slice, schema, SMARTYPANTS).doc;
         node.forEach((block) => {
           const text = serializeBlock(block, style);
-          const reparsed = PMNode.fromJSON(
-            schema,
-            parseRun(text, SMARTYPANTS).doc
-          ).firstChild;
+          const reparsed = parseRun(text, schema, SMARTYPANTS).doc.firstChild;
           const padded = block.textContent !== block.textContent.trim();
           const actual = padded
             ? { text: reparsed && serializeBlock(reparsed, style) }
@@ -125,7 +115,7 @@ describe.skipIf(files.length === 0)("round trip over real content", () => {
       const style = { ...detectStyle(source), smartypants: SMARTYPANTS };
       for (const slice of runs(source)) {
         const tree = parseMdx(slice);
-        const node = PMNode.fromJSON(schema, parseRun(slice, SMARTYPANTS).doc);
+        const node = parseRun(slice, schema, SMARTYPANTS).doc;
         const blocks: PMNode[] = [];
         node.forEach((block) => blocks.push(block));
         for (const [index, block] of blocks.entries()) {
@@ -155,10 +145,11 @@ describe.skipIf(files.length === 0)("round trip over real content", () => {
 describe("smartypants", () => {
   it("shows curled quotes and saves straight ones", () => {
     const style = { ...detectStyle(""), smartypants: SMARTYPANTS };
-    const node = PMNode.fromJSON(
+    const node = parseRun(
+      `I don't think "so"... -- maybe`,
       schema,
-      parseRun(`I don't think "so"... -- maybe`, SMARTYPANTS).doc
-    );
+      SMARTYPANTS
+    ).doc;
     expect(node.textContent).toBe("I don’t think “so”… -- maybe");
     expect(serializeBlock(node.firstChild as PMNode, style)).toBe(
       `I don't think "so"... -- maybe`

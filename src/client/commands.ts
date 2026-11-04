@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import type { Node as PMNode, ResolvedPos } from "@tiptap/pm/model";
+import type { ResolvedPos } from "@tiptap/pm/model";
 import { TextSelection, type Transaction } from "@tiptap/pm/state";
 import type { ClientConfig } from "../shared/config";
 import { LINE_BREAK } from "../shared/markdown";
@@ -28,9 +28,9 @@ export function slashItems(config: ClientConfig, query: string): SlashItem[] {
   };
   const items: SlashItem[] = [
     { apply: () => undefined, id: "text", label: "Text" },
+    { apply: heading(1), hint: "#", id: "h1", label: "Heading 1" },
     { apply: heading(2), hint: "##", id: "h2", label: "Heading 2" },
     { apply: heading(3), hint: "###", id: "h3", label: "Heading 3" },
-    { apply: heading(1), hint: "#", id: "h1", label: "Heading 1" },
     {
       apply: (editor) => editor.chain().focus().setCodeBlock().run(),
       hint: "```",
@@ -56,26 +56,6 @@ export function slashItems(config: ClientConfig, query: string): SlashItem[] {
   return items.filter((item) => item.label.toLowerCase().includes(query));
 }
 
-export function placeCaret(
-  editor: Editor,
-  caret?: { index: number; offset: number }
-) {
-  const { doc } = editor.state;
-  let pos = 1;
-  if (caret) {
-    doc.forEach((node, offset, index) => {
-      if (index === caret.index) {
-        pos = offset + 1 + inlinePos(node, caret.offset);
-      }
-    });
-  }
-  const selection = TextSelection.near(
-    doc.resolve(Math.min(pos, doc.content.size))
-  );
-  editor.view.dispatch(editor.state.tr.setSelection(selection));
-  editor.view.focus();
-}
-
 export function insertBlock(editor: Editor, raw: string) {
   const { $from } = editor.state.selection;
   const node = editor.schema.nodes.jsxBlock.create({ raw });
@@ -97,29 +77,6 @@ export function insertSpacer(editor: Editor) {
   const { tr } = editor.state;
   spacerInPlace(tr, editor.state.selection.$from);
   editor.view.dispatch(tr);
-}
-
-function inlinePos(node: PMNode, offset: number): number {
-  if (!node.isTextblock) {
-    return 0;
-  }
-  let remaining = offset;
-  let pos = 0;
-  let done = false;
-  node.forEach((child) => {
-    if (done) {
-      return;
-    }
-    const length = child.isText ? (child.text?.length ?? 0) : 1;
-    if (remaining <= length) {
-      pos += remaining;
-      done = true;
-      return;
-    }
-    remaining -= length;
-    pos += child.nodeSize;
-  });
-  return pos;
 }
 
 export function spacerInPlace(tr: Transaction, $from: ResolvedPos) {
