@@ -1,8 +1,13 @@
+import type { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { memoryBackend } from "../src/client/demo-page";
 import { FileEdits } from "../src/client/file-edits";
-import type { PageSync, RunPage } from "../src/client/page";
-import { RunSave } from "../src/client/run-save";
+import { memoryBackend } from "../src/client/memory-backend";
+import type {
+  AppliedEdit,
+  PageClosing,
+  PageSync,
+  RunPage,
+} from "../src/client/page";
 import { clientConfig } from "../src/shared/config";
 import { memoryStore } from "../src/shared/history";
 import type { BlockRange } from "../src/shared/ops";
@@ -22,33 +27,45 @@ const setup = ({
     memoryStore(() => ({ hash: "initial", source })),
     clientConfig({})
   );
+  const applied: AppliedEdit[] = [];
+  const closed: PageClosing[] = [];
   const page: RunPage = {
-    close: () => Promise.resolve(true),
+    close: (closing) => {
+      closed.push(closing);
+      return Promise.resolve(true);
+    },
     track: () => undefined,
   };
-  const sync: PageSync = { applied: () => undefined, open: () => page };
+  const sync: PageSync = {
+    applied: (edit) => applied.push(edit),
+    open: () => page,
+  };
   const failures: string[] = [];
   let body = source.slice(range.start, range.end);
-  const saves = new RunSave({
+  const run = new FileEdits(backend, sync).openRun({
     at,
+    blocks: [],
     body: () => body,
-    edits: new FileEdits(backend, sync),
+    editor: {} as Editor,
     file: "a.mdx",
-    hash,
     onFailed: (message) => failures.push(message),
     onSaved: () => undefined,
     onSaving: () => undefined,
-    page,
     range,
+    root: {} as HTMLElement,
     source,
+    version: hash,
   });
   return {
+    applied,
+    close: () => run.close(false),
+    closed,
     failures,
     file: async () => (await backend.source("a.mdx")).source,
-    saves,
+    page,
     type: (text: string) => {
       body = text;
-      saves.schedule();
+      run.schedule();
     },
   };
 };
@@ -57,22 +74,31 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("run save", () => {
+describe("run edits", () => {
   it("skips a write when the text is unchanged", async () => {
-    const { file, saves } = setup();
-    await expect(saves.finish()).resolves.toBe(true);
-    expect(saves.wrote).toBe(false);
+    const { applied, close, closed, file } = setup();
+    await expect(close()).resolves.toBe(true);
+    expect(applied).toHaveLength(0);
+    expect(closed).toEqual([
+      { discard: false, version: "initial", wrote: false },
+    ]);
     await expect(file()).resolves.toBe(source);
   });
 
   it("replaces its range and follows the new length", async () => {
-    const { file, saves, type } = setup();
+    vi.useFakeTimers();
+    const { applied, close, closed, file, page, type } = setup();
     type("Longer first.");
-    await saves.finish();
+    await vi.advanceTimersByTimeAsync(800);
     type("Short.");
-    await saves.finish();
+    await close();
     await expect(file()).resolves.toBe("# Title\n\nShort.\n\nSecond.\n");
-    expect(saves.wrote).toBe(true);
+    expect(applied.map((edit) => edit.run)).toEqual([
+      { page, range: { end: 22, start: 9 } },
+      { page, range: { end: 15, start: 9 } },
+    ]);
+    expect(closed[0]).toMatchObject({ discard: false, wrote: true });
+    expect(closed[0]?.version).toBe(applied.at(-1)?.hash);
   });
 
   it("writes once the typing pauses", async () => {
@@ -93,31 +119,32 @@ describe("run save", () => {
 
     const closing = setup();
     closing.type("");
-    await closing.saves.finish();
+    await closing.close();
     await expect(closing.file()).resolves.toBe("# Title\n\nSecond.\n");
+    expect(closing.applied[0]?.run?.range).toEqual({ end: 9, start: 9 });
   });
 
   it("separates a new block from the one it follows", async () => {
-    const { file, saves, type } = setup({
+    const { close, file, type } = setup({
       at: "after",
       range: { end: 15, start: 15 },
     });
-    await saves.finish();
-    expect(saves.wrote).toBe(false);
     type("Inserted.");
-    await saves.finish();
+    await close();
     await expect(file()).resolves.toBe(
       "# Title\n\nFirst.\n\nInserted.\n\nSecond.\n"
     );
   });
 
   it("asks to discard after a conflict and stops writing", async () => {
-    const { failures, file, saves, type } = setup({ hash: "stale" });
+    vi.useFakeTimers();
+    const { close, closed, failures, file, type } = setup({ hash: "stale" });
     type("Changed.");
-    await expect(saves.finish()).resolves.toBe(false);
+    await vi.advanceTimersByTimeAsync(800);
     type("Changed again.");
-    await expect(saves.finish()).resolves.toBe(false);
+    await close();
     expect(failures).toHaveLength(1);
+    expect(closed[0]).toMatchObject({ discard: true, wrote: false });
     await expect(file()).resolves.toBe(source);
   });
 });

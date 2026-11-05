@@ -1,14 +1,25 @@
 import type { Editor } from "@tiptap/core";
 import type { ClientConfig } from "../shared/config";
+import type { Intent } from "../shared/ops";
 import { type Backend, errorText } from "./api";
-import { type Block, fileBlocks, firstFile, readBlock } from "./blocks";
+import {
+  type Block,
+  firstFile,
+  moveIntent,
+  readBlock,
+  removeIntent,
+  runAround,
+} from "./blocks";
+import { type Caret, textRangeIn } from "./caret";
 import { FileEdits } from "./file-edits";
 import { firstVisibleBlock } from "./geometry";
-import type { Intent } from "./intents";
-import { type OpenTarget, prepareOpening } from "./opening";
 import type { EditingHost } from "./page";
-import { Run } from "./run";
+import { type Placement, Run } from "./run";
 import { Store } from "./store";
+
+export type OpenTarget =
+  | { at: "run"; block: Block; caret?: { x: number; y: number } }
+  | { at: "after"; block: Block };
 
 export type Notify = (text: string, tone?: "info" | "error") => void;
 
@@ -115,13 +126,14 @@ export class Session extends Store<SessionSnapshot> {
     if (!config) {
       return;
     }
-    const opening = prepareOpening(target);
+    const selected =
+      target.at === "run" ? textRangeIn(target.block.el, target.caret) : null;
     await this.close();
-    const resolved = opening();
-    if (!resolved) {
+    const opening = resolveOpening(target, selected);
+    if (!opening) {
       return;
     }
-    const { caret, file, placement, version } = resolved;
+    const { caret, file, placement, version } = opening;
 
     try {
       const { source, hash } = await this.edits.read(file, version);
@@ -163,16 +175,11 @@ export class Session extends Store<SessionSnapshot> {
   }
 
   removeBlock(block: Block) {
-    return this.edit(block.el, (fresh) => ({ kind: "remove", range: fresh }));
+    return this.edit(block.el, removeIntent);
   }
 
   moveBlock(block: Block, target: Block | null) {
-    return this.edit(block.el, (fresh) => ({
-      blocks: fileBlocks(fresh.file),
-      kind: "move",
-      range: fresh,
-      target: target && readBlock(target.el),
-    }));
+    return this.edit(block.el, (fresh) => moveIntent(fresh, target));
   }
 
   private async edit(el: HTMLElement, intent: (block: Block) => Intent) {
@@ -202,8 +209,12 @@ export class Session extends Store<SessionSnapshot> {
     apply: ((file: string) => Promise<unknown>) | undefined,
     done: string
   ) {
+    if (!apply) {
+      return;
+    }
+    await this.close();
     const file = this.lastFile ?? firstFile();
-    if (!(apply && file)) {
+    if (!file) {
       return;
     }
     try {
@@ -246,4 +257,54 @@ export class Session extends Store<SessionSnapshot> {
     }
     return false;
   }
+}
+
+function resolveOpening(
+  target: OpenTarget,
+  selected: Pick<Caret, "anchor" | "head"> | null
+): {
+  caret?: Caret;
+  file: string;
+  placement: Placement;
+  version: string;
+} | null {
+  const { el } = target.block;
+  if (!el.isConnected) {
+    return null;
+  }
+  const block = readBlock(el);
+  const placement = place(target.at, block);
+  if (!placement) {
+    return null;
+  }
+  const index = placement.blocks.findIndex((b) => b.el === el);
+  return {
+    caret: index >= 0 ? { anchor: 0, head: 0, ...selected, index } : undefined,
+    file: block.file,
+    placement,
+    version: block.version,
+  };
+}
+
+function place(at: OpenTarget["at"], block: Block): Placement | null {
+  if (at === "after") {
+    return {
+      at: "after",
+      blocks: [],
+      mount: (root) => block.el.after(root),
+      range: { end: block.end, start: block.end },
+    };
+  }
+  const blocks = runAround(block);
+  const first = blocks[0];
+  const last = blocks.at(-1);
+  if (!(first && last)) {
+    return null;
+  }
+  return {
+    at: "run",
+    blocks,
+    mount: (root) => first.el.before(root),
+    range: { end: last.end, start: first.start },
+  };
 }

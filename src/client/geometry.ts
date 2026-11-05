@@ -1,4 +1,3 @@
-import { WRAPPER } from "../shared/wrapper";
 import {
   type Block,
   fileBlocks,
@@ -161,7 +160,7 @@ export function blockRect(el: HTMLElement): DOMRect | null {
   const range = document.createRange();
   range.selectNodeContents(el);
   const rect = range.getBoundingClientRect();
-  if (el.getAttribute(WRAPPER.type) === "spacer") {
+  if (readBlock(el).type === "spacer") {
     return spacerRect(el, rect);
   }
   return rect.width === 0 && rect.height === 0 ? null : rect;

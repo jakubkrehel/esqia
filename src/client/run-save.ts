@@ -1,27 +1,15 @@
-import type { BlockRange } from "../shared/ops";
+import type { BlockRange, Intent, Op } from "../shared/ops";
 import { ConflictError, errorText } from "./api";
-import type { FileEdits } from "./file-edits";
-import type { RunIntent } from "./intents";
-import type { RunPage } from "./page";
-
-export interface RunSaveOptions {
-  at: "run" | "after";
-  body: () => string;
-  edits: FileEdits;
-  file: string;
-  hash: string;
-  onFailed: (message: string) => void;
-  onSaved: () => void;
-  onSaving: (saving: boolean) => void;
-  page: RunPage;
-  range: BlockRange;
-  source: string;
-}
+import type { RunEdits, RunOpening, Write } from "./file-edits";
+import type { PageSync, RunPage } from "./page";
 
 const SAVE_DELAY = 800;
 
-export class RunSave {
-  private readonly options: RunSaveOptions;
+export class RunSave implements RunEdits {
+  private readonly opening: RunOpening;
+  private readonly sync: PageSync;
+  private readonly write: Write;
+  private readonly page: RunPage;
   private readonly prefix: string;
   private readonly replacing: boolean;
   private readonly group = Math.random().toString(36).slice(2);
@@ -31,24 +19,19 @@ export class RunSave {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private saving: Promise<void> | null = null;
   private failed = false;
-  private wroteAny = false;
+  private wrote = false;
 
-  constructor(options: RunSaveOptions) {
-    const { at, hash, range, source } = options;
-    this.options = options;
+  constructor(opening: RunOpening, sync: PageSync, write: Write) {
+    const { at, range, source, version } = opening;
+    this.opening = opening;
+    this.sync = sync;
+    this.write = write;
+    this.page = sync.open(opening);
     this.replacing = at === "run";
     this.prefix = this.replacing ? "" : "\n\n";
     this.start = range.start;
     this.current = source.slice(range.start, range.end);
-    this.hash = hash;
-  }
-
-  get version(): string {
-    return this.hash;
-  }
-
-  get wrote(): boolean {
-    return this.wroteAny;
+    this.hash = version;
   }
 
   private get range(): BlockRange {
@@ -60,13 +43,16 @@ export class RunSave {
     this.timer = setTimeout(() => this.save(false), SAVE_DELAY);
   }
 
-  cancel() {
+  async close(discard: boolean): Promise<boolean> {
     clearTimeout(this.timer);
-  }
-
-  async finish(): Promise<boolean> {
-    await this.save(true);
-    return !this.failed;
+    if (!discard) {
+      await this.save(true);
+    }
+    return this.page.close({
+      discard: discard || this.failed,
+      version: this.hash,
+      wrote: this.wrote,
+    });
   }
 
   private async save(closing: boolean): Promise<void> {
@@ -78,16 +64,16 @@ export class RunSave {
     if (this.failed) {
       return;
     }
-    const intent = this.next(this.options.body(), closing);
+    const intent = this.next(this.opening.body(), closing);
     if (!intent) {
       return;
     }
 
-    this.options.onSaving(true);
+    this.opening.onSaving(true);
     this.saving = this.persist(intent)
       .catch((error: unknown) => {
         this.failed = true;
-        this.options.onFailed(
+        this.opening.onFailed(
           error instanceof ConflictError
             ? "Changed in your editor. Reopen the block to keep going."
             : errorText(error)
@@ -95,12 +81,12 @@ export class RunSave {
       })
       .finally(() => {
         this.saving = null;
-        this.options.onSaving(false);
+        this.opening.onSaving(false);
       });
     return this.saving;
   }
 
-  private next(body: string, closing: boolean): RunIntent | null {
+  private next(body: string, closing: boolean): Intent | null {
     const text = body && this.prefix + body;
     if (closing && this.replacing && text === "") {
       return { kind: "remove", range: this.range };
@@ -115,19 +101,28 @@ export class RunSave {
     };
   }
 
-  private async persist(intent: RunIntent) {
-    const { edits, file, onSaved, page } = this.options;
-    const written = await edits.applyRun(file, this.hash, intent, {
-      group: this.group,
-      page,
-    });
+  private async persist(intent: Intent) {
+    const { file } = this.opening;
+    const written = await this.write(file, this.hash, intent, this.group);
     if (!written) {
       return;
     }
+    const range = spanAfter(intent, written.ops);
     this.hash = written.hash;
-    this.start = written.range.start;
+    this.start = range.start;
     this.current = intent.kind === "replace" ? intent.op.text : "";
-    this.wroteAny = true;
-    onSaved();
+    this.wrote = true;
+    this.sync.applied({ file, ...written, run: { page: this.page, range } });
+    this.opening.onSaved();
   }
+}
+
+function spanAfter(intent: Intent, ops: Op[]): BlockRange {
+  if (intent.kind === "replace") {
+    const { start, text } = intent.op;
+    return { end: start + text.length, start };
+  }
+  const [op] = ops;
+  const collapsed = op ? op.start + op.text.length : intent.range.start;
+  return { end: collapsed, start: collapsed };
 }

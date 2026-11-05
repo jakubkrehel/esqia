@@ -39,6 +39,29 @@ export interface BlockRange {
   start: number;
 }
 
+export type Intent =
+  | { kind: "replace"; op: Op }
+  | { kind: "remove"; range: BlockRange }
+  | {
+      kind: "move";
+      range: BlockRange;
+      target: BlockRange | null;
+      blocks: BlockRange[];
+    };
+
+export function intentOps(source: string, intent: Intent): Op[] {
+  switch (intent.kind) {
+    case "replace":
+      return [intent.op];
+    case "remove":
+      return removeOps(source, intent.range);
+    case "move":
+      return moveOps(source, intent.blocks, intent.range, intent.target);
+    default:
+      return [];
+  }
+}
+
 export function moveOps(
   source: string,
   blocks: BlockRange[],

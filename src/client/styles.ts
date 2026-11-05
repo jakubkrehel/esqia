@@ -1,4 +1,4 @@
-import { WRAPPER } from "../shared/wrapper";
+import { blockOfType } from "./blocks";
 
 export const CHROME_CSS = `
 :host {
@@ -202,22 +202,22 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 `;
 
 export const PAGE_CSS = `
-[data-esqia-mode="edit"] [${WRAPPER.type}="paragraph"] > *,
-[data-esqia-mode="edit"] [${WRAPPER.type}="heading"] > *,
-[data-esqia-mode="edit"] [${WRAPPER.type}="code"] > *,
-[data-esqia-mode="edit"] [${WRAPPER.type}="list"] > * { cursor: text; }
+[data-esqia-mode="edit"] ${blockOfType("paragraph")} > *,
+[data-esqia-mode="edit"] ${blockOfType("heading")} > *,
+[data-esqia-mode="edit"] ${blockOfType("code")} > *,
+[data-esqia-mode="edit"] ${blockOfType("list")} > * { cursor: text; }
 .esqia-editor { display: contents; }
 .esqia-editor > .ProseMirror { font-feature-settings: inherit; font-variant-ligatures: inherit; white-space: pre-wrap; }
 .esqia-editor > .ProseMirror { outline: none; caret-color: var(--esqia-outline, oklch(74.6% 0.16 232.661)); }
-[data-esqia-mode="edit"] [${WRAPPER.type}="spacer"] { display: block !important; }
-[data-esqia-mode="edit"] [${WRAPPER.type}="spacer"],
+[data-esqia-mode="edit"] ${blockOfType("spacer")} { display: block !important; }
+[data-esqia-mode="edit"] ${blockOfType("spacer")},
 .esqia-editor [data-esqia-spacer] { position: relative; }
-[data-esqia-mode="edit"] [${WRAPPER.type}="spacer"]::after,
+[data-esqia-mode="edit"] ${blockOfType("spacer")}::after,
 .esqia-editor [data-esqia-spacer]::after {
   content: ""; position: absolute; left: 0; right: 0; top: 50%;
   border-top: 1px dashed currentColor; opacity: 0;
 }
-[data-esqia-mode="edit"] [${WRAPPER.type}="spacer"]:hover::after,
+[data-esqia-mode="edit"] ${blockOfType("spacer")}:hover::after,
 .esqia-editor [data-esqia-spacer]:hover::after { opacity: 0.15; }
 .esqia-editor .ProseMirror-selectednode { outline: 2px solid var(--esqia-outline, oklch(74.6% 0.16 232.661)); outline-offset: 2px; border-radius: 4px; }
 .esqia-editor .ProseMirror-selectednode[data-esqia-spacer]::after { opacity: 0.4; }

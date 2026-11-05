@@ -9,8 +9,9 @@ import {
 import path from "node:path";
 import { clientConfig, type EsqiaOptions } from "../shared/config";
 import { hashSource } from "../shared/hash";
-import { EditHistory, type FileStore, type Outcome } from "../shared/history";
-import type { Op } from "../shared/ops";
+import { EditHistory, type FileStore } from "../shared/history";
+import type { Intent } from "../shared/ops";
+import type { Outcome } from "../shared/outcome";
 
 export type { ClientConfig, EsqiaOptions } from "../shared/config";
 
@@ -181,17 +182,17 @@ async function handle(
       return send(res, 200, await context.history.source(file));
     }
 
-    case "POST /ops": {
+    case "POST /edit": {
       const body = JSON.parse(await readBody(req, 5_000_000)) as {
         file: string;
         hash: string;
-        ops: Op[];
+        intent: Intent;
         group?: string;
       };
       const file = resolveFile(context.root, body.file);
       return reply(
         res,
-        await context.history.apply(file, body.hash, body.ops, body.group)
+        await context.history.edit(file, body.hash, body.intent, body.group)
       );
     }
 
@@ -224,12 +225,9 @@ async function handle(
 
 function reply(res: ServerResponse, outcome: Outcome) {
   if (outcome.ok) {
-    return send(res, 200, { hash: outcome.hash });
+    return send(res, 200, outcome);
   }
-  return send(res, outcome.reason === "conflict" ? 409 : 404, {
-    error: outcome.error,
-    hash: outcome.hash,
-  });
+  return send(res, outcome.reason === "conflict" ? 409 : 404, outcome);
 }
 
 function resolveFile(root: string, file: string | null | undefined): string {

@@ -1,13 +1,10 @@
-import { applyOps, type Op } from "./ops";
+import { applyOps, type Intent, intentOps, type Op } from "./ops";
+import type { Failure, Outcome } from "./outcome";
 
 export interface FileStore {
   read: (file: string) => Promise<{ hash: string; source: string }>;
   write: (file: string, source: string) => Promise<string>;
 }
-
-export type Outcome =
-  | { ok: true; hash: string }
-  | { ok: false; reason: "conflict" | "nothing"; error: string; hash?: string };
 
 export interface Changes {
   edits: number;
@@ -41,27 +38,28 @@ export class EditHistory {
     return this.store.read(file);
   }
 
-  async apply(
+  async edit(
     file: string,
     hash: string,
-    ops: Op[],
+    intent: Intent,
     group?: string
-  ): Promise<Outcome> {
+  ): Promise<Outcome<{ ops: Op[] }>> {
     const current = await this.store.read(file);
     if (current.hash !== hash) {
       return conflict("The file changed on disk.", current.hash);
     }
+    const ops = intentOps(current.source, intent);
     const result = applyOps(current.source, ops);
     if (!result.ok) {
       return conflict(result.reason, current.hash);
     }
     if (result.source === current.source) {
-      return { hash: current.hash, ok: true };
+      return { hash: current.hash, ok: true, ops };
     }
     const afterHash = await this.store.write(file, result.source);
     this.record(file, { afterHash, before: current.source, group });
     this.redos.delete(file);
-    return { hash: afterHash, ok: true };
+    return { hash: afterHash, ok: true, ops };
   }
 
   async undo(file: string): Promise<Outcome> {
@@ -156,7 +154,7 @@ export class EditHistory {
   }
 }
 
-function conflict(error: string, hash?: string): Outcome {
+function conflict(error: string, hash?: string): Failure {
   return { error, hash, ok: false, reason: "conflict" };
 }
 

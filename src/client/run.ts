@@ -1,13 +1,12 @@
 import { Editor, getSchema } from "@tiptap/core";
 import type { ClientConfig } from "../shared/config";
 import { detectStyle } from "../shared/markdown";
+import type { BlockRange } from "../shared/ops";
+import type { Block } from "./blocks";
 import { type Caret, placeCaret } from "./caret";
 import { createExtensions } from "./editor";
-import type { FileEdits } from "./file-edits";
-import type { Placement } from "./opening";
-import type { RunPage } from "./page";
+import type { FileEdits, RunEdits } from "./file-edits";
 import { parseRun } from "./parse-run";
-import { RunSave } from "./run-save";
 import { serializeRun } from "./serialize-run";
 import { SlashMenuStore } from "./slash-menu";
 import { Store } from "./store";
@@ -22,6 +21,13 @@ export const IDLE_RUN: RunSnapshot = {
   revision: 0,
   saving: false,
 };
+
+export interface Placement {
+  at: "run" | "after";
+  blocks: Block[];
+  mount: (root: HTMLElement) => void;
+  range: BlockRange;
+}
 
 export interface RunOptions {
   caret?: Caret;
@@ -43,8 +49,7 @@ export class Run extends Store<RunSnapshot> {
   readonly editor: Editor;
   readonly slash: SlashMenuStore;
 
-  private readonly page: RunPage;
-  private readonly saves: RunSave;
+  private readonly saves: RunEdits;
   private readonly onClose: () => void;
   private closing: Promise<void> | null = null;
 
@@ -81,29 +86,22 @@ export class Run extends Store<RunSnapshot> {
       extensions,
     });
 
-    this.page = edits.open({
+    this.saves = edits.openRun({
+      at,
       blocks,
+      body: () => serializeRun(this.editor.state.doc, originals, style),
       editor: this.editor,
       file,
-      range,
-      root: this.root,
-      version: hash,
-    });
-    this.saves = new RunSave({
-      at,
-      body: () => serializeRun(this.editor.state.doc, originals, style),
-      edits,
-      file,
-      hash,
       onFailed: (message) => {
         options.onError(message);
         void this.close(true);
       },
       onSaved: options.onSaved,
       onSaving: (saving) => this.update({ saving }),
-      page: this.page,
       range,
+      root: this.root,
       source,
+      version: hash,
     });
 
     this.editor.on("update", () => this.saves.schedule());
@@ -123,13 +121,7 @@ export class Run extends Store<RunSnapshot> {
 
   close(discard = false): Promise<void> {
     this.closing ??= (async () => {
-      this.saves.cancel();
-      const kept = !discard && (await this.saves.finish());
-      const settled = await this.page.close({
-        discard: !kept,
-        version: this.saves.version,
-        wrote: this.saves.wrote,
-      });
+      const settled = await this.saves.close(discard);
       if (settled) {
         this.editor.destroy();
         this.root.remove();

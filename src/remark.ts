@@ -3,8 +3,7 @@ import type { Root, RootContent } from "mdast";
 import type { MdxJsxAttribute, MdxJsxFlowElement } from "mdast-util-mdx-jsx";
 import type { VFile } from "vfile";
 import { hashSource } from "./shared/hash";
-import { blockType } from "./shared/markdown";
-import { wrapperAttributes } from "./shared/wrapper";
+import { blockFields, wrapperAttributes } from "./shared/wrapper";
 
 export { hashSource } from "./shared/hash";
 
@@ -65,25 +64,16 @@ export default function remarkEsqia() {
     const version = hashSource(source);
 
     tree.children = tree.children.map((node): RootContent => {
-      const start = node.position?.start.offset;
-      const end = node.position?.end.offset;
-      if (
-        start === undefined ||
-        end === undefined ||
-        node.type === "mdxjsEsm"
-      ) {
+      const fields = blockFields(node, relative, version);
+      if (!fields) {
         return node;
       }
 
       const wrapper: MdxJsxFlowElement = {
         attributes: [
-          ...wrapperAttributes({
-            end,
-            file: relative,
-            start,
-            type: blockType(node),
-            version,
-          }).map(([name, value]) => attribute(name, value)),
+          ...wrapperAttributes(fields).map(([name, value]) =>
+            attribute(name, value)
+          ),
           displayContents,
         ],
         children: [node as MdxJsxFlowElement["children"][number]],

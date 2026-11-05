@@ -1,7 +1,12 @@
 import type { BlockRange } from "../shared/ops";
-import { WRAPPER } from "../shared/wrapper";
 import { sidecar } from "./api";
-import { fileBlocks, hideBlock, isHidden, showBlock } from "./blocks";
+import {
+  fileBlocks,
+  hideBlock,
+  isHidden,
+  showBlock,
+  watchBlocks,
+} from "./blocks";
 import type { EditingHost, PageClosing, PageOpening, RunPage } from "./page";
 
 export const liveHost: EditingHost = {
@@ -16,19 +21,13 @@ class LivePage implements RunPage {
   private readonly file: string;
   private readonly ranges = new Map<string, BlockRange>();
   private readonly hidden = new Set<HTMLElement>();
-  private readonly observer: MutationObserver;
+  private readonly unwatch: () => void;
 
   constructor({ file, range, version }: PageOpening) {
     this.file = file;
     this.ranges.set(version, range);
     this.hide();
-    this.observer = new MutationObserver(() => this.hide());
-    this.observer.observe(document.body, {
-      attributeFilter: [WRAPPER.version, WRAPPER.start],
-      attributes: true,
-      childList: true,
-      subtree: true,
-    });
+    this.unwatch = watchBlocks(() => this.hide());
   }
 
   track(version: string, range: BlockRange) {
@@ -40,7 +39,7 @@ class LivePage implements RunPage {
       location.reload();
       return false;
     }
-    this.observer.disconnect();
+    this.unwatch();
     for (const el of this.hidden) {
       showBlock(el);
     }
@@ -75,23 +74,16 @@ function waitForVersion(
   }
 
   return new Promise((resolve) => {
-    const observer = new MutationObserver(() => {
-      if (!current()) {
-        return;
+    const unwatch = watchBlocks(() => {
+      if (current()) {
+        finish(true);
       }
-      finish(true);
     });
     const timer = setTimeout(() => finish(false), timeout);
     const finish = (ok: boolean) => {
-      observer.disconnect();
+      unwatch();
       clearTimeout(timer);
       resolve(ok);
     };
-    observer.observe(document.body, {
-      attributeFilter: [WRAPPER.version],
-      attributes: true,
-      childList: true,
-      subtree: true,
-    });
   });
 }

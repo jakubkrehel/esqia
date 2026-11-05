@@ -36,20 +36,20 @@ describe("sidecar", () => {
 
   it("applies ops, rejects stale ones and undoes", async () => {
     const { hash } = await (await call(`/source?file=${file}`)).json();
+    const op = { end: 15, expected: "First.", start: 9, text: "Second." };
     const ok = await call(
-      "/ops",
-      json({
-        file,
-        hash,
-        ops: [{ end: 15, expected: "First.", start: 9, text: "Second." }],
-      })
+      "/edit",
+      json({ file, hash, intent: { kind: "replace", op } })
     );
     expect(ok.status).toBe(200);
     expect(readFileSync(path.join(root, file), "utf8")).toBe(
       "# Hello\n\nSecond.\n"
     );
 
-    const stale = await call("/ops", json({ file, hash, ops: [] }));
+    const stale = await call(
+      "/edit",
+      json({ file, hash, intent: { kind: "replace", op } })
+    );
     expect(stale.status).toBe(409);
 
     expect((await call("/undo", json({ file }))).status).toBe(200);
@@ -79,11 +79,14 @@ describe("sidecar", () => {
       const start = source.indexOf("\n\n") + 2;
       const end = source.length - 1;
       await call(
-        "/ops",
+        "/edit",
         json({
           file,
           hash,
-          ops: [{ end, expected: source.slice(start, end), start, text }],
+          intent: {
+            kind: "replace",
+            op: { end, expected: source.slice(start, end), start, text },
+          },
         })
       );
     }
@@ -95,21 +98,21 @@ describe("sidecar", () => {
   });
 
   it("answers CORS preflight for this machine and the local network only", async () => {
-    const local = await fetch(`${url}/ops`, {
+    const local = await fetch(`${url}/edit`, {
       headers: { origin: "http://localhost:3000" },
       method: "OPTIONS",
     });
     expect(local.headers.get("access-control-allow-origin")).toBe(
       "http://localhost:3000"
     );
-    const network = await fetch(`${url}/ops`, {
+    const network = await fetch(`${url}/edit`, {
       headers: { origin: "http://172.16.227.17:3000" },
       method: "OPTIONS",
     });
     expect(network.headers.get("access-control-allow-origin")).toBe(
       "http://172.16.227.17:3000"
     );
-    const remote = await fetch(`${url}/ops`, {
+    const remote = await fetch(`${url}/edit`, {
       headers: { origin: "https://evil.example" },
       method: "OPTIONS",
     });

@@ -1,5 +1,5 @@
 import { type BlockType, EDITABLE } from "../shared/markdown";
-import type { BlockRange } from "../shared/ops";
+import type { BlockRange, Intent } from "../shared/ops";
 import { runAround as sharedRunAround } from "../shared/runs";
 import {
   BLOCK_SELECTOR,
@@ -61,6 +61,38 @@ export function runAround(block: Block): Block[] {
     blocks,
     blocks.findIndex((b) => b.start === block.start)
   );
+}
+
+export function blockOfType(type: BlockType): string {
+  return `[${WRAPPER.type}="${type}"]`;
+}
+
+function rangeOf({ end, start }: BlockRange): BlockRange {
+  return { end, start };
+}
+
+export function removeIntent(block: Block): Intent {
+  return { kind: "remove", range: rangeOf(block) };
+}
+
+export function moveIntent(block: Block, target: Block | null): Intent {
+  return {
+    blocks: fileBlocks(block.file).map(rangeOf),
+    kind: "move",
+    range: rangeOf(block),
+    target: target && rangeOf(readBlock(target.el)),
+  };
+}
+
+export function watchBlocks(onChange: () => void): () => void {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.body, {
+    attributeFilter: [WRAPPER.version, WRAPPER.start],
+    attributes: true,
+    childList: true,
+    subtree: true,
+  });
+  return () => observer.disconnect();
 }
 
 export function createWrapper(fields: WrapperFields, child: Node): HTMLElement {

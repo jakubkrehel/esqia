@@ -10,10 +10,13 @@ const setup = (source = "# Hello\n\nFirst.\n") => {
     const { hash, source: current } = await history.source("a.mdx");
     const start = current.indexOf("\n\n") + 2;
     const end = current.length - 1;
-    return history.apply(
+    return history.edit(
       "a.mdx",
       hash,
-      [{ end, expected: current.slice(start, end), start, text }],
+      {
+        kind: "replace",
+        op: { end, expected: current.slice(start, end), start, text },
+      },
       group
     );
   };
@@ -23,14 +26,18 @@ const setup = (source = "# Hello\n\nFirst.\n") => {
 describe("edit history", () => {
   it("rejects a stale hash and a mismatched expected text", async () => {
     const { history } = setup();
-    await expect(history.apply("a.mdx", "stale", [])).resolves.toMatchObject({
+    const op = { end: 15, expected: "First.", start: 9, text: "x" };
+    await expect(
+      history.edit("a.mdx", "stale", { kind: "replace", op })
+    ).resolves.toMatchObject({
       ok: false,
       reason: "conflict",
     });
     await expect(
-      history.apply("a.mdx", "initial", [
-        { end: 15, expected: "Other.", start: 9, text: "x" },
-      ])
+      history.edit("a.mdx", "initial", {
+        kind: "replace",
+        op: { ...op, expected: "Other." },
+      })
     ).resolves.toMatchObject({ ok: false, reason: "conflict" });
   });
 
@@ -62,11 +69,32 @@ describe("edit history", () => {
 
   it("skips a no-op edit without recording it", async () => {
     const { history, replace } = setup();
-    await expect(replace("First.")).resolves.toEqual({
+    await expect(replace("First.")).resolves.toMatchObject({
       hash: "initial",
       ok: true,
     });
     expect(history.changes()).toEqual({ edits: 0, files: [], redos: 0 });
+  });
+
+  it("builds removes and moves from the file as it is now", async () => {
+    const { history, read } = setup("# Hello\n\nFirst.\n\nSecond.\n");
+    const first = { end: 15, start: 9 };
+    const second = { end: 24, start: 17 };
+    const moved = await history.edit("a.mdx", "initial", {
+      blocks: [{ end: 7, start: 0 }, first, second],
+      kind: "move",
+      range: second,
+      target: first,
+    });
+    expect(moved.ok).toBe(true);
+    await expect(read()).resolves.toBe("# Hello\n\nSecond.\n\nFirst.\n");
+
+    const { hash } = await history.source("a.mdx");
+    await history.edit("a.mdx", hash, {
+      kind: "remove",
+      range: { end: 16, start: 9 },
+    });
+    await expect(read()).resolves.toBe("# Hello\n\nFirst.\n");
   });
 
   it("reverts every touched file to before its first edit", async () => {

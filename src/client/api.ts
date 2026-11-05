@@ -1,10 +1,9 @@
 import type { ClientConfig } from "../shared/config";
 import type { Changes } from "../shared/history";
-import type { Op } from "../shared/ops";
+import type { Intent, Op } from "../shared/ops";
+import { isOutcome, settle } from "../shared/outcome";
 
-export class ConflictError extends Error {
-  override readonly name = "ConflictError";
-}
+export { ConflictError } from "../shared/outcome";
 
 export function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -13,14 +12,14 @@ export function errorText(error: unknown) {
 export interface Backend {
   changes: () => Promise<Changes>;
   config: () => Promise<ClientConfig>;
-  notice: string | null;
-  open?: (file: string, line: number) => Promise<void>;
-  ops: (
+  edit: (
     file: string,
     hash: string,
-    ops: Op[],
+    intent: Intent,
     group?: string
-  ) => Promise<{ hash: string }>;
+  ) => Promise<{ hash: string; ops: Op[] }>;
+  notice: string | null;
+  open?: (file: string, line: number) => Promise<void>;
   redo?: (file: string) => Promise<{ hash: string }>;
   revert: () => Promise<{ reverted: string[]; skipped: string[] }>;
   source: (file: string) => Promise<{ source: string; hash: string }>;
@@ -40,8 +39,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as T & {
     error?: string;
   };
-  if (response.status === 409) {
-    throw new ConflictError(body.error ?? "The file changed on disk.");
+  if (isOutcome(body)) {
+    settle(body);
   }
   if (!response.ok) {
     throw new Error(body.error ?? `esqia: ${response.status}`);
@@ -58,6 +57,11 @@ const post = (body: unknown): RequestInit => ({
 export const sidecar: Backend = {
   changes: () => request<Changes>("/changes"),
   config: () => request<ClientConfig>("/config"),
+  edit: (file, hash, intent, group) =>
+    request<{ hash: string; ops: Op[] }>(
+      "/edit",
+      post({ file, group, hash, intent })
+    ),
   notice: null,
   open: async (file, line) => {
     const params = new URLSearchParams({
@@ -70,8 +74,6 @@ export const sidecar: Backend = {
       throw new Error(`Couldn't open ${file} in your editor.`);
     }
   },
-  ops: (file, hash, ops, group) =>
-    request<{ hash: string }>("/ops", post({ file, group, hash, ops })),
   redo: (file) => request<{ hash: string }>("/redo", post({ file })),
   revert: () =>
     request<{ reverted: string[]; skipped: string[] }>("/revert", {

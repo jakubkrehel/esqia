@@ -1,12 +1,28 @@
-import type { BlockRange, Op } from "../shared/ops";
+import type { Intent, Op } from "../shared/ops";
 import { type Backend, ConflictError } from "./api";
-import { type Intent, intentOps, type RunIntent, spanAfter } from "./intents";
-import type { PageOpening, PageSync, RunPage } from "./page";
+import type { PageOpening, PageSync } from "./page";
+import { RunSave } from "./run-save";
 
-export interface RunWriter {
-  group: string;
-  page: RunPage;
+export interface RunOpening extends PageOpening {
+  at: "run" | "after";
+  body: () => string;
+  onFailed: (message: string) => void;
+  onSaved: () => void;
+  onSaving: (saving: boolean) => void;
+  source: string;
 }
+
+export interface RunEdits {
+  close: (discard: boolean) => Promise<boolean>;
+  schedule: () => void;
+}
+
+export type Write = (
+  file: string,
+  hash: string,
+  intent: Intent,
+  group?: string
+) => Promise<{ hash: string; ops: Op[] } | null>;
 
 export class FileEdits {
   private readonly backend: Backend;
@@ -27,10 +43,6 @@ export class FileEdits {
     return fetched;
   }
 
-  open(opening: PageOpening): RunPage {
-    return this.sync.open(opening);
-  }
-
   async apply(file: string, hash: string, intent: Intent) {
     const written = await this.write(file, hash, intent);
     if (written) {
@@ -38,35 +50,12 @@ export class FileEdits {
     }
   }
 
-  async applyRun(
-    file: string,
-    hash: string,
-    intent: RunIntent,
-    writer: RunWriter
-  ): Promise<{ hash: string; range: BlockRange } | null> {
-    const written = await this.write(file, hash, intent, writer.group);
-    if (!written) {
-      return null;
-    }
-    const range = spanAfter(intent, written.ops);
-    this.sync.applied({ file, ...written, run: { page: writer.page, range } });
-    return { hash: written.hash, range };
+  openRun(opening: RunOpening): RunEdits {
+    return new RunSave(opening, this.sync, this.write);
   }
 
-  private async write(
-    file: string,
-    hash: string,
-    intent: Intent,
-    group?: string
-  ): Promise<{ hash: string; ops: Op[] } | null> {
-    const ops = await intentOps(
-      intent,
-      async () => (await this.read(file, hash)).source
-    );
-    if (ops.length === 0) {
-      return null;
-    }
-    const written = await this.backend.ops(file, hash, ops, group);
-    return written.hash === hash ? null : { hash: written.hash, ops };
-  }
+  private readonly write: Write = async (file, hash, intent, group) => {
+    const written = await this.backend.edit(file, hash, intent, group);
+    return written.hash === hash ? null : written;
+  };
 }
