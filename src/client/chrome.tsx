@@ -174,7 +174,9 @@ export function Chrome({
             host={host}
             inserts={slashItems(config, "")}
             onDelete={(block) => session.removeBlock(block)}
-            onInsert={(block, item) => session.insertAfter(block, item.insert ?? item.apply)}
+            onInsert={(block, item) =>
+              session.insertAfter(block, item.insert ?? item.apply)
+            }
             onMove={(block, target) => session.moveBlock(block, target)}
           />
         )}

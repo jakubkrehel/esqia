@@ -25,7 +25,6 @@ const components: MDXComponents = {
   figure: (props) => (
     <figure className="my-6 preview-code overflow-hidden" {...props} />
   ),
-  Kbd,
   h1: ({ children, ...props }) => (
     <h1
       className="mb-5 font-[550] font-text text-body text-gray-1200"
@@ -42,6 +41,7 @@ const components: MDXComponents = {
       {children}
     </h2>
   ),
+  Kbd,
   li: (props) => (
     <li className="pl-2 font-text text-body text-text-paragraph" {...props} />
   ),
