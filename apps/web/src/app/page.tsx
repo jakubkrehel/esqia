@@ -1,13 +1,10 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { Esqia } from "esqia";
 import { Docs } from "@/components/docs";
+import { Footer } from "@/components/footer";
 import { InstallCard } from "@/components/install-card";
 import { ToolbarGraphic } from "@/components/toolbar-graphic";
 import Content from "./content.mdx";
-
-const CONTENT = "src/app/content.mdx";
-const source = readFileSync(path.join(process.cwd(), CONTENT), "utf8");
+import { CONTENT, source } from "./source";
 
 export default function Page() {
   return (
@@ -16,7 +13,7 @@ export default function Page() {
         <ToolbarGraphic />
       </div>
       <header className="mb-6 flex flex-col gap-2">
-        <h1 className="font-[550] font-text text-3xl text-gray-1200 tracking-tight">
+        <h1 className="font-demibold font-text text-3xl text-gray-1200 tracking-tight">
           Esqia
         </h1>
         <p className="font-text text-body text-gray-1100">
@@ -26,6 +23,7 @@ export default function Page() {
       <InstallCard />
       <Content />
       <Docs />
+      <Footer />
       {process.env.NODE_ENV === "development" ? (
         <Esqia />
       ) : (

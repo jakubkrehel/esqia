@@ -27,6 +27,7 @@ import Suggestion from "@tiptap/suggestion";
 import type { ClientConfig } from "../shared/config";
 import { LINE_BREAK } from "../shared/markdown";
 import { type SlashState, spacerInPlace } from "./commands";
+import { createListExtensions } from "./lists";
 import { jsxBlockPreview, type Rendered, type Templates } from "./templates";
 
 const blockId = {
@@ -76,6 +77,7 @@ export function createExtensions({
       }),
       renderHTML: () => spec(templates.block("pre")),
     }).configure({ enableTabIndentation: true }),
+    ...createListExtensions({ blockId, spec, templates }),
     Node.create({
       addAttributes: () => ({
         ...blockId,

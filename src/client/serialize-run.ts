@@ -1,12 +1,13 @@
 import type { JSONContent } from "@tiptap/core";
 import type { Mark, Node as PMNode } from "@tiptap/pm/model";
-import type { PhrasingContent } from "mdast";
+import type { ListItem, PhrasingContent } from "mdast";
 import {
   LINE_BREAK,
   type MarkdownStyle,
   straighten,
   stringifyBlock,
 } from "../shared/markdown";
+import type { ListAttrs } from "./lists";
 
 export interface Original {
   fingerprint: string;
@@ -47,11 +48,49 @@ export function serializeBlock(node: PMNode, style: MarkdownStyle): string {
         },
         style
       );
+    case "list":
+      return serializeList(node, style);
     case "spacer":
       return node.attrs.raw || LINE_BREAK;
     default:
       return node.attrs.raw;
   }
+}
+
+function serializeList(list: PMNode, style: MarkdownStyle): string {
+  const attrs = list.attrs as ListAttrs;
+  const children: ListItem[] = [];
+  list.forEach((item) => {
+    if (item.content.size > 0) {
+      children.push({
+        children: [{ children: inlineToMdast(item, style), type: "paragraph" }],
+        spread: attrs.spread,
+        type: "listItem",
+      });
+    }
+  });
+  return stringifyBlock(
+    {
+      children,
+      ordered: attrs.ordered,
+      spread: attrs.spread,
+      start: attrs.ordered ? attrs.start : null,
+      type: "list",
+    },
+    style,
+    attrs.ordered
+      ? { bulletOrdered: attrs.marker, incrementListMarker: attrs.increment }
+      : { bullet: attrs.marker }
+  );
+}
+
+function hasInline(node: PMNode): boolean {
+  let found = false;
+  node.descendants((child) => {
+    found ||= child.isInline;
+    return !found;
+  });
+  return found;
 }
 
 const MARK_ORDER = ["link", "jsx", "bold", "italic"];
@@ -184,7 +223,7 @@ export function writtenBlocks(doc: PMNode): { node: PMNode; offset: number }[] {
     entry?.node.type.name === "paragraph" && entry.node.content.size > 0;
 
   return children.filter(({ node }, index) => {
-    if (node.isTextblock && node.content.size === 0) {
+    if (!(node.isAtom || hasInline(node))) {
       return false;
     }
     if (node.type.name !== "spacer" || node.attrs.id || !node.attrs.auto) {

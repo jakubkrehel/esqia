@@ -79,7 +79,7 @@ export function Chrome({
     OUTLINES,
     OUTLINE_COLORS[0].value
   );
-  const [stored, setCorner] = useStored(CORNER_KEY, CORNERS, "bottom-left");
+  const [stored, setCorner] = useStored(CORNER_KEY, CORNERS, "top-left");
   const corner = inline ? "bottom-left" : stored;
   const [session] = useState(
     () =>

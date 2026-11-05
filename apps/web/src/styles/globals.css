@@ -186,4 +186,8 @@
   --font-berkeley-mono: var(--font-berkeley-mono);
   --font-mono: var(--font-berkeley-mono);
   --text-body: 17px;
+  --text-small: 13px;
+  --font-weight-book: 450;
+  --font-weight-demibold: 550;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }

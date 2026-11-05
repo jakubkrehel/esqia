@@ -35,7 +35,7 @@ const components: MDXComponents = {
   ),
   h2: ({ children, ...props }) => (
     <h2
-      className="mt-16 mb-5 font-[550] font-text text-body text-gray-1200"
+      className="mt-16 mb-5 font-[550] font-text text-xl text-gray-1200"
       {...props}
     >
       {children}

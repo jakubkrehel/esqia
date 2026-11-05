@@ -5,9 +5,11 @@ import type { MdxJsxTextElement } from "mdast-util-mdx-jsx";
 import {
   blockType,
   curl,
+  type FlatList,
   parseMdx,
   type Smartypants,
 } from "../shared/markdown";
+import type { BulletMarker, ListAttrs, OrderedMarker } from "./lists";
 import { fingerprint, type Original } from "./serialize-run";
 
 export interface ParsedRun {
@@ -87,11 +89,42 @@ function blockToJson(node: RootContent, source: string): JSONContent {
         type: "codeBlock",
       };
     }
+    case "list":
+      return listToJson(node as FlatList, source);
     case "spacer":
       return { attrs: { raw: raw() }, type: "spacer" };
     default:
       return { attrs: { raw: raw() }, type: "jsxBlock" };
   }
+}
+
+const ORDERED_NUMBER = /^\d+/;
+
+function listToJson(list: FlatList, source: string): JSONContent {
+  return {
+    attrs: listAttrs(list, source),
+    content: list.children.map((item) => ({
+      content: inlineToJson(item.children[0].children, source, []),
+      type: "listItem",
+    })),
+    type: "list",
+  };
+}
+
+function listAttrs(list: FlatList, source: string): ListAttrs {
+  const [first, second] = list.children.map((item) => sliceOf(item, source));
+  const spread = Boolean(list.spread);
+  if (!list.ordered) {
+    return { marker: first.charAt(0) as BulletMarker, ordered: false, spread };
+  }
+  const number = (marker: string) => ORDERED_NUMBER.exec(marker)?.[0];
+  return {
+    increment: second === undefined || number(second) !== number(first),
+    marker: first.replace(ORDERED_NUMBER, "").charAt(0) as OrderedMarker,
+    ordered: true,
+    spread,
+    start: list.start ?? 1,
+  };
 }
 
 type JsonMark = NonNullable<JSONContent["marks"]>[number];

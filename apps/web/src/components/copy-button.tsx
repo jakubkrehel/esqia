@@ -39,10 +39,10 @@ export function CopyButton({
       type="button"
     >
       <CopyIcon
-        className={`col-start-1 row-start-1 text-gray-1000 transition-[opacity,scale,filter,color] duration-300 ease-[cubic-bezier(0.2,0,0,1)] group-hover:text-gray-1200 ${iconClassName} ${copied ? "scale-25 opacity-0 blur-xs" : ""}`}
+        className={`col-start-1 row-start-1 text-gray-1000 transition-[opacity,scale,filter,color] duration-300 ease-standard group-hover:text-gray-1200 ${iconClassName} ${copied ? "scale-25 opacity-0 blur-xs" : ""}`}
       />
       <CheckIcon
-        className={`col-start-1 row-start-1 text-gray-1000 transition-[opacity,scale,filter] duration-300 ease-[cubic-bezier(0.2,0,0,1)] ${iconClassName} ${copied ? "" : "scale-25 opacity-0 blur-xs"}`}
+        className={`col-start-1 row-start-1 text-gray-1000 transition-[opacity,scale,filter] duration-300 ease-standard ${iconClassName} ${copied ? "" : "scale-25 opacity-0 blur-xs"}`}
       />
     </button>
   );

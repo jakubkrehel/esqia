@@ -47,7 +47,20 @@ function textOffsetOf(el: HTMLElement, node: Node, offset: number): number {
   const range = document.createRange();
   range.setStart(el, 0);
   range.setEnd(node, offset);
-  return range.toString().length;
+  let length = range.toString().length;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    const text = walker.currentNode as Text;
+    if (isBetweenItems(text) && range.intersectsNode(text)) {
+      length -= text === node ? offset : text.length;
+    }
+  }
+  return length;
+}
+
+function isBetweenItems(text: Text): boolean {
+  const parent = text.parentElement?.tagName;
+  return (parent === "UL" || parent === "OL") && !text.data.trim();
 }
 
 export interface Caret {
@@ -73,7 +86,7 @@ function caretSelection(view: EditorView, { anchor, head, index }: Caret) {
     before += doc.child(i).nodeSize;
   }
   const dom = view.nodeDOM(before);
-  if (!(doc.child(index).isTextblock && dom)) {
+  if (doc.child(index).isAtom || !dom) {
     return TextSelection.near(doc.resolve(before + 1));
   }
   const pos = (offset: number) =>

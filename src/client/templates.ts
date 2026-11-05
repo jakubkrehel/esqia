@@ -14,6 +14,8 @@ export interface Templates {
   ) => Rendered;
   component: (raw: string) => Rendered | null;
   componentMark: (open: string) => Rendered | null;
+  list: (kind: "ul" | "ol") => Rendered;
+  listItem: () => Rendered;
   mark: (kind: "strong" | "em" | "code" | "a") => Rendered;
 }
 
@@ -51,6 +53,14 @@ export function sampleTemplates(file: string, source: string): Templates {
       headings.set(el.tagName, el);
     }
   }
+
+  const lists = ofType("list")
+    .map((wrapper) => wrapper.firstElementChild)
+    .filter((el): el is HTMLElement => el instanceof HTMLElement);
+  const item = lists
+    .flatMap((list) => [...list.children])
+    .filter((el): el is HTMLElement => el instanceof HTMLLIElement)
+    .sort((a, b) => b.textContent.length - a.textContent.length)[0];
 
   const codeFigure = ofType("code")[0]?.firstElementChild as
     | HTMLElement
@@ -97,6 +107,19 @@ export function sampleTemplates(file: string, source: string): Templates {
       }
       const dom = sampleClone(sample, false);
       return { contentDOM: dom, dom };
+    },
+    list(kind) {
+      const sample =
+        lists.find((list) => list.tagName === kind.toUpperCase()) ?? lists[0];
+      if (!sample) {
+        return bare(kind);
+      }
+      const dom = sampleClone(sample, false);
+      const rendered = { contentDOM: dom, dom };
+      return retag(rendered, kind);
+    },
+    listItem() {
+      return item ? textTemplate(item) : bare("li");
     },
     mark(kind) {
       const sample = marks[kind];

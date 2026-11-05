@@ -33,7 +33,7 @@ function ManagerSwitch({
     >
       <span
         aria-hidden="true"
-        className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg bg-gray-200 shadow-custom transition-[translate] duration-300 ease-[cubic-bezier(0.2,0,0,1)]"
+        className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg bg-gray-200 shadow-custom transition-transform duration-300 ease-standard"
         style={{ translate: `${MANAGERS.indexOf(value) * 100}% 0` }}
       />
       {MANAGERS.map((manager) => (

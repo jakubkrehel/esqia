@@ -105,7 +105,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   border: 1px solid var(--key-line); border-radius: 4px; background: var(--key-fill); color: var(--muted);
   font-family: inherit; font-size: 11px; font-weight: 450; line-height: 16px; text-transform: uppercase; user-select: none;
 }
-.tip kbd[data-glyph="⌘"] { padding-top: 0.5px; }
+.tip kbd[data-glyph="⌘"] { padding-bottom: 2px; }
 .tip[data-instant] { transition-duration: 0s; }
 @starting-style { .tip[data-open] { opacity: 0; scale: 0.95; } }
 .bar[data-corner^="top"] .tip { top: calc(100% + 8px); bottom: auto; transform-origin: top center; }
@@ -127,8 +127,11 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .swap > * { grid-area: 1 / 1; display: grid; opacity: 0; scale: 0.5; filter: blur(2px); transition: opacity 200ms ease-out, scale 200ms ease-out, filter 200ms ease-out; }
 .swap > [data-shown] { opacity: 1; scale: 1; filter: none; }
 .swatch { width: 12px; height: 12px; border-radius: 9999px; transition: background-color 200ms ease-out; }
-.mark { width: 16px; height: 16px; }
-.trigger[data-busy] .mark { animation: pulse 900ms ease-in-out infinite; }
+.mark { width: 18px; height: 18px; overflow: visible; }
+.mark g { transition: transform 350ms var(--expand); }
+.bar[data-mode="edit"] .mark-left { transform: translateX(-2px); }
+.bar[data-mode="edit"] .mark-right { transform: translateX(2px); }
+.trigger[data-busy] .mark-center { animation: pulse 900ms ease-in-out infinite; }
 .toast {
   position: fixed; max-width: min(420px, calc(100vw - 40px)); padding: 6px 12px; border-radius: 8px;
   background: var(--surface); box-shadow: var(--shadow); pointer-events: none !important;
@@ -201,7 +204,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 export const PAGE_CSS = `
 [data-esqia-mode="edit"] [${WRAPPER.type}="paragraph"] > *,
 [data-esqia-mode="edit"] [${WRAPPER.type}="heading"] > *,
-[data-esqia-mode="edit"] [${WRAPPER.type}="code"] > * { cursor: text; }
+[data-esqia-mode="edit"] [${WRAPPER.type}="code"] > *,
+[data-esqia-mode="edit"] [${WRAPPER.type}="list"] > * { cursor: text; }
 .esqia-editor { display: contents; }
 .esqia-editor > .ProseMirror { font-feature-settings: inherit; font-variant-ligatures: inherit; white-space: pre-wrap; }
 .esqia-editor > .ProseMirror { outline: none; caret-color: var(--esqia-outline, oklch(74.6% 0.16 232.661)); }

@@ -1,6 +1,15 @@
-import type { Literal, Nodes, Parent, Root, RootContent } from "mdast";
+import type {
+  List,
+  ListItem,
+  Literal,
+  Nodes,
+  Paragraph,
+  Parent,
+  Root,
+  RootContent,
+} from "mdast";
 import { mdxToMarkdown } from "mdast-util-mdx";
-import { type Handle, toMarkdown } from "mdast-util-to-markdown";
+import { type Handle, type Options, toMarkdown } from "mdast-util-to-markdown";
 import remarkMdx from "remark-mdx";
 import remarkParse from "remark-parse";
 import remarkSmartypants from "remark-smartypants";
@@ -12,6 +21,7 @@ export type BlockType =
   | "paragraph"
   | "heading"
   | "code"
+  | "list"
   | "spacer"
   | "media"
   | "block";
@@ -20,6 +30,7 @@ export const EDITABLE: ReadonlySet<BlockType> = new Set([
   "paragraph",
   "heading",
   "code",
+  "list",
   "spacer",
 ]);
 
@@ -44,6 +55,8 @@ export function blockType(node: RootContent): BlockType {
         ? "media"
         : "paragraph";
     }
+    case "list":
+      return isFlatList(node) ? "list" : "block";
     case "mdxJsxFlowElement":
       return node.name === "br" && node.children.length === 0
         ? "spacer"
@@ -52,6 +65,29 @@ export function blockType(node: RootContent): BlockType {
       return "block";
   }
 }
+
+const TASK_MARKER = /^\[[ xX]\]\s/;
+
+export type FlatList = Omit<List, "children"> & {
+  children: [FlatListItem, ...FlatListItem[]];
+};
+type FlatListItem = Omit<ListItem, "children"> & { children: [Paragraph] };
+
+function isFlatList(list: List): list is FlatList {
+  return list.children.every((item) => {
+    const [only, ...rest] = item.children;
+    if (!only || rest.length > 0 || only.type !== "paragraph") {
+      return false;
+    }
+    const first = only.children[0];
+    return !(first?.type === "text" && TASK_MARKER.test(first.value));
+  });
+}
+
+export type ListMarkers = Pick<
+  Options,
+  "bullet" | "bulletOrdered" | "incrementListMarker"
+>;
 
 export type Smartypants =
   | false
@@ -166,12 +202,14 @@ const jsxWrap: Handle = (node: JsxWrapNode, _parent, state, info) => {
 
 export function stringifyBlock(
   node: RootContent,
-  style: MarkdownStyle
+  style: MarkdownStyle,
+  markers: ListMarkers = {}
 ): string {
   if (node.type === "raw") {
     return node.value;
   }
   return toMarkdown({ children: [node], type: "root" } as Root, {
+    ...markers,
     emphasis: style.emphasis,
     extensions: [mdxToMarkdown()],
     fence: "`",
