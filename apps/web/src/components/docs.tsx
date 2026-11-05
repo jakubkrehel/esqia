@@ -1,4 +1,3 @@
-import pierreDarkVibrant from "@pierre/theme/pierre-dark-vibrant";
 import pierreLightVibrant from "@pierre/theme/pierre-light-vibrant";
 import { Fragment, type ReactNode } from "react";
 import {
@@ -13,7 +12,6 @@ import {
   ReactIcon,
   TypescriptIcon,
 } from "@/components/icons";
-import { Kbd } from "@/components/kbd";
 
 const NEXT_CONFIG = `import { withEsqia } from "esqia/next";
 
@@ -41,7 +39,6 @@ function shikiTheme(theme: typeof pierreLightVibrant): ThemeRegistration {
 }
 
 const THEMES = {
-  dark: shikiTheme(pierreDarkVibrant),
   light: shikiTheme(pierreLightVibrant),
 };
 
@@ -129,18 +126,6 @@ function InlineCode({ children }: { children: ReactNode }) {
 export function Docs() {
   return (
     <>
-      <Heading>Shortcuts</Heading>
-      <ul className="my-2 flex flex-col gap-2">
-        <li className="font-text text-body text-text-paragraph">
-          <Kbd>⌘</Kbd> <Kbd>E</Kbd> switches between reading and editing.
-        </li>
-        <li className="font-text text-body text-text-paragraph">
-          <Kbd>Esc</Kbd> or clicking away saves and hands the page back.
-        </li>
-        <li className="font-text text-body text-text-paragraph">
-          <Kbd>⌘</Kbd> <Kbd>Z</Kbd> outside the editor undoes the last change.
-        </li>
-      </ul>
       <Heading>Setup</Heading>
       <Paragraph>Add the remark plugin last and wrap your config.</Paragraph>
       <CodeBlock code={NEXT_CONFIG} lang="ts" title="next.config.ts" />

@@ -1,6 +1,10 @@
 import type { Editor } from "@tiptap/core";
 import type { ResolvedPos } from "@tiptap/pm/model";
-import { TextSelection, type Transaction } from "@tiptap/pm/state";
+import {
+  NodeSelection,
+  TextSelection,
+  type Transaction,
+} from "@tiptap/pm/state";
 import type { ClientConfig } from "../shared/config";
 import { LINE_BREAK } from "../shared/markdown";
 
@@ -14,6 +18,7 @@ export interface SlashItem {
   apply: (editor: Editor) => void;
   hint?: string;
   id: string;
+  insert?: (editor: Editor) => void;
   label: string;
 }
 
@@ -41,6 +46,7 @@ export function slashItems(config: ClientConfig, query: string): SlashItem[] {
       apply: insertSpacer,
       hint: LINE_BREAK,
       id: "spacer",
+      insert: replaceWithSpacer,
       label: "Line break",
     },
     ...config.snippets.map((snippet) => ({
@@ -76,6 +82,15 @@ export function insertBlock(editor: Editor, raw: string) {
 export function insertSpacer(editor: Editor) {
   const { tr } = editor.state;
   spacerInPlace(tr, editor.state.selection.$from);
+  editor.view.dispatch(tr);
+}
+
+export function replaceWithSpacer(editor: Editor) {
+  const { tr } = editor.state;
+  const { $from } = editor.state.selection;
+  const before = $from.before();
+  tr.replaceWith(before, $from.after(), editor.schema.nodes.spacer.create());
+  tr.setSelection(NodeSelection.create(tr.doc, before));
   editor.view.dispatch(tr);
 }
 

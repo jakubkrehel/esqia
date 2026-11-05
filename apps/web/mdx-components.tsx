@@ -1,5 +1,6 @@
 import type { MDXComponents } from "mdx/types";
 import type { ComponentProps } from "react";
+import { Kbd } from "@/components/kbd";
 import { Point } from "@/components/point";
 
 function Code({ className, ...props }: ComponentProps<"code">) {
@@ -24,6 +25,7 @@ const components: MDXComponents = {
   figure: (props) => (
     <figure className="my-6 preview-code overflow-hidden" {...props} />
   ),
+  Kbd,
   h1: ({ children, ...props }) => (
     <h1
       className="mb-5 font-[550] font-text text-body text-gray-1200"
@@ -46,7 +48,7 @@ const components: MDXComponents = {
   Point,
   p: (props) => (
     <p
-      className="relative font-text text-body text-text-paragraph has-[>[data-point]]:my-4 has-[>[data-point]]:pl-10"
+      className="relative font-text text-body text-text-paragraph has-[>[data-point]]:my-2 has-[>[data-point]]:pl-10"
       {...props}
     />
   ),
