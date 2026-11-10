@@ -66,13 +66,13 @@ export function useTip() {
   return { bind, tip };
 }
 
-const MOD =
+export const MOD =
   typeof navigator !== "undefined" &&
   /Mac|iPhone|iPad/.test(navigator.userAgent)
     ? "⌘"
     : "Ctrl";
 
-function Keys({ keys }: { keys: string[] }) {
+export function Keys({ keys }: { keys: string[] }) {
   return (
     <span className="keys">
       {keys.map((key) => (

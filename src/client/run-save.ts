@@ -26,7 +26,7 @@ export class RunSave implements RunEdits {
     this.opening = opening;
     this.sync = sync;
     this.write = write;
-    this.page = sync.open(opening);
+    this.page = opening.page;
     this.replacing = at === "run";
     this.prefix = this.replacing ? "" : "\n\n";
     this.start = range.start;
@@ -43,13 +43,10 @@ export class RunSave implements RunEdits {
     this.timer = setTimeout(() => this.save(false), SAVE_DELAY);
   }
 
-  async close(discard: boolean): Promise<boolean> {
-    clearTimeout(this.timer);
-    if (!discard) {
-      await this.save(true);
-    }
+  async close(): Promise<boolean> {
+    await this.save(true);
     return this.page.close({
-      discard: discard || this.failed,
+      discard: this.failed,
       version: this.hash,
       wrote: this.wrote,
     });
@@ -89,7 +86,7 @@ export class RunSave implements RunEdits {
   private next(body: string, closing: boolean): Intent | null {
     const text = body && this.prefix + body;
     if (closing && this.replacing && text === "") {
-      return { kind: "remove", range: this.range };
+      return { expected: this.current, kind: "remove", range: this.range };
     }
     if (text === this.current) {
       return null;

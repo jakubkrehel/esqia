@@ -6,7 +6,14 @@ import {
   shift,
   useFloating,
 } from "@floating-ui/react-dom";
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 const closed = () => null;
 
@@ -16,6 +23,7 @@ export function Anchored({
   placement,
   open = true,
   gap = 6,
+  focus,
   className,
   role,
   label,
@@ -26,6 +34,7 @@ export function Anchored({
   placement: Placement;
   open?: boolean;
   gap?: number;
+  focus?: RefObject<HTMLElement | null>;
   className: string;
   role?: string;
   label?: string;
@@ -70,6 +79,12 @@ export function Anchored({
       update();
     }
   });
+
+  useEffect(() => {
+    if (open && isPositioned) {
+      focus?.current?.focus({ preventScroll: true });
+    }
+  }, [focus, open, isPositioned]);
 
   const skipExit =
     !isPositioned || matchMedia("(prefers-reduced-motion: reduce)").matches;

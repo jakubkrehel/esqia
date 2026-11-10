@@ -14,6 +14,8 @@ export const liveHost: EditingHost = {
   sync: {
     applied: ({ hash, run }) => run?.page.track(hash, run.range),
     open: (opening) => new LivePage(opening),
+    refreshes: true,
+    reverted: () => undefined,
   },
 };
 

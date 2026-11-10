@@ -28,15 +28,8 @@ export function demoHost(
       source,
     };
   });
-  const backend = memoryBackend(store, config);
   return {
-    backend: {
-      ...backend,
-      revert: () => {
-        location.reload();
-        return Promise.resolve({ reverted: [], skipped: [] });
-      },
-    },
+    backend: memoryBackend(store, config),
     sync: demoSync(store),
   };
 }
@@ -68,6 +61,8 @@ function demoSync(store: MemoryStore): PageSync {
       open.add(page);
       return page;
     },
+    refreshes: false,
+    reverted: () => location.reload(),
   };
 }
 

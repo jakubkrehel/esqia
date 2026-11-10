@@ -25,9 +25,13 @@ export function readBlock(el: HTMLElement): Block {
   };
 }
 
-export function editableBlockAt(target: Element): Block | null {
+export function blockAt(target: Element): Block | null {
   const el = target.closest<HTMLElement>(LIVE_SELECTOR);
-  const block = el && readBlock(el);
+  return el && readBlock(el);
+}
+
+export function editableBlockAt(target: Element): Block | null {
+  const block = blockAt(target);
   return block && EDITABLE.has(block.type) ? block : null;
 }
 
@@ -72,7 +76,7 @@ function rangeOf({ end, start }: BlockRange): BlockRange {
 }
 
 export function removeIntent(block: Block): Intent {
-  return { kind: "remove", range: rangeOf(block) };
+  return { expected: null, kind: "remove", range: rangeOf(block) };
 }
 
 export function moveIntent(block: Block, target: Block | null): Intent {

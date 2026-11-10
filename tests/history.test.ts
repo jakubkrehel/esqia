@@ -91,6 +91,7 @@ describe("edit history", () => {
 
     const { hash } = await history.source("a.mdx");
     await history.edit("a.mdx", hash, {
+      expected: null,
       kind: "remove",
       range: { end: 16, start: 9 },
     });

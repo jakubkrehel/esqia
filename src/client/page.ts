@@ -33,6 +33,8 @@ export interface AppliedEdit {
 export interface PageSync {
   applied: (edit: AppliedEdit) => void;
   open: (opening: PageOpening) => RunPage;
+  refreshes: boolean;
+  reverted: () => void;
 }
 
 export interface EditingHost {

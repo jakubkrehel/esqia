@@ -100,3 +100,46 @@ export function spacerInPlace(tr: Transaction, $from: ResolvedPos) {
   tr.replaceWith(before, $from.after(), [spacer.create(), paragraph.create()]);
   tr.setSelection(TextSelection.near(tr.doc.resolve(before + 2)));
 }
+
+export function moveCurrentBlock(editor: Editor, direction: -1 | 1): boolean {
+  const { selection } = editor.state;
+  const { $from, $to } = selection;
+  const nodeSelected = selection instanceof NodeSelection;
+  const depth = $from.parent.type.name === "listItem" ? 2 : 1;
+  const level = nodeSelected ? $from.depth : depth - 1;
+  if (
+    (!nodeSelected && ($from.depth < depth || !$from.sameParent($to))) ||
+    (nodeSelected && level !== 0)
+  ) {
+    return false;
+  }
+  const parent = $from.node(level);
+  const index = $from.index(level);
+  const neighbour = parent.maybeChild(index + direction);
+  if (!neighbour) {
+    return true;
+  }
+  const node = parent.child(index);
+  const start = nodeSelected ? $from.pos : $from.before(depth);
+  const end = start + node.nodeSize;
+  const { tr } = editor.state;
+  let moved: number;
+  if (direction < 0) {
+    moved = start - neighbour.nodeSize;
+    tr.delete(start, end).insert(moved, node);
+  } else {
+    moved = start + neighbour.nodeSize;
+    tr.insert(end + neighbour.nodeSize, node).delete(start, end);
+  }
+  tr.setSelection(
+    nodeSelected
+      ? NodeSelection.create(tr.doc, moved)
+      : TextSelection.create(
+          tr.doc,
+          moved + ($from.pos - start),
+          moved + ($to.pos - start)
+        )
+  );
+  editor.view.dispatch(tr.scrollIntoView());
+  return true;
+}

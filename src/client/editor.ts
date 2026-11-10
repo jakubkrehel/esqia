@@ -26,7 +26,7 @@ import type { DOMOutputSpec } from "@tiptap/pm/model";
 import Suggestion from "@tiptap/suggestion";
 import type { ClientConfig } from "../shared/config";
 import { LINE_BREAK } from "../shared/markdown";
-import { type SlashState, spacerInPlace } from "./commands";
+import { moveCurrentBlock, type SlashState, spacerInPlace } from "./commands";
 import { createListExtensions } from "./lists";
 import { jsxBlockPreview, type Rendered, type Templates } from "./templates";
 
@@ -222,6 +222,8 @@ export function createExtensions({
               .run();
           },
           Enter: ({ editor }) => spacers && splitWithSpacer(editor, true),
+          "Mod-Shift-ArrowDown": ({ editor }) => moveCurrentBlock(editor, 1),
+          "Mod-Shift-ArrowUp": ({ editor }) => moveCurrentBlock(editor, -1),
           "Shift-Enter": ({ editor }) => splitWithSpacer(editor, false),
         };
       },

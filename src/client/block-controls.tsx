@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { EDITABLE } from "../shared/markdown";
 import { Anchored } from "./anchored";
 import type { Block } from "./blocks";
 import type { SlashItem } from "./commands";
@@ -11,8 +12,10 @@ import {
   PAD,
   type Rect,
 } from "./geometry";
-import { GripIcon, PlusIcon, TrashIcon } from "./icons";
+import { CodeIcon, GripIcon, PlusIcon, TrashIcon } from "./icons";
 import { MenuItem } from "./menu-item";
+import type { SourceDraft } from "./source-draft";
+import { SourcePanel } from "./source-panel";
 
 interface Drag {
   block: Block;
@@ -26,6 +29,9 @@ interface BlockControlsProps {
   onDelete: (block: Block) => void;
   onInsert: (block: Block, item: SlashItem) => void;
   onMove: (block: Block, target: Block | null) => void;
+  onOpen?: (block: Block) => void;
+  onSource?: (block: Block) => void;
+  source: SourceDraft | null;
 }
 
 export function BlockControls({
@@ -34,6 +40,9 @@ export function BlockControls({
   onMove,
   onInsert,
   onDelete,
+  onOpen,
+  onSource,
+  source,
 }: BlockControlsProps) {
   const [hover, setHover] = useState<Block | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -116,7 +125,7 @@ export function BlockControls({
     window.addEventListener("pointerup", onPointerUp);
   };
 
-  const block = drag?.block ?? menu ?? hover;
+  const block = drag?.block ?? menu ?? source?.block ?? hover;
   const geometry = block && measureBlock(block);
 
   return (
@@ -139,7 +148,16 @@ export function BlockControls({
               onDelete(block);
             }}
             onGrip={(event) => startDrag(event, block)}
+            onSource={
+              onSource && !EDITABLE.has(block.type)
+                ? () => {
+                    setMenu(null);
+                    onSource(block);
+                  }
+                : undefined
+            }
             ref={gutter}
+            sourcing={source?.block.el === block.el}
             style={gutterPosition(geometry)}
           />
         </>
@@ -174,6 +192,13 @@ export function BlockControls({
           ))}
         </Anchored>
       )}
+      {source && (
+        <SourcePanel
+          anchor={gutter}
+          draft={source}
+          onOpen={onOpen ? () => onOpen(source.block) : undefined}
+        />
+      )}
     </>
   );
 }
@@ -184,7 +209,9 @@ function Gutter({
   onAdd,
   onDelete,
   onGrip,
+  onSource,
   ref,
+  sourcing,
   style,
 }: {
   adding: boolean;
@@ -192,11 +219,24 @@ function Gutter({
   onAdd: () => void;
   onDelete: () => void;
   onGrip: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  onSource?: () => void;
   ref: React.Ref<HTMLDivElement>;
+  sourcing: boolean;
   style: React.CSSProperties;
 }) {
   return (
     <div className="gutter" ref={ref} style={style}>
+      {onSource && (
+        <button
+          aria-expanded={sourcing}
+          aria-label="Edit source"
+          data-active={sourcing ? "" : undefined}
+          onClick={onSource}
+          type="button"
+        >
+          <CodeIcon />
+        </button>
+      )}
       <button aria-label="Delete block" onClick={onDelete} type="button">
         <TrashIcon />
       </button>

@@ -20,33 +20,15 @@ export interface Backend {
   ) => Promise<{ hash: string; ops: Op[] }>;
   notice: string | null;
   open?: (file: string, line: number) => Promise<void>;
-  redo?: (file: string) => Promise<{ hash: string }>;
+  redo: (file: string) => Promise<{ hash: string }>;
   revert: () => Promise<{ reverted: string[]; skipped: string[] }>;
   source: (file: string) => Promise<{ source: string; hash: string }>;
-  undo?: (file: string) => Promise<{ hash: string }>;
+  undo: (file: string) => Promise<{ hash: string }>;
 }
 
 const url = process.env.NEXT_PUBLIC_ESQIA_URL;
-const token = process.env.NEXT_PUBLIC_ESQIA_TOKEN ?? "";
 
 export const configured = Boolean(url);
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${url}${path}`, {
-    ...init,
-    headers: { "x-esqia-token": token, ...init.headers },
-  });
-  const body = (await response.json().catch(() => ({}))) as T & {
-    error?: string;
-  };
-  if (isOutcome(body)) {
-    settle(body);
-  }
-  if (!response.ok) {
-    throw new Error(body.error ?? `esqia: ${response.status}`);
-  }
-  return body;
-}
 
 const post = (body: unknown): RequestInit => ({
   body: JSON.stringify(body),
@@ -54,34 +36,58 @@ const post = (body: unknown): RequestInit => ({
   method: "POST",
 });
 
-export const sidecar: Backend = {
-  changes: () => request<Changes>("/changes"),
-  config: () => request<ClientConfig>("/config"),
-  edit: (file, hash, intent, group) =>
-    request<{ hash: string; ops: Op[] }>(
-      "/edit",
-      post({ file, group, hash, intent })
-    ),
-  notice: null,
-  open: async (file, line) => {
-    const params = new URLSearchParams({
-      column1: "1",
-      file,
-      line1: String(line),
+export function sidecarBackend(address: string, token: string): Backend {
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await fetch(`${address}${path}`, {
+      ...init,
+      headers: { "x-esqia-token": token, ...init.headers },
     });
-    const response = await fetch(`/__nextjs_launch-editor?${params}`);
-    if (!response.ok) {
-      throw new Error(`Couldn't open ${file} in your editor.`);
+    const body = (await response.json().catch(() => ({}))) as T & {
+      error?: string;
+    };
+    if (isOutcome(body)) {
+      settle(body);
     }
-  },
-  redo: (file) => request<{ hash: string }>("/redo", post({ file })),
-  revert: () =>
-    request<{ reverted: string[]; skipped: string[] }>("/revert", {
-      method: "POST",
-    }),
-  source: (file) =>
-    request<{ source: string; hash: string }>(
-      `/source?file=${encodeURIComponent(file)}`
-    ),
-  undo: (file) => request<{ hash: string }>("/undo", post({ file })),
-};
+    if (!response.ok) {
+      throw new Error(body.error ?? `esqia: ${response.status}`);
+    }
+    return body;
+  }
+
+  return {
+    changes: () => request<Changes>("/changes"),
+    config: () => request<ClientConfig>("/config"),
+    edit: (file, hash, intent, group) =>
+      request<{ hash: string; ops: Op[] }>(
+        "/edit",
+        post({ file, group, hash, intent })
+      ),
+    notice: null,
+    open: async (file, line) => {
+      const params = new URLSearchParams({
+        column1: "1",
+        file,
+        line1: String(line),
+      });
+      const response = await fetch(`/__nextjs_launch-editor?${params}`);
+      if (!response.ok) {
+        throw new Error(`Couldn't open ${file} in your editor.`);
+      }
+    },
+    redo: (file) => request<{ hash: string }>("/redo", post({ file })),
+    revert: () =>
+      request<{ reverted: string[]; skipped: string[] }>("/revert", {
+        method: "POST",
+      }),
+    source: (file) =>
+      request<{ source: string; hash: string }>(
+        `/source?file=${encodeURIComponent(file)}`
+      ),
+    undo: (file) => request<{ hash: string }>("/undo", post({ file })),
+  };
+}
+
+export const sidecar = sidecarBackend(
+  url ?? "",
+  process.env.NEXT_PUBLIC_ESQIA_TOKEN ?? ""
+);

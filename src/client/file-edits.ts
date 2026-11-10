@@ -1,19 +1,23 @@
-import type { Intent, Op } from "../shared/ops";
+import type { BlockRange, Intent, Op } from "../shared/ops";
 import { type Backend, ConflictError } from "./api";
-import type { PageOpening, PageSync } from "./page";
+import type { PageSync, RunPage } from "./page";
 import { RunSave } from "./run-save";
 
-export interface RunOpening extends PageOpening {
+export interface RunOpening {
   at: "run" | "after";
   body: () => string;
+  file: string;
   onFailed: (message: string) => void;
   onSaved: () => void;
   onSaving: (saving: boolean) => void;
+  page: RunPage;
+  range: BlockRange;
   source: string;
+  version: string;
 }
 
 export interface RunEdits {
-  close: (discard: boolean) => Promise<boolean>;
+  close: () => Promise<boolean>;
   schedule: () => void;
 }
 

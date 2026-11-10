@@ -12,7 +12,9 @@ export function memoryBackend(store: FileStore, config: ClientConfig): Backend {
     edit: async (name, hash, intent, group) =>
       settle(await history.edit(name, hash, intent, group)),
     notice: "Edits stay in this tab. Install esqia to save them to your files.",
+    redo: async (name) => settle(await history.redo(name)),
     revert: () => history.revertAll(),
     source: (name) => history.source(name),
+    undo: async (name) => settle(await history.undo(name)),
   };
 }

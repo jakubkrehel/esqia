@@ -88,6 +88,17 @@ describe("ops", () => {
     );
   });
 
+  it("refuses to delete a block whose text is not the one expected", () => {
+    const [first, second] = [blocks[1], blocks[3]];
+    expect(apply(removeOps(source, first, "First."))).toBe(
+      "# Title\n\n<br />\n\nSecond.\n\n<Demo />\n"
+    );
+    expect(applyOps(source, removeOps(source, second, "Changed."))).toEqual({
+      ok: false,
+      reason: "The file changed on disk.",
+    });
+  });
+
   it("removes a span with the gap around it", () => {
     const remove = (text: string, start: number, end = start) => {
       const result = applyOps(text, removeOps(text, { end, start }));

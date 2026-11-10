@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { editableBlockAt } from "./blocks";
+import { blockAt, editableBlockAt } from "./blocks";
 import type { Session } from "./session";
 
 export function usePageClicks(
@@ -31,6 +31,13 @@ export function usePageClicks(
         if (target.closest("a")) {
           event.preventDefault();
         }
+        return;
+      }
+      const sourceOf = event.altKey && session.canOpen && blockAt(target);
+      if (sourceOf) {
+        event.preventDefault();
+        event.stopPropagation();
+        void session.openInEditor(sourceOf);
         return;
       }
       const block = editableBlockAt(target);

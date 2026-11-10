@@ -43,9 +43,13 @@ Keep `esqia/remark` last. The button sits bottom-left, where Next shows its dev 
 | | |
 | --- | --- |
 | Select text | Toolbar: Text / H2 / H3, bold, italic, code, link, your `marks` |
+| ⌘K on a selection | Adds or edits its link |
+| ⌘⇧↑ / ⌘⇧↓ | Moves the block or list item under the caret |
 | `/` on an empty line | Headings, code block, spacer, image, video, your `snippets` |
 | Paste or drop an image/video | Uploads it (Vercel Blob if `BLOB_READ_WRITE_TOKEN` is set, else `public/`) and inserts `media.image` / `media.video` |
 | Hover a block | `+` adds a paragraph below; drag the grip to move it; click the grip to delete it |
+| Hover a component | `</>` opens its MDX source; ⌘↵ saves, Esc cancels |
+| ⌥-click a block | Opens your editor at that block's line |
 | Esc or click away | Saves and hands the page back |
 | ⌘Z outside the editor | Undoes the last write |
 

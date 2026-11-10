@@ -1,5 +1,5 @@
 import { posToDOMRect } from "@tiptap/core";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { ClientConfig } from "../shared/config";
 import { Anchored } from "./anchored";
 import { markOpen } from "./editor";
@@ -21,15 +21,34 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
   const setLinking = (href: string | null) =>
     setLinkDraft(href === null ? null : { from, href });
   const inCode = editor.isActive("codeBlock");
+  const linkField = useRef<HTMLInputElement>(null);
   const settled = useSettledSelection(editor.view.dom, `${from}:${to}`);
 
-  const open = !(
-    empty ||
-    !hasText ||
-    inCode ||
-    !settled ||
-    (!editor.view.hasFocus() && linking === null)
-  );
+  const open =
+    linking !== null ||
+    !(empty || !hasText || inCode || !settled || !editor.view.hasFocus());
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const { selection } = editor.state;
+      if (
+        !(event.metaKey || event.ctrlKey) ||
+        event.key.toLowerCase() !== "k" ||
+        selection.empty ||
+        editor.isActive("codeBlock")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setLinkDraft({
+        from: selection.from,
+        href: (editor.getAttributes("link").href as string | undefined) ?? "",
+      });
+    };
+    const { dom } = editor.view;
+    dom.addEventListener("keydown", onKeyDown);
+    return () => dom.removeEventListener("keydown", onKeyDown);
+  }, [editor]);
 
   const chain = () => editor.chain().focus();
   const button = (
@@ -76,6 +95,7 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
     <Anchored
       className="panel toolbar"
       context={editor.view.dom}
+      focus={linking === null ? undefined : linkField}
       gap={8}
       open={open}
       placement="top"
@@ -124,7 +144,6 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
         >
           <input
             aria-label="Link URL"
-            autoFocus
             onChange={(event) => setLinking(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
@@ -133,6 +152,7 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
               }
             }}
             placeholder="Paste a link, or leave empty to remove"
+            ref={linkField}
             value={linking}
           />
         </form>

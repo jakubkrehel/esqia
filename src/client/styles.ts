@@ -100,12 +100,12 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .tip[data-open] { opacity: 1; scale: 1; transition-duration: 200ms; }
 .tip:has(.keys) { padding-right: 6px; }
 .tip .keys { display: flex; align-items: center; gap: 2px; }
-.tip kbd {
+.tip kbd, .source kbd {
   display: inline-flex; align-items: center; justify-content: center; flex: none; height: 20px; min-width: 20px;
   border: 1px solid var(--key-line); border-radius: 4px; background: var(--key-fill); color: var(--muted);
   font-family: inherit; font-size: 11px; font-weight: 450; line-height: 16px; text-transform: uppercase; user-select: none;
 }
-.tip kbd[data-glyph="⌘"] { padding-bottom: 2px; }
+.tip kbd[data-glyph="⌘"], .source kbd[data-glyph="⌘"] { padding-bottom: 2px; }
 .tip[data-instant] { transition-duration: 0s; }
 @starting-style { .tip[data-open] { opacity: 0; scale: 0.95; } }
 .bar[data-corner^="top"] .tip { top: calc(100% + 8px); bottom: auto; transform-origin: top center; }
@@ -194,6 +194,38 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   text-align: left; cursor: pointer;
 }
 .menu button:hover, .menu button[data-active] { background: var(--menu-hover); }
+.source {
+  width: min(560px, calc(100vw - 16px)); border-radius: 12px; overflow: hidden;
+  box-shadow: 0 0 0 1px var(--line), 0 4px 12px -2px rgb(0 0 0 / 0.08);
+}
+.source[data-state="open"] { animation: source-in 200ms var(--expand); }
+@keyframes source-in { from { opacity: 0; translate: 0 -4px; } }
+.source-body[data-shaking] { animation: shake 280ms ease-in-out; }
+@keyframes shake { 25% { translate: -3px 0; } 75% { translate: 3px 0; } }
+.source textarea {
+  display: block; width: 100%; min-height: 72px; max-height: 50vh; field-sizing: content;
+  margin: 0; padding: 12px 14px; border: 0; outline: none; resize: none; tab-size: 2;
+  background: transparent; color: var(--text); caret-color: var(--outline);
+  font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.source-body[data-saving] textarea { opacity: 0.5; }
+.source-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 36px; padding: 0 8px 0 6px; border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--faint);
+}
+.source-file {
+  min-width: 0; height: 24px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); cursor: pointer;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  transition: background-color 200ms ease-out, color 200ms ease-out;
+}
+.source-file:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.source-file:disabled { cursor: default; }
+.source-problem { min-width: 0; padding-inline-start: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--danger); }
+.source-keys { display: flex; flex-shrink: 0; align-items: center; gap: 12px; }
+.source-keys > span { display: flex; align-items: center; gap: 6px; }
+.source-keys .keys { display: flex; gap: 2px; }
 .hint { color: var(--faint); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 @keyframes pulse { 50% { opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) {

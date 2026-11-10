@@ -41,7 +41,7 @@ export interface BlockRange {
 
 export type Intent =
   | { kind: "replace"; op: Op }
-  | { kind: "remove"; range: BlockRange }
+  | { kind: "remove"; range: BlockRange; expected: string | null }
   | {
       kind: "move";
       range: BlockRange;
@@ -54,7 +54,7 @@ export function intentOps(source: string, intent: Intent): Op[] {
     case "replace":
       return [intent.op];
     case "remove":
-      return removeOps(source, intent.range);
+      return removeOps(source, intent.range, intent.expected ?? undefined);
     case "move":
       return moveOps(source, intent.blocks, intent.range, intent.target);
     default:
@@ -85,7 +85,11 @@ export function moveOps(
   ];
 }
 
-export function removeOps(source: string, range: BlockRange): Op[] {
+export function removeOps(
+  source: string,
+  range: BlockRange,
+  block = source.slice(range.start, range.end)
+): Op[] {
   let { start, end } = range;
   while (start > 0 && /\s/.test(source[start - 1] ?? "")) {
     start--;
@@ -99,7 +103,8 @@ export function removeOps(source: string, range: BlockRange): Op[] {
   } else if (start === 0) {
     text = "";
   }
-  const expected = source.slice(start, end);
+  const expected =
+    source.slice(start, range.start) + block + source.slice(range.end, end);
   return expected === text ? [] : [{ end, expected, start, text }];
 }
 

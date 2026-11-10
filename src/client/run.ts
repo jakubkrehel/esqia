@@ -6,6 +6,7 @@ import type { Block } from "./blocks";
 import { type Caret, placeCaret } from "./caret";
 import { createExtensions } from "./editor";
 import type { FileEdits, RunEdits } from "./file-edits";
+import type { PageSync } from "./page";
 import { parseRun } from "./parse-run";
 import { serializeRun } from "./serialize-run";
 import { SlashMenuStore } from "./slash-menu";
@@ -41,6 +42,7 @@ export interface RunOptions {
   onSaved: () => void;
   placement: Placement;
   source: string;
+  sync: PageSync;
 }
 
 export class Run extends Store<RunSnapshot> {
@@ -56,7 +58,7 @@ export class Run extends Store<RunSnapshot> {
   constructor(options: RunOptions) {
     super(IDLE_RUN);
     const { at, blocks, mount, range } = options.placement;
-    const { config, edits, file, hash, source } = options;
+    const { config, edits, file, hash, source, sync } = options;
     this.file = file;
     this.onClose = options.onClose;
     const style = { ...detectStyle(source), smartypants: config.smartypants };
@@ -88,18 +90,23 @@ export class Run extends Store<RunSnapshot> {
 
     this.saves = edits.openRun({
       at,
-      blocks,
       body: () => serializeRun(this.editor.state.doc, originals, style),
-      editor: this.editor,
       file,
       onFailed: (message) => {
         options.onError(message);
-        void this.close(true);
+        void this.close();
       },
       onSaved: options.onSaved,
       onSaving: (saving) => this.update({ saving }),
+      page: sync.open({
+        blocks,
+        editor: this.editor,
+        file,
+        range,
+        root: this.root,
+        version: hash,
+      }),
       range,
-      root: this.root,
       source,
       version: hash,
     });
@@ -119,9 +126,9 @@ export class Run extends Store<RunSnapshot> {
     }
   }
 
-  close(discard = false): Promise<void> {
+  close(): Promise<void> {
     this.closing ??= (async () => {
-      const settled = await this.saves.close(discard);
+      const settled = await this.saves.close();
       if (settled) {
         this.editor.destroy();
         this.root.remove();
