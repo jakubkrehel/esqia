@@ -136,6 +136,7 @@ export function Chrome({
   useShortcuts({
     editing: mode === "edit",
     hasRun: () => session.getSnapshot().run !== null,
+    onLeave: () => setMode("read"),
     onRedo: session.canRedo ? () => session.redo() : undefined,
     onToggle: () => setMode(toggled),
     onUndo: session.canUndo ? () => session.undo() : undefined,
@@ -207,6 +208,7 @@ function RunMenu({ config, run }: { config: ClientConfig; run: Run }) {
 
 function sourceActions(session: Session) {
   return {
+    lineOf: session.canOpen ? session.lineOf : undefined,
     onOpen: session.canOpen
       ? (block: Block) => session.openInEditor(block)
       : undefined,
@@ -221,6 +223,7 @@ const toggled = (mode: Mode): Mode => (mode === "edit" ? "read" : "edit");
 function useShortcuts(options: {
   editing: boolean;
   hasRun: () => boolean;
+  onLeave: () => void;
   onRedo?: () => void;
   onToggle: () => void;
   onUndo?: () => void;
@@ -232,6 +235,14 @@ function useShortcuts(options: {
       if (mod && !event.shiftKey && key === "e") {
         event.preventDefault();
         options.onToggle();
+        return;
+      }
+      if (
+        event.key === "Escape" &&
+        options.editing &&
+        !(event.defaultPrevented || options.hasRun() || isTyping())
+      ) {
+        options.onLeave();
         return;
       }
       const step = event.shiftKey ? options.onRedo : options.onUndo;

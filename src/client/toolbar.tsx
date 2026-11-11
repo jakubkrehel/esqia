@@ -79,6 +79,7 @@ export function Toolbar({
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         setConfirmAt(null);
       }
     };

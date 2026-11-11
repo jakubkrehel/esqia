@@ -1,3 +1,4 @@
+import { BLOCK_SELECTOR } from "../shared/wrapper";
 import { blockOfType } from "./blocks";
 
 export const CHROME_CSS = `
@@ -135,10 +136,20 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   position: fixed; max-width: min(420px, calc(100vw - 40px)); padding: 6px 12px; border-radius: 8px;
   background: var(--surface); box-shadow: var(--shadow); pointer-events: none !important;
 }
+.toast { transition: opacity 200ms ease-out, scale 200ms ease-out; }
+@starting-style { .toast { opacity: 0; scale: 0.96; } }
 .toast[data-tone="error"] { color: var(--danger); }
 .outline {
   position: fixed; border-radius: 8px; pointer-events: none !important;
   box-shadow: 0 0 0 2px var(--outline);
+}
+.outline, .gutter, .tag { transition: opacity 100ms ease-out; }
+@starting-style { .outline, .gutter, .tag { opacity: 0; } }
+.tag {
+  position: fixed; height: 24px; padding: 0 8px; border-radius: 6px; pointer-events: none !important;
+  display: flex; align-items: center; white-space: nowrap;
+  background: var(--surface); box-shadow: var(--shadow); color: var(--muted);
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .outline.dragging { background: color-mix(in oklab, var(--outline) 8%, transparent); }
 .gutter { position: fixed; display: flex; gap: 2px; }
@@ -153,6 +164,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .gutter .grip { cursor: grab; touch-action: none; }
 .gutter .grip:active { cursor: grabbing; }
 .indicator { position: fixed; height: 2px; border-radius: 1px; background: var(--outline); pointer-events: none !important; }
+.indicator[data-glide] { transition: top 120ms ease-out; }
 .panel { position: fixed; background: var(--surface); box-shadow: var(--shadow); }
 .toolbar[data-placement^="top"] { transform-origin: bottom center; }
 .toolbar[data-placement^="bottom"] { transform-origin: top center; }
@@ -187,6 +199,10 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   display: flex; flex-direction: column; border-radius: 12px;
   box-shadow: 0 0 0 1px var(--line), 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
+.menu[data-placement^="top"] { transform-origin: bottom left; }
+.menu[data-placement^="bottom"] { transform-origin: top left; }
+.menu[data-state="open"] { animation: menu-in 150ms ease-out; }
+@keyframes menu-in { from { opacity: 0; scale: 0.97; } }
 .menu button {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent;
@@ -233,6 +249,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 `;
 
 export const PAGE_CSS = `
+[data-esqia-open] ${BLOCK_SELECTOR}, [data-esqia-open] ${BLOCK_SELECTOR} * { cursor: pointer !important; }
 [data-esqia-mode="edit"] ${blockOfType("paragraph")} > *,
 [data-esqia-mode="edit"] ${blockOfType("heading")} > *,
 [data-esqia-mode="edit"] ${blockOfType("code")} > *,

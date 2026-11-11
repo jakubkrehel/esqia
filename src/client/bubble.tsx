@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { ClientConfig } from "../shared/config";
 import { Anchored } from "./anchored";
 import { markOpen } from "./editor";
-import { BoldIcon, CodeIcon, ItalicIcon, LinkIcon } from "./icons";
+import { BoldIcon, CodeLargeIcon, ItalicIcon, LinkIcon } from "./icons";
 import type { Run } from "./run";
 
 const SHOW_DELAY = 400;
@@ -27,28 +27,6 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
   const open =
     linking !== null ||
     !(empty || !hasText || inCode || !settled || !editor.view.hasFocus());
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const { selection } = editor.state;
-      if (
-        !(event.metaKey || event.ctrlKey) ||
-        event.key.toLowerCase() !== "k" ||
-        selection.empty ||
-        editor.isActive("codeBlock")
-      ) {
-        return;
-      }
-      event.preventDefault();
-      setLinkDraft({
-        from: selection.from,
-        href: (editor.getAttributes("link").href as string | undefined) ?? "",
-      });
-    };
-    const { dom } = editor.view;
-    dom.addEventListener("keydown", onKeyDown);
-    return () => dom.removeEventListener("keydown", onKeyDown);
-  }, [editor]);
 
   const chain = () => editor.chain().focus();
   const button = (
@@ -109,7 +87,7 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
           {button(<ItalicIcon />, "Italic", editor.isActive("italic"), () =>
             chain().toggleItalic().run()
           )}
-          {button(<CodeIcon />, "Code", editor.isActive("code"), () =>
+          {button(<CodeLargeIcon />, "Code", editor.isActive("code"), () =>
             chain().toggleCode().run()
           )}
           {button(<LinkIcon />, "Link", editor.isActive("link"), () =>

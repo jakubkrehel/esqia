@@ -1,4 +1,5 @@
 import { Editor, getSchema } from "@tiptap/core";
+import { NodeSelection, Selection } from "@tiptap/pm/state";
 import type { ClientConfig } from "../shared/config";
 import { detectStyle } from "../shared/markdown";
 import type { BlockRange } from "../shared/ops";
@@ -12,6 +13,11 @@ import { serializeRun } from "./serialize-run";
 import { SlashMenuStore } from "./slash-menu";
 import { Store } from "./store";
 import { matchLayout, sampleTemplates } from "./templates";
+
+const ARROWS: Record<string, -1 | 1 | undefined> = {
+  ArrowDown: 1,
+  ArrowUp: -1,
+};
 
 export interface RunSnapshot {
   revision: number;
@@ -39,6 +45,7 @@ export interface RunOptions {
   onClose: () => void;
   onError: (message: string) => void;
   onFocus: (run: Run) => void;
+  onLeave: (direction: -1 | 1, x: number) => boolean;
   onSaved: () => void;
   placement: Placement;
   source: string;
@@ -53,6 +60,7 @@ export class Run extends Store<RunSnapshot> {
 
   private readonly saves: RunEdits;
   private readonly onClose: () => void;
+  private readonly onLeave: RunOptions["onLeave"];
   private closing: Promise<void> | null = null;
 
   constructor(options: RunOptions) {
@@ -61,6 +69,7 @@ export class Run extends Store<RunSnapshot> {
     const { config, edits, file, hash, source, sync } = options;
     this.file = file;
     this.onClose = options.onClose;
+    this.onLeave = options.onLeave;
     const style = { ...detectStyle(source), smartypants: config.smartypants };
 
     this.root = document.createElement("div");
@@ -139,10 +148,41 @@ export class Run extends Store<RunSnapshot> {
   }
 
   private handleKeyDown(event: KeyboardEvent): boolean {
-    if (event.key === "Escape" && !this.slash.open) {
+    if (this.slash.open) {
+      return false;
+    }
+    if (event.key === "Escape") {
       void this.close();
       return true;
     }
-    return false;
+    const direction = ARROWS[event.key];
+    if (
+      !direction ||
+      event.shiftKey ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      !this.atEdge(direction)
+    ) {
+      return false;
+    }
+    const { view } = this.editor;
+    return this.onLeave(
+      direction,
+      view.coordsAtPos(view.state.selection.head).left
+    );
+  }
+
+  private atEdge(direction: -1 | 1): boolean {
+    const { doc, selection } = this.editor.state;
+    const edge = direction < 0 ? Selection.atStart(doc) : Selection.atEnd(doc);
+    if (selection instanceof NodeSelection) {
+      return selection.eq(edge);
+    }
+    return (
+      selection.empty &&
+      selection.$head.sameParent(edge.$head) &&
+      this.editor.view.endOfTextblock(direction < 0 ? "up" : "down")
+    );
   }
 }

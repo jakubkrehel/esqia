@@ -25,6 +25,10 @@ const HIT_SLOP = { bottom: 4, left: 64, right: 16, top: 4 };
 const DROP_LINE = 2;
 const DROP_EDGE_GAP = 6;
 const FIRST_LINE_REACH = 64;
+const SCROLL_EDGE = 80;
+const SCROLL_SPEED = 18;
+const TAG_HEIGHT = 24;
+const TAG_GAP = 4;
 
 export function hitTest(x: number, y: number): Block | null {
   let best: { block: Block; area: number } | null = null;
@@ -89,6 +93,16 @@ export function dropTarget(
   };
 }
 
+export function edgeScroll(y: number): number {
+  const speed = (distance: number) =>
+    Math.ceil(SCROLL_SPEED * (1 - Math.max(distance, 0) / SCROLL_EDGE));
+  const fromBottom = window.innerHeight - y;
+  if (y < SCROLL_EDGE) {
+    return -speed(y);
+  }
+  return fromBottom < SCROLL_EDGE ? speed(fromBottom) : 0;
+}
+
 export function measureBlock(block: Block): Geometry | null {
   const rect = blockRect(block.el);
   if (!rect) {
@@ -148,11 +162,52 @@ function firstLineRect(el: HTMLElement): DOMRect | null {
   return range.getClientRects()[0] ?? null;
 }
 
+function lastLineRect(el: HTMLElement): DOMRect | null {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let text: Node | null = null;
+  while (walker.nextNode()) {
+    if (walker.currentNode.textContent?.trim()) {
+      text = walker.currentNode;
+    }
+  }
+  if (!text?.textContent) {
+    return null;
+  }
+  const end = text.textContent.trimEnd().length;
+  const range = document.createRange();
+  range.setStart(text, end - 1);
+  range.setEnd(text, end);
+  return range.getClientRects()[0] ?? null;
+}
+
+export function edgePoint(
+  el: HTMLElement,
+  direction: -1 | 1,
+  x: number
+): { x: number; y: number } | undefined {
+  const line = direction > 0 ? firstLineRect(el) : lastLineRect(el);
+  const bounds = blockRect(el);
+  if (!(line && bounds)) {
+    return;
+  }
+  return {
+    x: Math.min(Math.max(x, bounds.left + 1), bounds.right - 1),
+    y: line.top + line.height / 2,
+  };
+}
+
 export function gutterPosition(geometry: Geometry) {
   return {
     left: geometry.rect.left - PAD - HANDLE_GAP,
     top: geometry.handleTop,
     transform: "translateX(-100%)",
+  };
+}
+
+export function tagPosition(geometry: Geometry) {
+  return {
+    left: geometry.rect.left - PAD,
+    top: Math.max(TAG_GAP, geometry.rect.top - PAD - TAG_GAP - TAG_HEIGHT),
   };
 }
 

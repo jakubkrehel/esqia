@@ -4,6 +4,7 @@ import type { Intent } from "../shared/ops";
 import { type Backend, errorText } from "./api";
 import {
   type Block,
+  editableBeside,
   firstFile,
   moveIntent,
   readBlock,
@@ -13,7 +14,7 @@ import {
 import { type Caret, textRangeIn } from "./caret";
 import { EditSequence, type Newest, type Settle } from "./edit-sequence";
 import { FileEdits } from "./file-edits";
-import { firstVisibleBlock } from "./geometry";
+import { edgePoint, firstVisibleBlock } from "./geometry";
 import type { EditingHost, PageSync } from "./page";
 import { type Placement, Run } from "./run";
 import { SourceDraft } from "./source-draft";
@@ -185,6 +186,7 @@ export class Session extends Store<SessionSnapshot> {
             this.update({ run: focused });
           }
         },
+        onLeave: (direction, x) => this.leave(next, direction, x),
         onSaved: this.refreshChanges,
         placement,
         source,
@@ -203,6 +205,22 @@ export class Session extends Store<SessionSnapshot> {
         this.notify(errorText(error), "error");
       }
     }
+  }
+
+  private leave(run: Run, direction: -1 | 1, x: number): boolean {
+    const block = editableBeside(run.root, run.file, direction);
+    if (!block) {
+      return false;
+    }
+    (block.el.firstElementChild ?? block.el).scrollIntoView({
+      block: "nearest",
+    });
+    void this.open({
+      at: "run",
+      block,
+      caret: edgePoint(block.el, direction, x),
+    });
+    return true;
   }
 
   private isCurrent(newest: Newest, block: Block, version: string) {
@@ -309,14 +327,18 @@ export class Session extends Store<SessionSnapshot> {
     }
   }
 
+  readonly lineOf = async (block: Pick<Block, "file" | "start">) => {
+    const { source } = await this.backend.source(block.file);
+    return lineAt(source, block.start);
+  };
+
   async openInEditor(block = firstVisibleBlock()) {
     const { open } = this.backend;
     if (!(open && block)) {
       return;
     }
     try {
-      const { source } = await this.backend.source(block.file);
-      await open(block.file, lineAt(source, block.start));
+      await open(block.file, await this.lineOf(block));
     } catch (error) {
       this.notify(errorText(error), "error");
     }

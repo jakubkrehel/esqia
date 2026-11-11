@@ -6,19 +6,26 @@ import type { SlashItem } from "./commands";
 import {
   box,
   dropTarget,
+  edgeScroll,
   gutterPosition,
   hitTest,
   measureBlock,
   PAD,
   type Rect,
+  tagPosition,
 } from "./geometry";
 import { CodeIcon, GripIcon, PlusIcon, TrashIcon } from "./icons";
 import { MenuItem } from "./menu-item";
 import type { SourceDraft } from "./source-draft";
 import { SourcePanel } from "./source-panel";
 
+const MODIFIERS = new Set(["Alt", "Control", "Meta", "Shift"]);
+
+type LineOf = (block: Pick<Block, "file" | "start">) => Promise<number>;
+
 interface Drag {
   block: Block;
+  glide: boolean;
   line: Rect | null;
   moved: boolean;
 }
@@ -26,6 +33,7 @@ interface Drag {
 interface BlockControlsProps {
   host: HTMLElement;
   inserts: SlashItem[];
+  lineOf?: LineOf;
   onDelete: (block: Block) => void;
   onInsert: (block: Block, item: SlashItem) => void;
   onMove: (block: Block, target: Block | null) => void;
@@ -37,6 +45,7 @@ interface BlockControlsProps {
 export function BlockControls({
   host,
   inserts,
+  lineOf,
   onMove,
   onInsert,
   onDelete,
@@ -52,10 +61,11 @@ export function BlockControls({
   useEffect(() => {
     let frame = 0;
     let pointer = { x: -1, y: -1 };
+    let typing = false;
 
     const measure = () => {
       frame = 0;
-      setHover(hitTest(pointer.x, pointer.y));
+      setHover(typing ? null : hitTest(pointer.x, pointer.y));
     };
     const schedule = () => {
       frame ||= requestAnimationFrame(measure);
@@ -65,6 +75,21 @@ export function BlockControls({
         return;
       }
       pointer = { x: event.clientX, y: event.clientY };
+      typing = false;
+      schedule();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      const { target } = event;
+      if (
+        MODIFIERS.has(event.key) ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        !(target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      typing = true;
       schedule();
     };
     const onPointerDown = (event: PointerEvent) => {
@@ -80,12 +105,14 @@ export function BlockControls({
       passive: true,
     });
     window.addEventListener("resize", schedule);
+    window.addEventListener("keydown", onKeyDown, true);
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
+      window.removeEventListener("keydown", onKeyDown, true);
     };
   }, [host]);
 
@@ -95,9 +122,13 @@ export function BlockControls({
   ) => {
     event.preventDefault();
     const origin = { x: event.clientX, y: event.clientY };
+    let y = origin.y;
     let moved = false;
-    setDrag({ block, line: null, moved: false });
+    let frame = 0;
+    setDrag({ block, glide: false, line: null, moved: false });
 
+    const place = (glide: boolean) =>
+      setDrag({ block, glide, line: dropTarget(block, y).line, moved: true });
     const onPointerMove = (move: PointerEvent) => {
       if (
         !moved &&
@@ -106,23 +137,51 @@ export function BlockControls({
         return;
       }
       moved = true;
-      setDrag({
-        block,
-        line: dropTarget(block, move.clientY).line,
-        moved: true,
-      });
+      y = move.clientY;
+      place(true);
     };
-    const onPointerUp = (up: PointerEvent) => {
+    const onScroll = () => {
+      if (moved) {
+        place(false);
+      }
+    };
+    const scrollAtEdge = () => {
+      const speed = moved ? edgeScroll(y) : 0;
+      if (speed) {
+        window.scrollBy({ behavior: "instant", top: speed });
+      }
+      frame = requestAnimationFrame(scrollAtEdge);
+    };
+    const stop = () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("keydown", onKeyDown, true);
       setDrag(null);
       setHover(null);
+    };
+    const onPointerUp = (up: PointerEvent) => {
+      stop();
       if (moved) {
         onMove(block, dropTarget(block, up.clientY).target);
       }
     };
+    const onKeyDown = (key: KeyboardEvent) => {
+      if (key.key === "Escape") {
+        key.preventDefault();
+        key.stopPropagation();
+        stop();
+      }
+    };
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("scroll", onScroll, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("keydown", onKeyDown, true);
+    frame = requestAnimationFrame(scrollAtEdge);
   };
 
   const block = drag?.block ?? menu ?? source?.block ?? hover;
@@ -160,18 +219,15 @@ export function BlockControls({
             sourcing={source?.block.el === block.el}
             style={gutterPosition(geometry)}
           />
+          <OpenTag
+            block={block}
+            hidden={Boolean(drag)}
+            lineOf={lineOf}
+            style={tagPosition(geometry)}
+          />
         </>
       )}
-      {drag?.line && (
-        <div
-          className="indicator"
-          style={{
-            left: drag.line.left,
-            top: drag.line.top,
-            width: drag.line.width,
-          }}
-        />
-      )}
+      <DropLine drag={drag} />
       {menu && (
         <Anchored
           className="panel menu"
@@ -200,6 +256,103 @@ export function BlockControls({
         />
       )}
     </>
+  );
+}
+
+function DropLine({ drag }: { drag: Drag | null }) {
+  if (!drag?.line) {
+    return null;
+  }
+  const { left, top, width } = drag.line;
+  return (
+    <div
+      className="indicator"
+      data-glide={drag.glide ? "" : undefined}
+      style={{ left, top, width }}
+    />
+  );
+}
+
+function OpenTag({
+  block,
+  hidden,
+  lineOf,
+  style,
+}: {
+  block: Block;
+  hidden: boolean;
+  lineOf?: LineOf;
+  style: React.CSSProperties;
+}) {
+  const [alt, setAlt] = useState(false);
+  const opening = alt && lineOf !== undefined;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => setAlt(event.altKey);
+    const onPointerMove = (event: PointerEvent) => setAlt(event.altKey);
+    const onBlur = () => setAlt(false);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("keyup", onKey, true);
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("keyup", onKey, true);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!opening) {
+      return;
+    }
+    document.documentElement.dataset.esqiaOpen = "";
+    return () => {
+      delete document.documentElement.dataset.esqiaOpen;
+    };
+  }, [opening]);
+
+  if (!opening || hidden) {
+    return null;
+  }
+  return (
+    <OpenLabel
+      block={block}
+      key={`${block.file}:${block.start}`}
+      lineOf={lineOf}
+      style={style}
+    />
+  );
+}
+
+function OpenLabel({
+  block,
+  lineOf,
+  style,
+}: {
+  block: Block;
+  lineOf: LineOf;
+  style: React.CSSProperties;
+}) {
+  const [line, setLine] = useState<number | null>(null);
+  const { file, start } = block;
+
+  useEffect(() => {
+    let current = true;
+    lineOf({ file, start })
+      .then((found) => current && setLine(found))
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [file, start, lineOf]);
+
+  return (
+    <div className="tag" style={style}>
+      {file.split("/").at(-1)}
+      {line !== null && `:${line}`}
+    </div>
   );
 }
 

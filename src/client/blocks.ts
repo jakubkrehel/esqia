@@ -67,6 +67,20 @@ export function runAround(block: Block): Block[] {
   );
 }
 
+export function editableBeside(
+  root: Node,
+  file: string,
+  direction: -1 | 1
+): Block | null {
+  const run = document.createRange();
+  run.selectNode(root);
+  const beside = fileWrappers(file)
+    .filter((el) => !isHidden(el) && run.comparePoint(el, 0) === direction)
+    .map(readBlock)
+    .filter((block) => EDITABLE.has(block.type));
+  return beside.at(direction < 0 ? -1 : 0) ?? null;
+}
+
 export function blockOfType(type: BlockType): string {
   return `[${WRAPPER.type}="${type}"]`;
 }
