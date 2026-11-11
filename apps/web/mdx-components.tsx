@@ -62,7 +62,7 @@ const components: MDXComponents = {
   ),
   pre: (props) => (
     <pre
-      className="overflow-x-auto p-4 font-mono text-[13px] **:font-mono"
+      className="overflow-x-auto p-4 font-mono text-small **:font-mono"
       {...props}
     />
   ),
