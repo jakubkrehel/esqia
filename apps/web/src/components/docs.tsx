@@ -1,3 +1,4 @@
+import pierreDarkVibrant from "@pierre/theme/pierre-dark-vibrant";
 import pierreLightVibrant from "@pierre/theme/pierre-light-vibrant";
 import { Fragment, type ReactNode } from "react";
 import {
@@ -45,6 +46,7 @@ function shikiTheme(theme: typeof pierreLightVibrant): ThemeRegistration {
 }
 
 const THEMES = {
+  dark: shikiTheme(pierreDarkVibrant),
   light: shikiTheme(pierreLightVibrant),
 };
 

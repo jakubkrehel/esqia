@@ -45,7 +45,7 @@ export function ToolbarGraphic() {
   return (
     <div
       aria-hidden="true"
-      className="flex w-max select-none items-center gap-1 rounded-full bg-preview-bg px-2 shadow-custom"
+      className="flex w-max select-none items-center gap-1 rounded-full bg-preview-bg px-2 shadow-custom dark:bg-gray-background"
     >
       <Action>
         <Glyph>

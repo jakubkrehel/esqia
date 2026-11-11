@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-const TIP_DELAY = 200;
+const TIP_DELAY = 400;
 const TIP_WARM_FOR = 300;
 
 type TipId = "undo" | "redo" | "revert" | "open" | "outline";

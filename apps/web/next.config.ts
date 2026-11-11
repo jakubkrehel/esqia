@@ -7,6 +7,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   devIndicators: { position: "bottom-right" },
+  images: {
+    remotePatterns: [
+      new URL("https://oiszjiwtfc65cwa2.public.blob.vercel-storage.com/**"),
+    ],
+  },
   pageExtensions: ["ts", "tsx", "md", "mdx"],
   reactCompiler: true,
   turbopack: {

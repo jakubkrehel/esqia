@@ -105,7 +105,6 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   border: 1px solid var(--key-line); border-radius: 4px; background: var(--key-fill); color: var(--muted);
   font-family: inherit; font-size: 11px; font-weight: 450; line-height: 16px; text-transform: uppercase; user-select: none;
 }
-.tip kbd[data-glyph="⌘"], .source kbd[data-glyph="⌘"] { padding-bottom: 2px; }
 .tip[data-instant] { transition-duration: 0s; }
 @starting-style { .tip[data-open] { opacity: 0; scale: 0.95; } }
 .bar[data-corner^="top"] .tip { top: calc(100% + 8px); bottom: auto; transform-origin: top center; }

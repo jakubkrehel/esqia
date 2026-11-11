@@ -15,8 +15,10 @@ type Manager = keyof typeof COMMANDS;
 
 const MANAGERS: Manager[] = ["npm", "pnpm", "yarn", "bun"];
 
-const PROGRAM_COLOR = "text-[color(display-p3_0.391345_0.215644_0.853560)]";
-const ARG_COLOR = "text-[color(display-p3_0.259723_0.647032_0.276349)]";
+const PROGRAM_COLOR =
+  "text-[color(display-p3_0.391345_0.215644_0.853560)] dark:text-[color(display-p3_0.615613_0.445256_1)]";
+const ARG_COLOR =
+  "text-[color(display-p3_0.259723_0.647032_0.276349)] dark:text-[color(display-p3_0.451324_0.823458_0.446819)]";
 
 function ManagerSwitch({
   onChange,

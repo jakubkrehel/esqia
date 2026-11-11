@@ -1,6 +1,7 @@
 import type { MDXComponents } from "mdx/types";
 import type { ComponentProps } from "react";
 import { Kbd } from "@/components/kbd";
+import { MDXBlockImage, MDXBlockVideo } from "@/components/mdx/media";
 import { Point } from "@/components/point";
 
 function Code({ className, ...props }: ComponentProps<"code">) {
@@ -27,7 +28,7 @@ const components: MDXComponents = {
   ),
   h1: ({ children, ...props }) => (
     <h1
-      className="mb-5 font-[550] font-text text-body text-gray-1200"
+      className="mb-5 font-demibold font-text text-body text-gray-1200"
       {...props}
     >
       {children}
@@ -35,20 +36,27 @@ const components: MDXComponents = {
   ),
   h2: ({ children, ...props }) => (
     <h2
-      className="mt-16 mb-5 font-[550] font-text text-xl text-gray-1200"
+      className="mt-16 mb-5 font-demibold font-text text-xl text-gray-1200"
       {...props}
     >
       {children}
     </h2>
   ),
+  img: MDXBlockImage,
   Kbd,
   li: (props) => (
     <li className="pl-2 font-text text-body text-text-paragraph" {...props} />
   ),
+  ol: (props) => (
+    <ol
+      className="my-2 flex list-decimal flex-col gap-2 pl-5 marker:text-gray-800"
+      {...props}
+    />
+  ),
   Point,
   p: (props) => (
     <p
-      className="relative font-text text-body text-text-paragraph has-[>[data-point]]:my-2 has-[>[data-point]]:pl-10"
+      className="relative font-text text-body text-text-paragraph has-[>[data-media]]:my-8 has-[>[data-point]]:my-2 has-[>[data-point]]:pl-10"
       {...props}
     />
   ),
@@ -67,6 +75,7 @@ const components: MDXComponents = {
       {...props}
     />
   ),
+  Video: MDXBlockVideo,
 };
 
 export function useMDXComponents(): MDXComponents {

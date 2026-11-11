@@ -94,10 +94,7 @@ export function measureBlock(block: Block): Geometry | null {
   if (!rect) {
     return null;
   }
-  const first = block.el.firstElementChild;
-  const radius = first
-    ? Number.parseFloat(getComputedStyle(first).borderTopLeftRadius) || 0
-    : 0;
+  const radius = outerRadius(block.el, rect);
   const line = firstLineRect(block.el);
 
   let center = rect.top + HANDLE / 2;
@@ -107,6 +104,30 @@ export function measureBlock(block: Block): Geometry | null {
     center = rect.top + rect.height / 2;
   }
   return { handleTop: center - HANDLE / 2, radius, rect: toRect(rect) };
+}
+
+function outerRadius(el: HTMLElement, rect: DOMRect): number {
+  let node = el.firstElementChild;
+  while (node) {
+    const radius = Number.parseFloat(
+      getComputedStyle(node).borderTopLeftRadius
+    );
+    if (radius) {
+      return radius;
+    }
+    node = [...node.children].find((child) => fills(child, rect)) ?? null;
+  }
+  return 0;
+}
+
+function fills(el: Element, rect: DOMRect): boolean {
+  const own = el.getBoundingClientRect();
+  return (
+    Math.abs(own.top - rect.top) < 1 &&
+    Math.abs(own.left - rect.left) < 1 &&
+    Math.abs(own.width - rect.width) < 1 &&
+    Math.abs(own.height - rect.height) < 1
+  );
 }
 
 function firstLineRect(el: HTMLElement): DOMRect | null {

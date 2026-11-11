@@ -52,11 +52,17 @@
   }
 
   .outline-subtle {
-    @apply outline outline-black/8 -outline-offset-1;
+    @apply outline outline-black/8 -outline-offset-1 dark:outline-white/8;
   }
 
   .outline-light {
-    @apply outline outline-black/5 -outline-offset-1;
+    @apply outline outline-black/5 -outline-offset-1 dark:outline-white/5;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .border-overlay {
+      outline-color: rgba(255, 255, 255, 0.1);
+    }
   }
 }
 

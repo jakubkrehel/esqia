@@ -17,7 +17,7 @@ export default function Page() {
           Esqia
         </h1>
         <p className="font-text text-body text-gray-1100">
-          Inline markdown editor for React.
+          An inline markdown editor for React.
         </p>
       </header>
       <InstallCard />
