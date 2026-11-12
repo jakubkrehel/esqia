@@ -1,6 +1,7 @@
 import type { MDXComponents } from "mdx/types";
 import type { ComponentProps } from "react";
 import { ClickHere } from "@/components/click-here";
+import { Gradient } from "@/components/gradient";
 import { Kbd } from "@/components/kbd";
 import { MDXBlockImage, MDXBlockVideo } from "@/components/mdx/media";
 import { Point } from "@/components/point";
@@ -28,6 +29,7 @@ const components: MDXComponents = {
   figure: (props) => (
     <figure className="my-6 preview-code overflow-hidden" {...props} />
   ),
+  Gradient,
   h1: ({ children, ...props }) => (
     <h1
       className="mb-5 font-demibold font-text text-body text-gray-1200"

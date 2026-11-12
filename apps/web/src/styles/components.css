@@ -15,13 +15,14 @@
     overflow: hidden;
   }
 
-  p:has(> [data-media]) {
+  p:has(> [data-media]),
+  [data-media-block] {
     margin-block: --spacing(8);
   }
 
-  p:has(> [data-media]):has(+ h2),
+  :is(p:has(> [data-media]), [data-media-block]):has(+ h2),
   [data-esqia-file]:has(+ h2, + [data-esqia-file] > h2)
-    > p:has(> [data-media]) {
+    > :is(p:has(> [data-media]), [data-media-block]) {
     margin-bottom: 0;
   }
 }
