@@ -1,6 +1,6 @@
 {
   "name": "esqia",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Edit your MDX from the rendered page while you write. A dev-only editor for Next.js.",
   "keywords": [
     "mdx",
