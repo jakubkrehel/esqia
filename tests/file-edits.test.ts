@@ -37,13 +37,16 @@ const setup = ({
   };
   const sync: PageSync = {
     applied: (edit) => applied.push(edit),
+    moving: () => () => undefined,
     open: () => page,
     refreshes: true,
+    removing: () => () => undefined,
     reverted: () => undefined,
   };
   const failures: string[] = [];
   let body = source.slice(range.start, range.end);
-  const run = new FileEdits(backend, sync).openRun({
+  const edits = new FileEdits(backend, sync);
+  const run = edits.openRun({
     at,
     body: () => body,
     file: "a.mdx",
@@ -57,8 +60,9 @@ const setup = ({
   });
   return {
     applied,
-    close: () => run.close(),
+    close: () => run.close().closed,
     closed,
+    edits,
     failures,
     file: async () => (await backend.source("a.mdx")).source,
     page,
@@ -145,5 +149,84 @@ describe("run edits", () => {
     expect(failures).toHaveLength(1);
     expect(closed[0]).toMatchObject({ discard: true, wrote: false });
     await expect(file()).resolves.toBe(source);
+  });
+});
+
+const second = { end: 24, start: 17 };
+
+describe("reading a file the page is behind", () => {
+  it("is not ahead when the page is current", async () => {
+    const { edits } = setup();
+    const { path } = await edits.read("a.mdx", "initial");
+    expect(path?.ahead).toBe(false);
+    expect(path?.map(second)).toEqual(second);
+  });
+
+  it("passes every version written since the one the page shows", async () => {
+    vi.useFakeTimers();
+    const { applied, close, edits, type } = setup();
+    type("Longer first.");
+    await vi.advanceTimersByTimeAsync(800);
+    const middle = applied[0]?.hash ?? "";
+    type("Short.");
+    await close();
+    const last = applied[1]?.hash ?? "";
+    const { path } = await edits.read("a.mdx", "initial");
+    expect(path?.along(second)).toEqual([
+      { range: second, version: "initial" },
+      { range: { end: 31, start: 24 }, version: middle },
+      { range: second, version: last },
+    ]);
+    const later = await edits.read("a.mdx", middle);
+    expect(later.path?.along({ end: 31, start: 24 })).toEqual([
+      { range: { end: 31, start: 24 }, version: middle },
+      { range: second, version: last },
+    ]);
+  });
+
+  it("has no path from a version it never wrote", async () => {
+    const { close, edits, type } = setup();
+    type("Changed.");
+    await close();
+    await expect(edits.read("a.mdx", "elsewhere")).resolves.toMatchObject({
+      path: null,
+    });
+  });
+});
+
+describe("a path after the file went back to an earlier version", () => {
+  it("starts from the latest write, not the first", async () => {
+    let text = source;
+    const backend = memoryBackend(
+      {
+        read: () => Promise.resolve({ hash: text, source: text }),
+        write: (_file, written) => {
+          text = written;
+          return Promise.resolve(written);
+        },
+      },
+      clientConfig({})
+    );
+    const edits = new FileEdits(backend, {
+      applied: () => undefined,
+      moving: () => () => undefined,
+      open: () => {
+        throw new Error("No run opens here.");
+      },
+      refreshes: true,
+      removing: () => () => undefined,
+      reverted: () => undefined,
+    });
+    const first = (replacement: string) =>
+      edits.apply("a.mdx", source, {
+        kind: "replace",
+        op: { end: 15, expected: "First.", start: 9, text: replacement },
+      });
+    await first("Longer first.");
+    await backend.undo("a.mdx");
+    await first("Again.");
+    const { path } = await edits.read("a.mdx", source);
+    expect(path?.along(second)).toHaveLength(2);
+    expect(path?.map(second)).toEqual(second);
   });
 });

@@ -33,6 +33,11 @@ export function usePageClicks(
         }
         return;
       }
+      if (target.closest(".esqia-editor")) {
+        event.preventDefault();
+        void session.openAt(event.clientX, event.clientY);
+        return;
+      }
       const sourceOf = event.altKey && session.canOpen && blockAt(target);
       if (sourceOf) {
         event.preventDefault();

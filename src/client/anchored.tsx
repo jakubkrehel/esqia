@@ -55,7 +55,7 @@ export function Anchored({
   } = useFloating({
     middleware: [offset(gap), flip({ padding: 8 }), shift({ padding: 8 })],
     placement,
-    strategy: "fixed",
+    strategy: "absolute",
     transform: false,
     whileElementsMounted: autoUpdate,
   });

@@ -220,12 +220,14 @@ function toRect(rect: DOMRect): Rect {
   };
 }
 
-export function box(rect: Rect) {
+export function onPage<T extends { left: number; top: number }>(
+  position: T,
+  origin: { left: number; top: number }
+): T {
   return {
-    height: rect.height + PAD * 2,
-    left: rect.left - PAD,
-    top: rect.top - PAD,
-    width: rect.width + PAD * 2,
+    ...position,
+    left: position.left - origin.left,
+    top: position.top - origin.top,
   };
 }
 

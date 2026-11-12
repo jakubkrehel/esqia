@@ -3,7 +3,7 @@ import { clientConfig } from "../shared/config";
 import { Chrome } from "./chrome";
 import { demoHost } from "./demo-page";
 import type { EsqiaProps } from "./index";
-import { liveHost } from "./live-page";
+import { liveHost } from "./live-host";
 import { CHROME_CSS, PAGE_CSS } from "./styles";
 
 export function mount({ demo, toolbar }: EsqiaProps) {

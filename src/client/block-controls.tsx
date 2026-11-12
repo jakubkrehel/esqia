@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Anchored } from "./anchored";
 import type { Block } from "./blocks";
 import type { SlashItem } from "./commands";
 import {
-  box,
   dropTarget,
   edgeScroll,
   gutterPosition,
   hitTest,
   measureBlock,
-  PAD,
+  onPage,
   type Rect,
   tagPosition,
 } from "./geometry";
 import { GripIcon, PlusIcon, TrashIcon } from "./icons";
 import { MenuItem } from "./menu-item";
 
+const commitBeforePaint = flushSync;
 const MODIFIERS = new Set(["Alt", "Control", "Meta", "Shift"]);
 const TYPING_PAUSE = 600;
 
@@ -35,6 +36,7 @@ interface BlockControlsProps {
   onDelete: (block: Block) => void;
   onInsert: (block: Block, item: SlashItem) => void;
   onMove: (block: Block, target: Block | null) => void;
+  pageOrigin: () => { left: number; top: number };
 }
 
 export function BlockControls({
@@ -44,6 +46,7 @@ export function BlockControls({
   onMove,
   onInsert,
   onDelete,
+  pageOrigin,
 }: BlockControlsProps) {
   const [hover, setHover] = useState<Block | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -58,7 +61,9 @@ export function BlockControls({
 
     const measure = () => {
       frame = 0;
-      setHover(typing ? null : hitTest(pointer.x, pointer.y));
+      commitBeforePaint(() =>
+        setHover(typing ? null : hitTest(pointer.x, pointer.y))
+      );
     };
     const schedule = () => {
       frame ||= requestAnimationFrame(measure);
@@ -186,6 +191,7 @@ export function BlockControls({
 
   const block = drag?.block ?? menu ?? hover;
   const geometry = block && measureBlock(block);
+  const origin = pageOrigin();
 
   return (
     <>
@@ -194,8 +200,8 @@ export function BlockControls({
           <div
             className={drag?.moved ? "outline dragging" : "outline"}
             style={{
-              ...box(geometry.rect),
-              borderRadius: geometry.radius ? geometry.radius + PAD : undefined,
+              ...onPage(geometry.rect, origin),
+              borderRadius: geometry.radius || undefined,
             }}
           />
           <Gutter
@@ -208,17 +214,17 @@ export function BlockControls({
             }}
             onGrip={(event) => startDrag(event, block)}
             ref={gutter}
-            style={gutterPosition(geometry)}
-          />
-          <OpenTag
-            block={block}
-            hidden={Boolean(drag)}
-            lineOf={lineOf}
-            style={tagPosition(geometry)}
+            style={onPage(gutterPosition(geometry), origin)}
           />
         </>
       )}
-      <DropLine drag={drag} />
+      {drag?.line && (
+        <div
+          className="indicator"
+          data-glide={drag.glide ? "" : undefined}
+          style={onPage(drag.line, origin)}
+        />
+      )}
       {menu && (
         <Anchored
           className="panel menu"
@@ -239,21 +245,15 @@ export function BlockControls({
           ))}
         </Anchored>
       )}
+      {block && geometry && (
+        <OpenTag
+          block={block}
+          hidden={Boolean(drag)}
+          lineOf={lineOf}
+          style={tagPosition(geometry)}
+        />
+      )}
     </>
-  );
-}
-
-function DropLine({ drag }: { drag: Drag | null }) {
-  if (!drag?.line) {
-    return null;
-  }
-  const { left, top, width } = drag.line;
-  return (
-    <div
-      className="indicator"
-      data-glide={drag.glide ? "" : undefined}
-      style={{ left, top, width }}
-    />
   );
 }
 

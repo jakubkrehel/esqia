@@ -1,5 +1,5 @@
-import type { BlockRange } from "../shared/ops";
-import { sidecar } from "./api";
+import type { Editor } from "@tiptap/core";
+import type { BlockRange, Shown } from "../shared/ops";
 import {
   fileBlocks,
   hideBlock,
@@ -7,40 +7,53 @@ import {
   showBlock,
   watchBlocks,
 } from "./blocks";
-import type { EditingHost, PageClosing, PageOpening, RunPage } from "./page";
+import type { PageClosing, PageOpening, RunPage } from "./page";
 
-export const liveHost: EditingHost = {
-  backend: sidecar,
-  sync: {
-    applied: ({ hash, run }) => run?.page.track(hash, run.range),
-    open: (opening) => new LivePage(opening),
-    refreshes: true,
-    reverted: () => undefined,
-  },
-};
+export interface LivePages {
+  closed: (page: LivePage) => void;
+  refreshed: (page: LivePage, current: () => boolean) => Promise<boolean>;
+}
 
-class LivePage implements RunPage {
-  private readonly file: string;
-  private readonly ranges = new Map<string, BlockRange>();
+export class LivePage implements RunPage {
+  readonly file: string;
+  private latest: Shown;
+  private readonly shown = new Map<string, BlockRange>();
   private readonly hidden = new Set<HTMLElement>();
   private readonly root: HTMLElement;
+  private readonly editor: Editor;
+  private readonly host: LivePages;
   private readonly unwatch: () => void;
 
-  constructor({ file, range, root, version }: PageOpening) {
+  constructor(opening: PageOpening, host: LivePages) {
+    const { editor, file, path, range, rendered, root, version } = opening;
+    this.editor = editor;
     this.file = file;
+    this.host = host;
     this.root = root;
-    this.ranges.set(version, range);
-    this.hide();
-    this.unwatch = watchBlocks(() => this.hide());
+    this.latest = { range, version };
+    for (const behind of path.along(rendered)) {
+      this.shown.set(behind.version, behind.range);
+    }
+    this.shown.set(version, range);
+    this.arrange();
+    this.unwatch = watchBlocks(() => this.arrange());
+  }
+
+  get range(): BlockRange {
+    return this.latest.range;
   }
 
   track(version: string, range: BlockRange) {
-    this.ranges.set(version, range);
+    this.latest = { range, version };
+    this.shown.set(version, range);
   }
 
-  async close({ discard, version, wrote }: PageClosing): Promise<boolean> {
-    if (wrote && !discard && !(await waitForVersion(this.file, version))) {
-      location.reload();
+  async close({ discard, wrote }: PageClosing): Promise<boolean> {
+    const current = () =>
+      fileBlocks(this.file).every(
+        (block) => block.version === this.latest.version
+      );
+    if (wrote && !discard && !(await this.host.refreshed(this, current))) {
       return false;
     }
     this.unwatch();
@@ -48,47 +61,50 @@ class LivePage implements RunPage {
       showBlock(el);
     }
     hideBlock(this.root);
+    this.host.closed(this);
     return true;
   }
 
-  private hide() {
+  arrange() {
+    let first: HTMLElement | null = null;
+    let previous: HTMLElement | null = null;
     for (const block of fileBlocks(this.file)) {
-      const range = this.ranges.get(block.version);
+      const range = this.shown.get(block.version);
       const inside =
         range && block.start >= range.start && block.start < range.end;
-      if (inside && !isHidden(block.el)) {
-        hideBlock(block.el);
+      if (inside) {
+        first ??= block.el;
+        if (!isHidden(block.el)) {
+          hideBlock(block.el);
+        }
         this.hidden.add(block.el);
-      } else if (!inside && this.hidden.has(block.el)) {
+      } else if (this.hidden.has(block.el)) {
         showBlock(block.el);
         this.hidden.delete(block.el);
       }
+      if (range && block.start < range.start) {
+        previous = block.el;
+      }
+    }
+    if (first) {
+      this.seat(first, "before");
+    } else if (previous) {
+      this.seat(previous, "after");
     }
   }
-}
 
-function waitForVersion(
-  file: string,
-  version: string,
-  timeout = 3000
-): Promise<boolean> {
-  const current = () =>
-    fileBlocks(file).every((block) => block.version === version);
-  if (current()) {
-    return Promise.resolve(true);
+  private seat(beside: HTMLElement, side: "before" | "after") {
+    const seated =
+      side === "before"
+        ? this.root.nextElementSibling === beside
+        : this.root.previousElementSibling === beside;
+    if (seated) {
+      return;
+    }
+    const focused = this.root.contains(document.activeElement);
+    beside[side](this.root);
+    if (focused && !this.editor.isDestroyed) {
+      this.editor.view.focus();
+    }
   }
-
-  return new Promise((resolve) => {
-    const unwatch = watchBlocks(() => {
-      if (current()) {
-        finish(true);
-      }
-    });
-    const timer = setTimeout(() => finish(false), timeout);
-    const finish = (ok: boolean) => {
-      unwatch();
-      clearTimeout(timer);
-      resolve(ok);
-    };
-  });
 }

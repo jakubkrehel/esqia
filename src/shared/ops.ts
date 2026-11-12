@@ -125,6 +125,47 @@ export function mapRange(ops: Op[], range: BlockRange): BlockRange | null {
   return { end: range.end + delta, start: range.start + delta };
 }
 
+export interface Step {
+  ops: Op[];
+  version: string;
+}
+
+export interface Shown {
+  range: BlockRange;
+  version: string;
+}
+
+export class Path {
+  readonly from: string;
+  private readonly steps: Step[];
+
+  constructor(from: string, steps: Step[] = []) {
+    this.from = from;
+    this.steps = steps;
+  }
+
+  get ahead(): boolean {
+    return this.steps.length > 0;
+  }
+
+  map(range: BlockRange): BlockRange | null {
+    return this.along(range)[this.steps.length]?.range ?? null;
+  }
+
+  along(range: BlockRange): Shown[] {
+    const shown: Shown[] = [{ range, version: this.from }];
+    let at: BlockRange | null = range;
+    for (const { ops, version } of this.steps) {
+      at = mapRange(ops, at);
+      if (!at) {
+        break;
+      }
+      shown.push({ range: at, version });
+    }
+    return shown;
+  }
+}
+
 export function mapSpan(ops: Op[], range: BlockRange): BlockRange {
   let { start, end } = range;
   for (const op of ops) {

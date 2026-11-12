@@ -1,16 +1,17 @@
 import type { Editor } from "@tiptap/core";
 import type { ClientConfig } from "../shared/config";
 import { type MemoryStore, memoryStore } from "../shared/history";
-import { type BlockRange, mapSpan } from "../shared/ops";
+import type { BlockRange } from "../shared/ops";
 import { fileWrappers, hideBlock, markRemoved, readBlock } from "./blocks";
 import { renderClosedRun, restampFile } from "./demo-render";
 import { memoryBackend } from "./memory-backend";
-import type {
-  EditingHost,
-  PageClosing,
-  PageOpening,
-  PageSync,
-  RunPage,
+import {
+  type EditingHost,
+  type PageClosing,
+  type PageOpening,
+  type PageSync,
+  type RunPage,
+  trackRuns,
 } from "./page";
 
 export function demoHost(
@@ -38,20 +39,17 @@ function demoSync(store: MemoryStore): PageSync {
   const open = new Set<DemoPage>();
 
   return {
-    applied({ file, hash, ops, run }) {
+    applied(edit) {
+      const { file, hash, ops } = edit;
       const runs = [...open].filter((page) => page.file === file);
-      for (const page of runs) {
-        page.track(
-          hash,
-          page === run?.page ? run.range : mapSpan(ops, page.range)
-        );
-      }
+      trackRuns(runs, edit);
       restampFile(
         { after: store.text(file), before: store.previous(file), file, ops },
         hash,
         runs
       );
     },
+    moving: () => () => undefined,
     open(opening) {
       const page = new DemoPage(
         opening,
@@ -62,6 +60,7 @@ function demoSync(store: MemoryStore): PageSync {
       return page;
     },
     refreshes: false,
+    removing: () => () => undefined,
     reverted: () => location.reload(),
   };
 }

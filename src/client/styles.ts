@@ -1,5 +1,6 @@
 import { BLOCK_SELECTOR } from "../shared/wrapper";
 import { blockOfType } from "./blocks";
+import { PAD } from "./geometry";
 
 export const CHROME_CSS = `
 :host {
@@ -37,10 +38,10 @@ export const CHROME_CSS = `
   --shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 * { box-sizing: border-box; }
-.layer {
-  position: fixed; inset: 0; pointer-events: none; z-index: 2147483000;
-}
-.layer > * { pointer-events: auto; }
+.layer, .page { pointer-events: none; z-index: 2147483000; }
+.layer { position: fixed; inset: 0; }
+.page { position: absolute; top: 0; left: 0; }
+.layer > *, .page > * { pointer-events: auto; }
 button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
 .bar { --inset-x: 20px; --inset-y: 20px; }
 [data-corner$="left"] { left: calc(var(--inset-x) + env(safe-area-inset-left)); }
@@ -131,8 +132,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .bar[data-mode="edit"] .mark-right { transform: translateX(5px); }
 .trigger[data-busy] .mark-center { animation: pulse 900ms ease-in-out infinite; }
 .outline {
-  position: fixed; border-radius: 8px; pointer-events: none !important;
-  box-shadow: 0 0 0 2px var(--outline);
+  position: absolute; border-radius: 4px; pointer-events: none !important;
+  outline: 2px solid var(--outline); outline-offset: ${PAD}px;
 }
 .outline, .gutter, .tag { transition: opacity 100ms ease-out; }
 @starting-style { .outline, .gutter, .tag { opacity: 0; } }
@@ -142,8 +143,11 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   background: var(--surface); box-shadow: var(--shadow); color: var(--muted);
   font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.outline.dragging { background: color-mix(in oklab, var(--outline) 8%, transparent); }
-.gutter { position: fixed; display: flex; gap: 2px; }
+.outline.dragging {
+  --tint: color-mix(in oklab, var(--outline) 8%, transparent);
+  background: var(--tint); box-shadow: 0 0 0 ${PAD}px var(--tint);
+}
+.gutter { position: absolute; display: flex; gap: 2px; }
 .gutter button {
   width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent;
   display: grid; place-items: center; padding: 0; color: var(--faint); cursor: pointer;
@@ -154,9 +158,9 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .gutter button:hover, .gutter button[data-active] { background: var(--hover); color: var(--text); }
 .gutter .grip { cursor: grab; touch-action: none; }
 .gutter .grip:active { cursor: grabbing; }
-.indicator { position: fixed; height: 2px; border-radius: 1px; background: var(--outline); pointer-events: none !important; }
+.indicator { position: absolute; height: 2px; border-radius: 1px; background: var(--outline); pointer-events: none !important; }
 .indicator[data-glide] { transition: top 120ms ease-out; }
-.panel { position: fixed; background: var(--surface); box-shadow: var(--shadow); }
+.panel { position: absolute; background: var(--surface); box-shadow: var(--shadow); }
 .toolbar[data-placement^="top"] { transform-origin: bottom center; }
 .toolbar[data-placement^="bottom"] { transform-origin: top center; }
 .toolbar[data-state="open"] { animation: toolbar-in 36ms linear(0, 0.317 25%, 0.586 50%, 0.811 75%, 1); }

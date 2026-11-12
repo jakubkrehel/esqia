@@ -1,5 +1,6 @@
 import type { PhrasingContent } from "mdast";
 import { parseMdx } from "../shared/markdown";
+import type { Path } from "../shared/ops";
 import { type Block, pageWrappers, readBlock } from "./blocks";
 import { sliceOf } from "./parse-run";
 
@@ -32,11 +33,16 @@ const INLINE_TAGS = new Set([
   "MARK",
 ]);
 
-export function sampleTemplates(file: string, source: string): Templates {
+export function sampleTemplates(
+  file: string,
+  source: string,
+  path: Path
+): Templates {
   const blocks = pageWrappers().map(readBlock);
   const components = renderedComponents(
     blocks.filter((block) => block.file === file && block.type === "paragraph"),
-    source
+    source,
+    path
   );
   const ofType = (type: string) =>
     blocks.filter((block) => block.type === type).map((block) => block.el);
@@ -163,17 +169,20 @@ export function matchLayout(editor: HTMLElement, root: HTMLElement) {
 
 function renderedComponents(
   paragraphs: Block[],
-  source: string
+  source: string,
+  path: Path
 ): { elements: Map<string, HTMLElement>; marks: Map<string, HTMLElement> } {
   const elements = new Map<string, HTMLElement>();
   const marks = new Map<string, HTMLElement>();
-  const nodes = new Map(
-    parseMdx(source).children.map((node) => [node.position?.start.offset, node])
-  );
-  for (const { el, start } of paragraphs) {
-    const rendered = el.firstElementChild;
-    const node = nodes.get(start);
-    if (!(rendered && node?.type === "paragraph")) {
+  for (const block of paragraphs) {
+    const rendered = block.el.firstElementChild;
+    const written = path.map(block);
+    const text = written ? source.slice(written.start, written.end) : "";
+    if (!(rendered && text.includes("<"))) {
+      continue;
+    }
+    const [node, ...rest] = parseMdx(text).children;
+    if (node?.type !== "paragraph" || rest.length > 0) {
       continue;
     }
     const inline = node.children.filter(
@@ -193,9 +202,9 @@ function renderedComponents(
       const open = child.position?.start.offset;
       const first = child.children[0]?.position?.start.offset;
       if (first === undefined) {
-        elements.set(sliceOf(child, source), element);
+        elements.set(sliceOf(child, text), element);
       } else if (open !== undefined) {
-        marks.set(source.slice(open, first), element);
+        marks.set(text.slice(open, first), element);
       }
     });
   }

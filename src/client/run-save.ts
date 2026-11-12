@@ -1,6 +1,6 @@
 import type { BlockRange, Intent, Op } from "../shared/ops";
 import { ConflictError, errorText } from "./api";
-import type { RunEdits, RunOpening, Write } from "./file-edits";
+import type { Closing, RunEdits, RunOpening, Write } from "./file-edits";
 import type { PageSync, RunPage } from "./page";
 
 const SAVE_DELAY = 800;
@@ -43,13 +43,16 @@ export class RunSave implements RunEdits {
     this.timer = setTimeout(() => this.save(false), SAVE_DELAY);
   }
 
-  async close(): Promise<boolean> {
-    await this.save(true);
-    return this.page.close({
-      discard: this.failed,
-      version: this.hash,
-      wrote: this.wrote,
-    });
+  close(): Closing<boolean> {
+    const saved = this.save(true);
+    const closed = saved.then(() =>
+      this.page.close({
+        discard: this.failed,
+        version: this.hash,
+        wrote: this.wrote,
+      })
+    );
+    return { closed, saved };
   }
 
   private async save(closing: boolean): Promise<void> {

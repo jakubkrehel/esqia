@@ -80,6 +80,7 @@ export function Chrome({
   const [stored, setCorner] = useStored(CORNER_KEY, CORNERS, "top-left");
   const corner = inline ? "bottom-left" : stored;
   const [session] = useState(() => new Session(editingHost));
+  const [page, setPage] = useState<HTMLDivElement | null>(null);
   const { changed, config, redoable, run, writing } = useSyncExternalStore(
     session.subscribe,
     session.getSnapshot,
@@ -151,7 +152,7 @@ export function Chrome({
 
   return (
     <>
-      <div className="layer">
+      <div className="page" ref={setPage}>
         {editing && (
           <BlockControls
             host={host}
@@ -162,11 +163,14 @@ export function Chrome({
               session.insertAfter(block, item.insert ?? item.apply)
             }
             onMove={(block, target) => session.moveBlock(block, target)}
+            pageOrigin={() =>
+              page?.getBoundingClientRect() ?? { left: 0, top: 0 }
+            }
           />
         )}
         {run && <RunMenu config={config} run={run} />}
-        {!inline && toolbar}
       </div>
+      <div className="layer">{!inline && toolbar}</div>
       {inline && toolbar}
     </>
   );

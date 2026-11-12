@@ -2,11 +2,11 @@ import { Editor, getSchema } from "@tiptap/core";
 import { NodeSelection, Selection } from "@tiptap/pm/state";
 import type { ClientConfig } from "../shared/config";
 import { detectStyle } from "../shared/markdown";
-import type { BlockRange } from "../shared/ops";
+import type { BlockRange, Path } from "../shared/ops";
 import type { Block } from "./blocks";
 import { type Caret, placeCaret } from "./caret";
 import { createExtensions } from "./editor";
-import type { FileEdits, RunEdits } from "./file-edits";
+import type { Closing, FileEdits, RunEdits } from "./file-edits";
 import type { PageSync } from "./page";
 import { parseRun } from "./parse-run";
 import { serializeRun } from "./serialize-run";
@@ -47,7 +47,9 @@ export interface RunOptions {
   onFocus: (run: Run) => void;
   onLeave: (direction: -1 | 1, x: number) => boolean;
   onSaved: () => void;
+  path: Path;
   placement: Placement;
+  range: BlockRange;
   source: string;
   sync: PageSync;
 }
@@ -61,12 +63,12 @@ export class Run extends Store<RunSnapshot> {
   private readonly saves: RunEdits;
   private readonly onClose: () => void;
   private readonly onLeave: RunOptions["onLeave"];
-  private closing: Promise<void> | null = null;
+  private closing: Closing<void> | null = null;
 
   constructor(options: RunOptions) {
     super(IDLE_RUN);
-    const { at, blocks, mount, range } = options.placement;
-    const { config, edits, file, hash, source, sync } = options;
+    const { at, blocks, mount, range: rendered } = options.placement;
+    const { config, edits, file, hash, path, range, source, sync } = options;
     this.file = file;
     this.onClose = options.onClose;
     this.onLeave = options.onLeave;
@@ -81,7 +83,7 @@ export class Run extends Store<RunSnapshot> {
       config,
       slash: { onChange: this.slash.show, onKeyDown: this.slash.key },
       spacers: style.spacers,
-      templates: sampleTemplates(file, source),
+      templates: sampleTemplates(file, source, path),
     });
     const { doc, originals } = parseRun(
       source.slice(range.start, range.end),
@@ -103,7 +105,7 @@ export class Run extends Store<RunSnapshot> {
       file,
       onFailed: (message) => {
         options.onError(message);
-        void this.close();
+        this.close();
       },
       onSaved: options.onSaved,
       onSaving: (saving) => this.update({ saving }),
@@ -111,7 +113,9 @@ export class Run extends Store<RunSnapshot> {
         blocks,
         editor: this.editor,
         file,
+        path,
         range,
+        rendered,
         root: this.root,
         version: hash,
       }),
@@ -130,21 +134,28 @@ export class Run extends Store<RunSnapshot> {
   }
 
   setEditable(editable: boolean) {
-    if (!this.editor.isDestroyed) {
+    if (!(this.editor.isDestroyed || this.closing)) {
       this.editor.setEditable(editable);
     }
   }
 
-  close(): Promise<void> {
-    this.closing ??= (async () => {
-      const settled = await this.saves.close();
-      if (settled) {
-        this.editor.destroy();
-        this.root.remove();
-      }
-      this.onClose();
-    })();
+  close(): Closing<void> {
+    this.closing ??= this.end();
     return this.closing;
+  }
+
+  private end(): Closing<void> {
+    this.editor.setEditable(false, false);
+    const { closed, saved } = this.saves.close();
+    return { closed: this.finish(closed), saved };
+  }
+
+  private async finish(pageLeft: Promise<boolean>) {
+    if (await pageLeft) {
+      this.editor.destroy();
+      this.root.remove();
+    }
+    this.onClose();
   }
 
   private handleKeyDown(event: KeyboardEvent): boolean {
@@ -152,7 +163,7 @@ export class Run extends Store<RunSnapshot> {
       return false;
     }
     if (event.key === "Escape") {
-      void this.close();
+      this.close();
       return true;
     }
     const direction = ARROWS[event.key];

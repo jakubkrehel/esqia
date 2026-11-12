@@ -5,23 +5,30 @@ import { type Backend, errorText } from "./api";
 import {
   type Block,
   editableBeside,
+  editableBlockAt,
   firstFile,
   moveIntent,
   readBlock,
   removeIntent,
-  runAround,
 } from "./blocks";
-import { type Caret, textRangeIn } from "./caret";
-import { EditSequence, type Newest, type Settle } from "./edit-sequence";
+import { textRangeIn } from "./caret";
+import { EditSequence, type Settle } from "./edit-sequence";
 import { FileEdits } from "./file-edits";
 import { edgePoint, firstVisibleBlock } from "./geometry";
-import type { EditingHost, PageSync } from "./page";
-import { type Placement, Run } from "./run";
+import {
+  type Located,
+  locateOpening,
+  type OpenTarget,
+  type Selected,
+} from "./opening";
+import type { EditingHost, PageSync, Preview } from "./page";
+import { Run } from "./run";
 import { Store } from "./store";
 
-export type OpenTarget =
-  | { at: "run"; block: Block; caret?: { x: number; y: number } }
-  | { at: "after"; block: Block };
+export type { OpenTarget } from "./opening";
+
+const PAGE_BEHIND =
+  "The page is behind the file. Wait for it to refresh, then try again.";
 
 function logError(text: string) {
   console.error(`esqia: ${text}`);
@@ -116,36 +123,67 @@ export class Session extends Store<SessionSnapshot> {
 
   close(): Promise<void> {
     this.sequence.supersede();
-    return this.snapshot.run?.close() ?? Promise.resolve();
+    return this.snapshot.run?.close().closed ?? Promise.resolve();
   }
 
   private readonly runClosed: Settle = async () => {
-    await this.snapshot.run?.close();
+    await Promise.all([...this.runs].map((run) => run.close().closed));
     return true;
   };
 
-  async open(target: OpenTarget): Promise<Run | undefined> {
+  private readonly runSaved: Settle = async () => {
+    await this.snapshot.run?.close().saved;
+    return true;
+  };
+
+  open(target: OpenTarget): Promise<Run | undefined> {
+    const selected =
+      target.at === "run" ? textRangeIn(target.block.el, target.caret) : null;
+    return this.openWhen(this.runSaved, () => ({ selected, target }));
+  }
+
+  openAt(x: number, y: number): Promise<Run | undefined> {
+    return this.openWhen(this.runClosed, () => {
+      const under = document.elementFromPoint(x, y);
+      const block = under && editableBlockAt(under);
+      const caret = { x, y };
+      return (
+        block && {
+          selected: textRangeIn(block.el, caret),
+          target: { at: "run", block, caret },
+        }
+      );
+    });
+  }
+
+  private async openWhen(
+    settle: Settle,
+    resolve: () => { selected: Selected; target: OpenTarget } | null
+  ): Promise<Run | undefined> {
     const { config } = this.snapshot;
     if (!(config && this.editable)) {
       return;
     }
-    const selected =
-      target.at === "run" ? textRangeIn(target.block.el, target.caret) : null;
-    const newest = await this.sequence.open(this.runClosed);
+    const newest = await this.sequence.open(settle);
     if (!(newest && this.editable)) {
       return;
     }
-    const opening = resolveOpening(target, selected);
-    if (!opening) {
+    const asked = resolve();
+    if (!asked) {
       return;
     }
-    const { caret, file, placement, version } = opening;
 
     try {
-      const { source, hash } = await this.edits.read(file, version);
-      if (!this.isCurrent(newest, target.block, version)) {
+      const located = await this.locate(asked.target, asked.selected);
+      if (!(this.editable && newest()) || located.state === "gone") {
         return;
       }
+      if (located.state === "behind") {
+        logError(PAGE_BEHIND);
+        return;
+      }
+      const { caret, file, hash, path, placement, range, source } =
+        located.opening;
       const next = new Run({
         caret,
         config,
@@ -168,7 +206,9 @@ export class Session extends Store<SessionSnapshot> {
         },
         onLeave: (direction, x) => this.leave(next, direction, x),
         onSaved: this.refreshChanges,
+        path,
         placement,
+        range,
         source,
         sync: this.sync,
       });
@@ -181,6 +221,18 @@ export class Session extends Store<SessionSnapshot> {
         logError(errorText(error));
       }
     }
+  }
+
+  private async locate(
+    target: OpenTarget,
+    selected: Selected
+  ): Promise<Located> {
+    const located = await locateOpening(this.edits, target, selected);
+    if (located.state !== "behind") {
+      return located;
+    }
+    await this.runClosed();
+    return locateOpening(this.edits, target, selected);
   }
 
   private leave(run: Run, direction: -1 | 1, x: number): boolean {
@@ -199,15 +251,6 @@ export class Session extends Store<SessionSnapshot> {
     return true;
   }
 
-  private isCurrent(newest: Newest, block: Block, version: string) {
-    return (
-      this.editable &&
-      newest() &&
-      block.el.isConnected &&
-      readBlock(block.el).version === version
-    );
-  }
-
   async insertAfter(block: Block, apply: (editor: Editor) => void) {
     const run = await this.open({ at: "after", block });
     if (run) {
@@ -216,32 +259,50 @@ export class Session extends Store<SessionSnapshot> {
   }
 
   removeBlock(block: Block) {
-    return this.edit(block.el, removeIntent);
+    return this.editShown(block, removeIntent, this.sync.removing(block));
   }
 
   moveBlock(block: Block, target: Block | null) {
-    return this.edit(block.el, (fresh) => moveIntent(fresh, target));
+    return this.editShown(
+      block,
+      (fresh) => moveIntent(fresh, target),
+      this.sync.moving(block, target)
+    );
+  }
+
+  private async editShown(
+    block: Block,
+    intent: (block: Block) => Intent,
+    shown: Preview
+  ): Promise<boolean> {
+    const version = await this.edit(block.el, intent);
+    shown(version);
+    return version !== null;
   }
 
   private async edit(
     el: HTMLElement,
     intent: (block: Block) => Intent
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     try {
       const written = await this.sequence.write(async () => {
         if (!el.isConnected) {
           throw new Error("The block left the page. Reopen it to keep going.");
         }
         const block = readBlock(el);
-        await this.edits.apply(block.file, block.version, intent(block));
+        const changed = await this.edits.apply(
+          block.file,
+          block.version,
+          intent(block)
+        );
         this.lastFile = block.file;
         this.refreshChanges();
-        return true;
+        return changed ? block.version : null;
       }, this.runClosed);
-      return written ?? false;
+      return written ?? null;
     } catch (error) {
       logError(errorText(error));
-      return false;
+      return null;
     }
   }
 
@@ -307,54 +368,4 @@ export class Session extends Store<SessionSnapshot> {
       return false;
     }
   }
-}
-
-function resolveOpening(
-  target: OpenTarget,
-  selected: Pick<Caret, "anchor" | "head"> | null
-): {
-  caret?: Caret;
-  file: string;
-  placement: Placement;
-  version: string;
-} | null {
-  const { el } = target.block;
-  if (!el.isConnected) {
-    return null;
-  }
-  const block = readBlock(el);
-  const placement = place(target.at, block);
-  if (!placement) {
-    return null;
-  }
-  const index = placement.blocks.findIndex((b) => b.el === el);
-  return {
-    caret: index >= 0 ? { anchor: 0, head: 0, ...selected, index } : undefined,
-    file: block.file,
-    placement,
-    version: block.version,
-  };
-}
-
-function place(at: OpenTarget["at"], block: Block): Placement | null {
-  if (at === "after") {
-    return {
-      at: "after",
-      blocks: [],
-      mount: (root) => block.el.after(root),
-      range: { end: block.end, start: block.end },
-    };
-  }
-  const blocks = runAround(block);
-  const first = blocks[0];
-  const last = blocks.at(-1);
-  if (!(first && last)) {
-    return null;
-  }
-  return {
-    at: "run",
-    blocks,
-    mount: (root) => first.el.before(root),
-    range: { end: last.end, start: first.start },
-  };
 }

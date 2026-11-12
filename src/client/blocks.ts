@@ -1,6 +1,5 @@
 import { type BlockType, EDITABLE } from "../shared/markdown";
 import type { BlockRange, Intent } from "../shared/ops";
-import { runAround as sharedRunAround } from "../shared/runs";
 import {
   BLOCK_SELECTOR,
   WRAPPER,
@@ -57,14 +56,6 @@ export function fileBlocks(file: string): Block[] {
   return fileWrappers(file)
     .map(readBlock)
     .sort((a, b) => a.start - b.start);
-}
-
-export function runAround(block: Block): Block[] {
-  const blocks = fileBlocks(block.file);
-  return sharedRunAround(
-    blocks,
-    blocks.findIndex((b) => b.start === block.start)
-  );
 }
 
 export function editableBeside(
