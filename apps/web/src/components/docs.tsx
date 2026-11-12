@@ -32,6 +32,21 @@ const OPTIONS = `export default withEsqia(withMDX(nextConfig), {
   smartypants: { dashes: false },
 });`;
 
+const SNIPPETS = `export default withEsqia(withMDX(nextConfig), {
+  snippets: [
+    { name: "Demo", source: "<Demo />" },
+    { name: "Newsletter", source: "<Newsletter />" },
+  ],
+});`;
+
+const MARKS = `export default withEsqia(withMDX(nextConfig), {
+  marks: [{ name: "Serif", tag: "em", className: "font-serif" }],
+});`;
+
+const SMARTYPANTS = `export default withEsqia(withMDX(nextConfig), {
+  smartypants: { dashes: false },
+});`;
+
 const LAYOUT = `import { Esqia } from "esqia";
 
 {process.env.NODE_ENV === "development" && <Esqia />}`;
@@ -136,44 +151,39 @@ export function Docs() {
     <>
       <Heading>Setup</Heading>
       <Paragraph>
-        After installing, add <InlineCode>esqia/remark</InlineCode> to your
-        Next.js config and wrap the config with{" "}
-        <InlineCode>withEsqia</InlineCode>. Put the plugin after any other
-        remark plugins you use.
+        Add <InlineCode>esqia/remark</InlineCode> after your other remark
+        plugins and wrap your Next.js config with{" "}
+        <InlineCode>withEsqia</InlineCode>.
       </Paragraph>
       <CodeBlock code={NEXT_CONFIG} lang="ts" title="next.config.ts" />
       <Paragraph>
         Then add the <InlineCode>{"<Esqia />"}</InlineCode> component to your
-        root layout.
+        root layout. Esqia only runs in development, so nothing changes in
+        production.
       </Paragraph>
       <CodeBlock code={LAYOUT} lang="tsx" title="app/layout.tsx" />
       <Paragraph>
-        Run <InlineCode>next dev</InlineCode>, press the button in the bottom
-        left and click any text to edit it. Esqia only runs in development, so
-        nothing changes in production.
-      </Paragraph>
-      <Heading>Options</Heading>
-      <Paragraph>
-        Pass options as the second argument to{" "}
+        To configure it, pass options as the second argument to{" "}
         <InlineCode>withEsqia</InlineCode>.
       </Paragraph>
       <CodeBlock code={OPTIONS} lang="ts" title="next.config.ts" />
-      <div className="flex flex-col gap-4">
-        <Paragraph>
-          <InlineCode>snippets</InlineCode> are blocks you can insert while
-          writing, like your own components. Type <InlineCode>/</InlineCode> on
-          an empty line to pick one.
-        </Paragraph>
-        <Paragraph>
-          <InlineCode>marks</InlineCode> add buttons to the toolbar that appears
-          when you select text, like one for a serif font.
-        </Paragraph>
-        <Paragraph>
-          <InlineCode>smartypants</InlineCode> takes the same settings as{" "}
-          <InlineCode>remark-smartypants</InlineCode>, if your site uses it, so
-          quotes and dashes look right while you type.
-        </Paragraph>
-      </div>
+      <Paragraph>
+        <InlineCode>snippets</InlineCode> are blocks you can insert while
+        writing, like your own components. Type <InlineCode>/</InlineCode> on an
+        empty line to pick one.
+      </Paragraph>
+      <CodeBlock code={SNIPPETS} lang="ts" title="next.config.ts" />
+      <Paragraph>
+        <InlineCode>marks</InlineCode> add buttons to the toolbar that appears
+        when you select text, like one for a serif font.
+      </Paragraph>
+      <CodeBlock code={MARKS} lang="ts" title="next.config.ts" />
+      <Paragraph>
+        <InlineCode>smartypants</InlineCode> takes the same settings as{" "}
+        <InlineCode>remark-smartypants</InlineCode>, if your site uses it, so
+        quotes and dashes look right while you type.
+      </Paragraph>
+      <CodeBlock code={SMARTYPANTS} lang="ts" title="next.config.ts" />
     </>
   );
 }

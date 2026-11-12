@@ -53,7 +53,6 @@ Keep `esqia/remark` last. The button sits bottom-left, where Next shows its dev 
 | ⌘⇧↑ / ⌘⇧↓ | Moves the block or list item under the caret |
 | ↑ / ↓ at the edge of the editor | Moves into the next run of text |
 | Hover a block | Trash deletes it; `+` inserts a block below; drag the grip to move it |
-| Hover a component | `</>` opens its MDX source; ⌘↵ saves, Esc cancels |
 | ⌥-click a block | Opens your editor at that block's line |
 | Esc or click away | Saves and hands the page back |
 | ⌘Z | Inside the editor, undoes typing; outside it, undoes the last write, and ⌘⇧Z redoes it |

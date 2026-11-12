@@ -131,29 +131,32 @@ export const OpenIcon = () => (
 
 const MARK_HALVES = {
   center: [
-    [3, 1],
-    [3, 2],
-    [3, 3],
-    [3, 4],
-    [3, 5],
-  ],
-  left: [
-    [1, 1],
+    [2, 0],
+    [2, 1],
     [2, 2],
-    [1, 3],
     [2, 3],
     [2, 4],
-    [1, 5],
+  ],
+  left: [
+    [0, 0],
+    [1, 1],
+    [0, 2],
+    [1, 2],
+    [1, 3],
+    [0, 4],
   ],
   right: [
-    [5, 1],
+    [4, 0],
+    [3, 1],
+    [3, 2],
     [4, 2],
-    [4, 3],
-    [5, 3],
+    [3, 3],
     [4, 4],
-    [5, 5],
   ],
 } as const;
+
+const MARK_SQUARE = 4;
+const MARK_PITCH = 5;
 
 const Squares = ({
   cells,
@@ -162,11 +165,11 @@ const Squares = ({
 }) =>
   cells.map(([column, row]) => (
     <rect
-      height="1.7"
+      height={MARK_SQUARE}
       key={`${column}-${row}`}
-      width="1.7"
-      x={column * 2}
-      y={row * 2}
+      width={MARK_SQUARE}
+      x={column * MARK_PITCH}
+      y={row * MARK_PITCH}
     />
   ));
 
@@ -175,7 +178,7 @@ export const MarkIcon = () => (
     aria-hidden="true"
     className="mark"
     fill="currentColor"
-    viewBox="-0.15 -0.15 14 14"
+    viewBox="-6 -6 36 36"
   >
     <g className="mark-left">
       <Squares cells={MARK_HALVES.left} />

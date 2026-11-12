@@ -14,4 +14,14 @@
     justify-content: center;
     overflow: hidden;
   }
+
+  p:has(> [data-media]) {
+    margin-block: --spacing(8);
+  }
+
+  p:has(> [data-media]):has(+ h2),
+  [data-esqia-file]:has(+ h2, + [data-esqia-file] > h2)
+    > p:has(> [data-media]) {
+    margin-bottom: 0;
+  }
 }

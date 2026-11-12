@@ -2,13 +2,13 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="mt-16 flex items-center justify-between font-text text-body text-gray-1100 sm:mt-32">
+    <footer className="mt-16 flex items-center justify-between font-text text-body text-gray-1100 sm:mt-16">
       <Link
         className="article-underline font-book"
-        href="/index.md"
+        href="/llms.txt"
         prefetch={false}
       >
-        index.md
+        llms.txt
       </Link>
       <p className="text-gray-900">
         Made by{" "}

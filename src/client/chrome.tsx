@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { ClientConfig } from "../shared/config";
 import { BlockControls } from "./block-controls";
-import { type Block, pageHasBlocks } from "./blocks";
+import { pageHasBlocks } from "./blocks";
 import { Bubble } from "./bubble";
 import { slashItems } from "./commands";
 import { CORNERS } from "./corner-drag";
@@ -80,12 +80,11 @@ export function Chrome({
   const [stored, setCorner] = useStored(CORNER_KEY, CORNERS, "top-left");
   const corner = inline ? "bottom-left" : stored;
   const [session] = useState(() => new Session(editingHost));
-  const { changed, config, redoable, run, source, writing } =
-    useSyncExternalStore(
-      session.subscribe,
-      session.getSnapshot,
-      () => INITIAL_SESSION
-    );
+  const { changed, config, redoable, run, writing } = useSyncExternalStore(
+    session.subscribe,
+    session.getSnapshot,
+    () => INITIAL_SESSION
+  );
   const hasBlocks = useSyncExternalStore(
     subscribeToBlocks,
     pageHasBlocks,
@@ -157,13 +156,12 @@ export function Chrome({
           <BlockControls
             host={host}
             inserts={slashItems(config, "")}
+            lineOf={session.canOpen ? session.lineOf : undefined}
             onDelete={(block) => session.removeBlock(block)}
             onInsert={(block, item) =>
               session.insertAfter(block, item.insert ?? item.apply)
             }
             onMove={(block, target) => session.moveBlock(block, target)}
-            {...sourceActions(session)}
-            source={source}
           />
         )}
         {run && <RunMenu config={config} run={run} />}
@@ -185,18 +183,6 @@ function RunMenu({ config, run }: { config: ClientConfig; run: Run }) {
   ) : (
     <Bubble config={config} run={run} />
   );
-}
-
-function sourceActions(session: Session) {
-  return {
-    lineOf: session.canOpen ? session.lineOf : undefined,
-    onOpen: session.canOpen
-      ? (block: Block) => session.openInEditor(block)
-      : undefined,
-    onSource: session.canEditSource
-      ? (block: Block) => session.openSource(block)
-      : undefined,
-  };
 }
 
 const toggled = (mode: Mode): Mode => (mode === "edit" ? "read" : "edit");

@@ -17,7 +17,6 @@ import { FileEdits } from "./file-edits";
 import { edgePoint, firstVisibleBlock } from "./geometry";
 import type { EditingHost, PageSync } from "./page";
 import { type Placement, Run } from "./run";
-import { SourceDraft } from "./source-draft";
 import { Store } from "./store";
 
 export type OpenTarget =
@@ -33,7 +32,6 @@ export interface SessionSnapshot {
   config: ClientConfig | null;
   redoable: number;
   run: Run | null;
-  source: SourceDraft | null;
   writing: boolean;
 }
 
@@ -42,7 +40,6 @@ export const INITIAL_SESSION: SessionSnapshot = {
   config: null,
   redoable: 0,
   run: null,
-  source: null,
   writing: false,
 };
 
@@ -84,10 +81,6 @@ export class Session extends Store<SessionSnapshot> {
     return this.backend.open !== undefined;
   }
 
-  get canEditSource() {
-    return this.sync.refreshes;
-  }
-
   load() {
     this.backend
       .config()
@@ -123,21 +116,12 @@ export class Session extends Store<SessionSnapshot> {
 
   close(): Promise<void> {
     this.sequence.supersede();
-    this.snapshot.source?.cancel();
     return this.snapshot.run?.close() ?? Promise.resolve();
   }
 
   private readonly runClosed: Settle = async () => {
     await this.snapshot.run?.close();
     return true;
-  };
-
-  private readonly settled: Settle = async () => {
-    const committed = this.snapshot.source?.commit();
-    if (committed && !(await committed)) {
-      return false;
-    }
-    return this.runClosed();
   };
 
   async open(target: OpenTarget): Promise<Run | undefined> {
@@ -147,7 +131,7 @@ export class Session extends Store<SessionSnapshot> {
     }
     const selected =
       target.at === "run" ? textRangeIn(target.block.el, target.caret) : null;
-    const newest = await this.sequence.open(this.settled);
+    const newest = await this.sequence.open(this.runClosed);
     if (!(newest && this.editable)) {
       return;
     }
@@ -239,38 +223,6 @@ export class Session extends Store<SessionSnapshot> {
     return this.edit(block.el, (fresh) => moveIntent(fresh, target));
   }
 
-  async openSource(block: Block): Promise<void> {
-    if (!(this.editable && this.canEditSource)) {
-      return;
-    }
-    const newest = await this.sequence.open(this.settled);
-    if (!(newest && this.editable && block.el.isConnected)) {
-      return;
-    }
-    try {
-      const fresh = readBlock(block.el);
-      const { source } = await this.edits.read(fresh.file, fresh.version);
-      if (!this.isCurrent(newest, fresh, fresh.version)) {
-        return;
-      }
-      const draft = new SourceDraft(
-        fresh,
-        source,
-        (intent) => this.edit(fresh.el, intent),
-        () => {
-          if (this.snapshot.source === draft) {
-            this.update({ source: null });
-          }
-        }
-      );
-      this.update({ source: draft });
-    } catch (error) {
-      if (newest()) {
-        logError(errorText(error));
-      }
-    }
-  }
-
   private async edit(
     el: HTMLElement,
     intent: (block: Block) => Intent
@@ -312,7 +264,7 @@ export class Session extends Store<SessionSnapshot> {
           await apply(file);
           this.refreshChanges();
         }
-      }, this.settled);
+      }, this.runClosed);
     } catch (error) {
       logError(errorText(error));
     }
@@ -348,7 +300,7 @@ export class Session extends Store<SessionSnapshot> {
           `Reverted ${files(reverted.length)}. Skipped ${skipped.join(", ")}, changed in your editor since.`
         );
         return false;
-      }, this.settled);
+      }, this.runClosed);
       return done ?? false;
     } catch (error) {
       logError(errorText(error));

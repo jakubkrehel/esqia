@@ -1,10 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Block } from "../src/client/blocks";
 import { EditSequence } from "../src/client/edit-sequence";
-import { memoryBackend } from "../src/client/memory-backend";
-import { SourceDraft } from "../src/client/source-draft";
-import { clientConfig } from "../src/shared/config";
-import { memoryStore } from "../src/shared/history";
 
 const nothingOpen = () => Promise.resolve(true);
 
@@ -147,69 +142,5 @@ describe("openings", () => {
     const write = sequence.write(() => Promise.resolve(), nothingOpen);
     expect(written?.()).toBe(false);
     await write;
-  });
-});
-
-const drafting = (text = "<Demo />") => {
-  const { sequence } = sequenced();
-  const backend = memoryBackend(
-    memoryStore(() => ({ hash: "initial", source: text })),
-    clientConfig({})
-  );
-  const block: Block = {
-    el: {} as HTMLElement,
-    end: text.length,
-    file: "a.mdx",
-    start: 0,
-    type: "block",
-    version: "initial",
-  };
-  const draft = new SourceDraft(
-    block,
-    text,
-    (intent) =>
-      sequence
-        .write(async () => {
-          const { hash } = await backend.source(block.file);
-          await backend.edit(block.file, hash, intent(block));
-          return true;
-        }, nothingOpen)
-        .then(
-          (written) => written ?? false,
-          () => false
-        ),
-    () => undefined
-  );
-  const file = async () => (await backend.source(block.file)).source;
-  return { draft, file, sequence };
-};
-
-describe("a source draft as the open edit", () => {
-  it("is saved before the write that settles it", async () => {
-    const { draft, file, sequence } = drafting();
-    draft.change("<Next />");
-    await expect(sequence.write(file, () => draft.commit())).resolves.toBe(
-      "<Next />"
-    );
-  });
-
-  it("is saved before the opening that settles it", async () => {
-    const { draft, file, sequence } = drafting();
-    draft.change("<Next />");
-    const newest = await sequence.open(() => draft.commit());
-    expect(newest?.()).toBe(true);
-    await expect(file()).resolves.toBe("<Next />");
-  });
-
-  it("holds back writes and openings while it cannot be saved", async () => {
-    const { draft, file, sequence } = drafting();
-    draft.change("<Demo");
-    const action = vi.fn<() => Promise<void>>(() => Promise.resolve());
-    await expect(
-      sequence.write(action, () => draft.commit())
-    ).resolves.toBeUndefined();
-    expect(action).not.toHaveBeenCalled();
-    await expect(sequence.open(() => draft.commit())).resolves.toBeNull();
-    await expect(file()).resolves.toBe("<Demo />");
   });
 });

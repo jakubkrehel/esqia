@@ -64,7 +64,7 @@ export function InstallCard() {
   const [program, ...args] = command.split(" ");
 
   return (
-    <div className="flex w-full flex-col gap-1 rounded-2xl p-1 shadow-custom">
+    <div className="mb-6 flex w-full flex-col gap-1 rounded-2xl p-1 shadow-custom">
       <div className="flex w-full flex-col gap-1 sm:flex-row">
         <ManagerSwitch onChange={setManager} value={manager} />
         <a

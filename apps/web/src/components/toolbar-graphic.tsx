@@ -1,24 +1,27 @@
 import type { ReactNode } from "react";
 
 const OPEN_MARK = [
-  [0, 1],
+  [0, 0],
+  [1, 1],
+  [0, 2],
   [1, 2],
-  [0, 3],
   [1, 3],
-  [1, 4],
-  [0, 5],
+  [0, 4],
+  [3, 0],
   [3, 1],
   [3, 2],
   [3, 3],
   [3, 4],
-  [3, 5],
-  [6, 1],
+  [6, 0],
+  [5, 1],
   [5, 2],
+  [6, 2],
   [5, 3],
-  [6, 3],
-  [5, 4],
-  [6, 5],
+  [6, 4],
 ] as const;
+
+const MARK_SQUARE = 4;
+const MARK_PITCH = 5;
 
 function Glyph({ children }: { children: ReactNode }) {
   return (
@@ -61,17 +64,17 @@ export function ToolbarGraphic() {
       <span className="grid size-15 shrink-0 place-items-center text-gray-1200">
         <svg
           aria-hidden="true"
-          className="size-8"
+          className="h-6 w-8.5"
           fill="currentColor"
-          viewBox="-0.15 -0.15 14 14"
+          viewBox="0 0 34 24"
         >
           {OPEN_MARK.map(([column, row]) => (
             <rect
-              height="1.7"
+              height={MARK_SQUARE}
               key={`${column}-${row}`}
-              width="1.7"
-              x={column * 2}
-              y={row * 2}
+              width={MARK_SQUARE}
+              x={column * MARK_PITCH}
+              y={row * MARK_PITCH}
             />
           ))}
         </svg>

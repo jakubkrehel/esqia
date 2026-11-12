@@ -1,5 +1,6 @@
 import type { MDXComponents } from "mdx/types";
 import type { ComponentProps } from "react";
+import { ClickHere } from "@/components/click-here";
 import { Kbd } from "@/components/kbd";
 import { MDXBlockImage, MDXBlockVideo } from "@/components/mdx/media";
 import { Point } from "@/components/point";
@@ -16,6 +17,7 @@ const components: MDXComponents = {
       {children}
     </a>
   ),
+  ClickHere,
   code: Code,
   figcaption: (props) => (
     <figcaption
@@ -56,7 +58,7 @@ const components: MDXComponents = {
   Point,
   p: (props) => (
     <p
-      className="relative font-text text-body text-text-paragraph has-[>[data-media]]:my-8 has-[>[data-point]]:my-2 has-[>[data-point]]:pl-10"
+      className="relative font-text text-body text-text-paragraph has-[>[data-point]]:my-2 has-[>[data-point]]:pl-10"
       {...props}
     />
   ),
