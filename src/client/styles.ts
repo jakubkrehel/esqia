@@ -12,8 +12,7 @@ export const CHROME_CSS = `
   --text: oklch(0.244 0 0);
   --muted: oklch(0.54 0 0);
   --faint: oklch(0.61 0 0);
-  --key-fill: rgb(20 20 19 / 0.03);
-  --key-line: rgb(20 20 19 / 0.05);
+  --key-line: rgb(0 0 0 / 0.06);
   --sky: oklch(74.6% 0.16 232.661);
   --outline: var(--sky);
   --expand: cubic-bezier(0.32, 0.72, 0, 1);
@@ -32,8 +31,7 @@ export const CHROME_CSS = `
   --text: oklch(0.949 0 0);
   --muted: oklch(0.773 0 0);
   --faint: oklch(0.583 0 0);
-  --key-fill: rgb(198 198 198 / 0.06);
-  --key-line: rgb(255 255 255 / 0.05);
+  --key-line: rgb(255 255 255 / 0.08);
   --danger: oklch(0.704 0.191 22.216);
   --success: oklch(0.723 0.219 149.579);
   --shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
@@ -99,10 +97,11 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 }
 .tip[data-open] { opacity: 1; scale: 1; transition-duration: 200ms; }
 .tip:has(.keys) { padding-right: 6px; }
-.tip .keys { display: flex; align-items: center; gap: 2px; }
+.tip .keys { display: flex; align-items: center; gap: 4px; }
 .tip kbd, .source kbd {
-  display: inline-flex; align-items: center; justify-content: center; flex: none; height: 20px; min-width: 20px;
-  border: 1px solid var(--key-line); border-radius: 4px; background: var(--key-fill); color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center; flex: none; height: 20px; min-width: 20px; padding: 0 4px;
+  border: 1px solid var(--surface); border-radius: 6px; background: var(--hover) padding-box; color: var(--muted);
+  box-shadow: var(--shadow), inset 0 0 0 1px var(--key-line);
   font-family: inherit; font-size: 11px; font-weight: 450; line-height: 16px; text-transform: uppercase; user-select: none;
 }
 .tip[data-instant] { transition-duration: 0s; }

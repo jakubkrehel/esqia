@@ -101,7 +101,7 @@ function tipLabel(id: TipId): ReactNode {
         </>
       );
     case "revert":
-      return "Revert all changes";
+      return "Revert all";
     case "open":
       return "Open in editor";
     default:

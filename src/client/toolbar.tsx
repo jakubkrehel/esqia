@@ -154,7 +154,7 @@ export function Toolbar({
           <button
             aria-disabled={nothingChanged}
             aria-expanded={confirming}
-            aria-label="Revert all changes"
+            aria-label="Revert all"
             className="action"
             onClick={(event) => toggleConfirm(event.currentTarget)}
             ref={revert}
@@ -261,7 +261,7 @@ function RevertConfirm({
             <CheckIcon />
           </span>
         </span>
-        Revert all changes
+        Revert all
       </button>
     </div>
   );
