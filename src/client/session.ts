@@ -24,7 +24,9 @@ export type OpenTarget =
   | { at: "run"; block: Block; caret?: { x: number; y: number } }
   | { at: "after"; block: Block };
 
-export type Notify = (text: string, tone?: "info" | "error") => void;
+function logError(text: string) {
+  console.error(`esqia: ${text}`);
+}
 
 export interface SessionSnapshot {
   changed: number;
@@ -59,18 +61,15 @@ export class Session extends Store<SessionSnapshot> {
   );
   private editable = false;
   private lastFile: string | null = null;
-  private noticed = false;
   private readonly backend: Backend;
   private readonly edits: FileEdits;
-  private readonly notify: Notify;
   private readonly sync: PageSync;
 
-  constructor({ backend, sync }: EditingHost, notify: Notify) {
+  constructor({ backend, sync }: EditingHost) {
     super(INITIAL_SESSION);
     this.backend = backend;
     this.sync = sync;
     this.edits = new FileEdits(backend, sync);
-    this.notify = notify;
   }
 
   get canUndo() {
@@ -94,10 +93,7 @@ export class Session extends Store<SessionSnapshot> {
       .config()
       .then((config) => this.update({ config }))
       .catch(() =>
-        this.notify(
-          "Can't reach the esqia sidecar. Restart `next dev`.",
-          "error"
-        )
+        logError("Can't reach the esqia sidecar. Restart `next dev`.")
       );
     this.refreshChanges();
   }
@@ -180,7 +176,7 @@ export class Session extends Store<SessionSnapshot> {
             this.update({ run: null });
           }
         },
-        onError: (message) => this.notify(message, "error"),
+        onError: logError,
         onFocus: (focused) => {
           if (this.editable) {
             this.update({ run: focused });
@@ -195,14 +191,10 @@ export class Session extends Store<SessionSnapshot> {
       this.runs.add(next);
       this.lastFile = file;
       this.update({ run: next });
-      if (this.backend.notice && !this.noticed) {
-        this.noticed = true;
-        this.notify(this.backend.notice);
-      }
       return next;
     } catch (error) {
       if (newest()) {
-        this.notify(errorText(error), "error");
+        logError(errorText(error));
       }
     }
   }
@@ -274,7 +266,7 @@ export class Session extends Store<SessionSnapshot> {
       this.update({ source: draft });
     } catch (error) {
       if (newest()) {
-        this.notify(errorText(error), "error");
+        logError(errorText(error));
       }
     }
   }
@@ -296,20 +288,20 @@ export class Session extends Store<SessionSnapshot> {
       }, this.runClosed);
       return written ?? false;
     } catch (error) {
-      this.notify(errorText(error), "error");
+      logError(errorText(error));
       return false;
     }
   }
 
   undo() {
-    return this.step(this.backend.undo, "Undone");
+    return this.step(this.backend.undo);
   }
 
   redo() {
-    return this.step(this.backend.redo, "Redone");
+    return this.step(this.backend.redo);
   }
 
-  private async step(apply: (file: string) => Promise<unknown>, done: string) {
+  private async step(apply: (file: string) => Promise<unknown>) {
     if (!this.sync.refreshes) {
       return;
     }
@@ -319,11 +311,10 @@ export class Session extends Store<SessionSnapshot> {
         if (file) {
           await apply(file);
           this.refreshChanges();
-          this.notify(done);
         }
       }, this.settled);
     } catch (error) {
-      this.notify(errorText(error), "error");
+      logError(errorText(error));
     }
   }
 
@@ -340,7 +331,7 @@ export class Session extends Store<SessionSnapshot> {
     try {
       await open(block.file, await this.lineOf(block));
     } catch (error) {
-      this.notify(errorText(error), "error");
+      logError(errorText(error));
     }
   }
 
@@ -353,15 +344,14 @@ export class Session extends Store<SessionSnapshot> {
         if (skipped.length === 0) {
           return true;
         }
-        this.notify(
-          `Reverted ${files(reverted.length)}. Skipped ${skipped.join(", ")}, changed in your editor since.`,
-          "error"
+        logError(
+          `Reverted ${files(reverted.length)}. Skipped ${skipped.join(", ")}, changed in your editor since.`
         );
         return false;
       }, this.settled);
       return done ?? false;
     } catch (error) {
-      this.notify(errorText(error), "error");
+      logError(errorText(error));
       return false;
     }
   }

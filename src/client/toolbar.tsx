@@ -266,19 +266,3 @@ function RevertConfirm({
     </div>
   );
 }
-
-export function Status({
-  corner,
-  text,
-  tone,
-}: {
-  corner: Corner;
-  text: string;
-  tone: "info" | "error";
-}) {
-  return (
-    <div className="toast" data-corner={corner} data-tone={tone} role="status">
-      {text}
-    </div>
-  );
-}

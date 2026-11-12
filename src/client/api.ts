@@ -18,7 +18,6 @@ export interface Backend {
     intent: Intent,
     group?: string
   ) => Promise<{ hash: string; ops: Op[] }>;
-  notice: string | null;
   open?: (file: string, line: number) => Promise<void>;
   redo: (file: string) => Promise<{ hash: string }>;
   revert: () => Promise<{ reverted: string[]; skipped: string[] }>;
@@ -62,7 +61,6 @@ export function sidecarBackend(address: string, token: string): Backend {
         "/edit",
         post({ file, group, hash, intent })
       ),
-    notice: null,
     open: async (file, line) => {
       const params = new URLSearchParams({
         column1: "1",

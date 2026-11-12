@@ -23,10 +23,12 @@ class LivePage implements RunPage {
   private readonly file: string;
   private readonly ranges = new Map<string, BlockRange>();
   private readonly hidden = new Set<HTMLElement>();
+  private readonly root: HTMLElement;
   private readonly unwatch: () => void;
 
-  constructor({ file, range, version }: PageOpening) {
+  constructor({ file, range, root, version }: PageOpening) {
     this.file = file;
+    this.root = root;
     this.ranges.set(version, range);
     this.hide();
     this.unwatch = watchBlocks(() => this.hide());
@@ -45,6 +47,7 @@ class LivePage implements RunPage {
     for (const el of this.hidden) {
       showBlock(el);
     }
+    hideBlock(this.root);
     return true;
   }
 

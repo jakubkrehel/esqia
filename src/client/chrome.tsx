@@ -10,11 +10,10 @@ import { usePageClicks } from "./page-clicks";
 import { IDLE_RUN, type Run } from "./run";
 import { INITIAL_SESSION, Session } from "./session";
 import { Slash } from "./slash";
-import { OUTLINE_COLORS, Status, Toolbar } from "./toolbar";
+import { OUTLINE_COLORS, Toolbar } from "./toolbar";
 
 const MODES = ["read", "edit"] as const;
 type Mode = (typeof MODES)[number];
-type Toast = { text: string; tone: "info" | "error" } | null;
 
 const MODE_KEY = "esqia:mode";
 const OUTLINE_KEY = "esqia:outline";
@@ -73,7 +72,6 @@ export function Chrome({
   inline: boolean;
 }) {
   const [mode, setMode] = useStored(MODE_KEY, MODES, "read");
-  const [toast, setToast] = useState<Toast>(null);
   const [outline, setOutline] = useStored(
     OUTLINE_KEY,
     OUTLINES,
@@ -81,12 +79,7 @@ export function Chrome({
   );
   const [stored, setCorner] = useStored(CORNER_KEY, CORNERS, "top-left");
   const corner = inline ? "bottom-left" : stored;
-  const [session] = useState(
-    () =>
-      new Session(editingHost, (text, tone = "info") =>
-        setToast({ text, tone })
-      )
-  );
+  const [session] = useState(() => new Session(editingHost));
   const { changed, config, redoable, run, source, writing } =
     useSyncExternalStore(
       session.subscribe,
@@ -103,17 +96,6 @@ export function Chrome({
     run?.getSnapshot ?? (() => IDLE_RUN),
     () => IDLE_RUN
   );
-
-  useEffect(() => {
-    if (!toast) {
-      return;
-    }
-    const timer = setTimeout(
-      () => setToast(null),
-      toast.tone === "error" ? 5000 : 1600
-    );
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   useEffect(() => session.load(), [session]);
 
@@ -144,7 +126,7 @@ export function Chrome({
   usePageClicks(host, session, mode === "edit");
 
   if (!(hasBlocks && config)) {
-    return toast ? <Status corner={corner} {...toast} /> : null;
+    return null;
   }
 
   const editing = mode === "edit";
@@ -186,7 +168,6 @@ export function Chrome({
         )}
         {run && <RunMenu config={config} run={run} />}
         {!inline && toolbar}
-        {toast && <Status corner={corner} {...toast} />}
       </div>
       {inline && toolbar}
     </>
@@ -232,7 +213,7 @@ function useShortcuts(options: {
     const onKey = (event: KeyboardEvent) => {
       const mod = event.metaKey || event.ctrlKey;
       const key = event.key.toLowerCase();
-      if (mod && !event.shiftKey && key === "e") {
+      if (mod && event.altKey && event.code === "KeyE") {
         event.preventDefault();
         options.onToggle();
         return;

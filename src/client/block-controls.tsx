@@ -20,6 +20,7 @@ import type { SourceDraft } from "./source-draft";
 import { SourcePanel } from "./source-panel";
 
 const MODIFIERS = new Set(["Alt", "Control", "Meta", "Shift"]);
+const TYPING_PAUSE = 600;
 
 type LineOf = (block: Pick<Block, "file" | "start">) => Promise<number>;
 
@@ -62,6 +63,7 @@ export function BlockControls({
     let frame = 0;
     let pointer = { x: -1, y: -1 };
     let typing = false;
+    let pause: ReturnType<typeof setTimeout> | undefined;
 
     const measure = () => {
       frame = 0;
@@ -76,6 +78,7 @@ export function BlockControls({
       }
       pointer = { x: event.clientX, y: event.clientY };
       typing = false;
+      clearTimeout(pause);
       schedule();
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -90,6 +93,11 @@ export function BlockControls({
         return;
       }
       typing = true;
+      clearTimeout(pause);
+      pause = setTimeout(() => {
+        typing = false;
+        schedule();
+      }, TYPING_PAUSE);
       schedule();
     };
     const onPointerDown = (event: PointerEvent) => {
@@ -108,6 +116,7 @@ export function BlockControls({
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
       cancelAnimationFrame(frame);
+      clearTimeout(pause);
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("scroll", schedule, true);

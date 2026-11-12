@@ -101,6 +101,7 @@ class DemoPage implements RunPage {
     const { editor, file, range, root } = this;
     const text = this.source().slice(range.start, range.end);
     renderClosedRun({ editor, file, range, root, text, version });
+    hideBlock(root);
     for (const el of this.own) {
       markRemoved(el);
     }

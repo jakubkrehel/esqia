@@ -44,8 +44,7 @@ export const CHROME_CSS = `
 }
 .layer > * { pointer-events: auto; }
 button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
-.bar, .toast { --inset-x: 20px; --inset-y: 20px; }
-.toast { --inset-y: 68px; }
+.bar { --inset-x: 20px; --inset-y: 20px; }
 [data-corner$="left"] { left: calc(var(--inset-x) + env(safe-area-inset-left)); }
 [data-corner$="right"] { right: calc(var(--inset-x) + env(safe-area-inset-right)); }
 [data-corner^="top"] { top: calc(var(--inset-y) + env(safe-area-inset-top)); }
@@ -132,13 +131,6 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .bar[data-mode="edit"] .mark-left { transform: translateX(-2px); }
 .bar[data-mode="edit"] .mark-right { transform: translateX(2px); }
 .trigger[data-busy] .mark-center { animation: pulse 900ms ease-in-out infinite; }
-.toast {
-  position: fixed; max-width: min(420px, calc(100vw - 40px)); padding: 6px 12px; border-radius: 8px;
-  background: var(--surface); box-shadow: var(--shadow); pointer-events: none !important;
-}
-.toast { transition: opacity 200ms ease-out, scale 200ms ease-out; }
-@starting-style { .toast { opacity: 0; scale: 0.96; } }
-.toast[data-tone="error"] { color: var(--danger); }
 .outline {
   position: fixed; border-radius: 8px; pointer-events: none !important;
   box-shadow: 0 0 0 2px var(--outline);

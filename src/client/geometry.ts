@@ -28,7 +28,7 @@ const FIRST_LINE_REACH = 64;
 const SCROLL_EDGE = 80;
 const SCROLL_SPEED = 18;
 const TAG_HEIGHT = 24;
-const TAG_GAP = 4;
+const TAG_GAP = 8;
 
 export function hitTest(x: number, y: number): Block | null {
   let best: { block: Block; area: number } | null = null;
