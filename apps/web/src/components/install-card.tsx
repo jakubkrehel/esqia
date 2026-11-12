@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
-import { GithubIcon } from "@/components/icons";
+import { GithubIcon, NpmIcon } from "@/components/icons";
 
 const COMMANDS = {
   bun: "bun add -d esqia",
@@ -19,6 +19,19 @@ const PROGRAM_COLOR =
   "text-[color(display-p3_0.391345_0.215644_0.853560)] dark:text-[color(display-p3_0.615613_0.445256_1)]";
 const ARG_COLOR =
   "text-[color(display-p3_0.259723_0.647032_0.276349)] dark:text-[color(display-p3_0.451324_0.823458_0.446819)]";
+
+const LINKS = [
+  {
+    href: "https://github.com/jakubkrehel/esqia",
+    Icon: GithubIcon,
+    label: "GitHub",
+  },
+  {
+    href: "https://www.npmjs.com/package/esqia",
+    Icon: NpmIcon,
+    label: "npm",
+  },
+];
 
 function ManagerSwitch({
   onChange,
@@ -67,15 +80,20 @@ export function InstallCard() {
     <div className="mb-6 flex w-full flex-col gap-1 rounded-2xl p-1 shadow-custom">
       <div className="flex w-full flex-col gap-1 sm:flex-row">
         <ManagerSwitch onChange={setManager} value={manager} />
-        <a
-          className="interactive flex h-11 select-none items-center justify-center gap-1.5 rounded-xl bg-preview-bg px-5 font-medium text-gray-1200 shadow-custom hover-hover:hover:bg-gray-200 sm:flex-1"
-          href="https://github.com/jakubkrehel/esqia"
-          rel="noopener"
-          target="_blank"
-        >
-          <GithubIcon className="size-5 text-gray-1100" />
-          GitHub
-        </a>
+        <div className="flex gap-1 sm:flex-1">
+          {LINKS.map(({ href, Icon, label }) => (
+            <a
+              className="interactive flex h-11 flex-1 select-none items-center justify-center gap-1.5 rounded-xl bg-preview-bg px-5 font-medium text-gray-1200 shadow-custom hover-hover:hover:bg-gray-200"
+              href={href}
+              key={label}
+              rel="noopener"
+              target="_blank"
+            >
+              <Icon className="size-5 text-gray-1100" />
+              {label}
+            </a>
+          ))}
+        </div>
       </div>
       <div className="flex h-11 items-center gap-2 overflow-hidden rounded-xl bg-preview-bg pr-1 pl-4 shadow-custom">
         <code className="flex-1 truncate bg-transparent font-mono text-sm">

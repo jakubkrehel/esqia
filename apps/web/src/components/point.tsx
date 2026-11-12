@@ -1,15 +1,19 @@
 import {
+  ComponentsIcon,
   CursorClickIcon,
   DifferenceIcon,
   InsertBlockIcon,
+  MediaIcon,
   MoveIcon,
   TextIcon,
 } from "@/components/icons";
 
 const ICONS = {
+  components: ComponentsIcon,
   cursor: CursorClickIcon,
   diff: DifferenceIcon,
   drag: MoveIcon,
+  media: MediaIcon,
   slash: InsertBlockIcon,
   text: TextIcon,
 };

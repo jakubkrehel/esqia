@@ -34,10 +34,10 @@ const SHORTCUTS = [
 export function Shortcuts() {
   return (
     <>
-      <h2 className="mt-16 mb-5 font-demibold font-text text-xl text-gray-1200">
+      <h2 className="mt-16 mb-4 font-demibold font-text text-xl text-gray-1200">
         Keyboard Shortcuts
       </h2>
-      <dl className="flex flex-col gap-2 font-text text-body text-text-paragraph">
+      <dl className="flex flex-col gap-4 font-text text-body text-text-paragraph">
         {SHORTCUTS.map(({ keys, label }) => (
           <div className="flex items-center gap-3" key={label}>
             <dt>{label}</dt>

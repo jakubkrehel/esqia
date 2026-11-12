@@ -17,7 +17,7 @@
 
   p:has(> [data-media]),
   [data-media-block] {
-    margin-block: --spacing(8);
+    margin-block: --spacing(6);
   }
 
   :is(p:has(> [data-media]), [data-media-block]):has(+ h2),

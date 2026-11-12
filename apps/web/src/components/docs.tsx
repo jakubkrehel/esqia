@@ -81,7 +81,7 @@ async function CodeBlock({
   });
 
   return (
-    <figure className="preview-code my-8 overflow-hidden">
+    <figure className="preview-code my-6 overflow-hidden">
       <figcaption className="mx-1 mt-1 flex items-center justify-between gap-2 rounded-xl bg-gray-100 py-1.5 shadow-custom pr-1.5 pl-3">
         <span className="flex min-w-0 items-center gap-2">
           <LanguageIcon lang={lang} title={title} />
@@ -132,7 +132,7 @@ function LanguageIcon({ lang, title }: { lang: string; title: string }) {
 
 function Heading({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mt-16 mb-5 font-demibold font-text text-xl text-gray-1200">
+    <h2 className="mt-16 mb-4 font-demibold font-text text-xl text-gray-1200">
       {children}
     </h2>
   );

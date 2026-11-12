@@ -39,6 +39,19 @@ export function CheckIcon({ className }: IconProps) {
   );
 }
 
+export function NpmIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path d="M3 21H12V7.5H16.5V21H21V3H3V21Z" />
+    </svg>
+  );
+}
+
 export function GithubIcon({ className }: IconProps) {
   return (
     <svg
@@ -220,6 +233,44 @@ export function DifferenceIcon({ className }: IconProps) {
       <path
         clipRule="evenodd"
         d="M17 3C19.2091 3 21 4.79086 21 7V17C21 19.2091 19.2091 21 17 21H7C4.79086 21 3 19.2091 3 17V7C3 4.79086 4.79086 3 7 3H17ZM12 10C10.8954 10 10 10.8954 10 12C10 13.1046 10.8954 14 12 14C13.1046 14 14 13.1046 14 12C14 10.8954 13.1046 10 12 10Z"
+        fillRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+export function ComponentsIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M18 8C19.6569 8 21 9.34315 21 11V18C21 19.6569 19.6569 21 18 21H11C9.34315 21 8 19.6569 8 18V17.4395C8.32808 17.4779 8.66159 17.5 9 17.5C13.6944 17.5 17.5 13.6944 17.5 9C17.5 8.66159 17.4779 8.32808 17.4395 8H18Z"
+        fill="currentColor"
+      />
+      <path
+        d="M9 2C12.866 2 16 5.13401 16 9C16 12.866 12.866 16 9 16C5.13401 16 2 12.866 2 9C2 5.13401 5.13401 2 9 2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+export function MediaIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        clipRule="evenodd"
+        d="M2 5C2 3.34315 3.34315 2 5 2H13C14.6569 2 16 3.34315 16 5V8H19C20.6569 8 22 9.34315 22 11V19C22 20.6569 20.6569 22 19 22H11C9.34315 22 8 20.6569 8 19V16H5C3.34315 16 2 14.6569 2 13V5ZM14 8V5C14 4.44772 13.5523 4 13 4H5C4.44772 4 4 4.44772 4 5V10.1315L4.3359 9.90755C5.3436 9.23575 6.6564 9.23575 7.6641 9.90755L8.10706 10.2029C8.4562 8.93292 9.61915 8 11 8H14ZM5 6.25C5 5.55964 5.55964 5 6.25 5C6.94036 5 7.5 5.55964 7.5 6.25C7.5 6.94036 6.94036 7.5 6.25 7.5C5.55964 7.5 5 6.94036 5 6.25ZM13.5415 12.5113C13.874 12.3397 14.2746 12.3682 14.5795 12.585L16.8295 14.185C17.0933 14.3726 17.25 14.6763 17.25 15C17.25 15.3237 17.0933 15.6274 16.8295 15.815L14.5795 17.415C14.2746 17.6318 13.874 17.6603 13.5415 17.4887C13.2089 17.3171 13 16.9742 13 16.6V13.4C13 13.0258 13.2089 12.6829 13.5415 12.5113Z"
+        fill="currentColor"
         fillRule="evenodd"
       />
     </svg>
