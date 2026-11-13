@@ -1,7 +1,9 @@
 import { Esqia } from "esqia";
+import { ClickHere } from "@/components/click-here";
 import { Docs } from "@/components/docs";
 import { Footer } from "@/components/footer";
 import { InstallCard } from "@/components/install-card";
+import { Kbd } from "@/components/kbd";
 import { Shortcuts } from "@/components/shortcuts";
 import { ToolbarGraphic } from "@/components/toolbar-graphic";
 import Content from "./content.mdx";
@@ -22,6 +24,10 @@ export default function Page() {
         </p>
       </header>
       <InstallCard />
+      <p className="font-text text-body text-text-paragraph">
+        Press <Kbd>⌘</Kbd> <Kbd>⌥</Kbd> <Kbd>E</Kbd> to enter edit mode or{" "}
+        <ClickHere>click here</ClickHere>.
+      </p>
       <Content />
       <Shortcuts />
       <Docs />

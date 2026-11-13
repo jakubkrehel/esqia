@@ -15,15 +15,28 @@ interface Arrow {
 }
 
 const GAP = 10;
+const LANDING_TURN = 0.8;
 const MIN_LENGTH = 80;
-const STEPS = 8;
+const STEPS = 64;
 const BOW = 0.18;
-const WOBBLE = 0.006;
-const HEAD_LENGTH = 12;
+const WOBBLE = 0.012;
+const MAX_WOBBLE = 3.5;
+const LOOP_AT = 0.45;
+const LOOP_SIZE = 0.15;
+const MIN_LOOP = 14;
+const MAX_LOOP = 34;
+const LOOP_STRETCH = 1.2;
+const LOOP_TIGHTNESS = 2.8;
+const HEAD_LENGTH = 13;
 const HEAD_SPREAD = 0.5;
-const VISIBLE_FOR = 2000;
-const DRAW = 0.6;
+const VISIBLE_FOR = 2500;
+const DRAW = 1.1;
 const EASE = [0.2, 0, 0, 1] as const;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
+const vary = (amount: number) => 1 + (Math.random() - 0.5) * amount;
 
 const center = (rect: DOMRect): Point => ({
   x: rect.left + rect.width / 2,
@@ -43,33 +56,44 @@ function edge(rect: DOMRect, toward: Point): Point {
 const at = ({ x, y }: Point) => `${x.toFixed(1)} ${y.toFixed(1)}`;
 
 function sketch(from: DOMRect, to: DOMRect): Omit<Arrow, "key"> | null {
-  const start = edge(from, center(to));
-  const end = edge(to, center(from));
+  const target = center(to);
+  const start = edge(from, target);
+  const landing =
+    Math.atan2(start.y - target.y, start.x - target.x) - LANDING_TURN;
+  const reach = Math.min(to.width, to.height) / 2 + GAP;
+  const end = {
+    x: target.x + Math.cos(landing) * reach,
+    y: target.y + Math.sin(landing) * reach,
+  };
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const length = Math.hypot(dx, dy);
   if (length < MIN_LENGTH) {
     return null;
   }
-  const normal = { x: -dy / length, y: dx / length };
-  const control = {
-    x: start.x + dx / 2 + normal.x * length * BOW,
-    y: start.y + dy / 2 + normal.y * length * BOW,
-  };
+  const along = { x: dx / length, y: dy / length };
+  const normal = { x: -along.y, y: along.x };
+  const bow = length * BOW * vary(0.5);
+  const sway = Math.min(length * WOBBLE, MAX_WOBBLE);
+  const slow = Math.random() * Math.PI * 2;
+  const fast = Math.random() * Math.PI * 2;
+  const radius = clamp(length * LOOP_SIZE, MIN_LOOP, MAX_LOOP) * vary(0.2);
+  const stretch = LOOP_STRETCH * vary(0.3);
+  const span = (Math.PI * 2 * radius * stretch) / (LOOP_TIGHTNESS * length);
+  const loopStart = LOOP_AT * vary(0.25) - span / 2;
   const points = Array.from({ length: STEPS + 1 }, (_, index) => {
     const t = index / STEPS;
-    const wobble = Math.sin(t * Math.PI * 3) * length * WOBBLE;
+    const turn = clamp((t - loopStart) / span, 0, 1) * Math.PI * 2;
+    const drift =
+      Math.sin(t * Math.PI) *
+      sway *
+      (Math.sin(t * 7 + slow) + 0.5 * Math.sin(t * 17 + fast));
+    const forward = radius * stretch * Math.sin(turn);
+    const sideways =
+      2 * t * (1 - t) * bow + radius * (1 - Math.cos(turn)) + drift;
     return {
-      x:
-        (1 - t) ** 2 * start.x +
-        2 * (1 - t) * t * control.x +
-        t ** 2 * end.x +
-        normal.x * wobble,
-      y:
-        (1 - t) ** 2 * start.y +
-        2 * (1 - t) * t * control.y +
-        t ** 2 * end.y +
-        normal.y * wobble,
+      x: start.x + dx * t + along.x * forward + normal.x * sideways,
+      y: start.y + dy * t + along.y * forward + normal.y * sideways,
     };
   });
   const curves = points.slice(1, -1).map((point, index) => {
@@ -80,14 +104,16 @@ function sketch(from: DOMRect, to: DOMRect): Omit<Arrow, "key"> | null {
         : { x: (point.x + next.x) / 2, y: (point.y + next.y) / 2 };
     return `Q ${at(point)} ${at(through)}`;
   });
-  const before = points[STEPS - 1];
+  const before = points[STEPS - 4];
   const angle = Math.atan2(end.y - before.y, end.x - before.x);
   const wing = (spread: number, size: number) => ({
     x: end.x - Math.cos(angle + spread) * size,
     y: end.y - Math.sin(angle + spread) * size,
   });
+  const upper = wing(HEAD_SPREAD * vary(0.4), HEAD_LENGTH * vary(0.3));
+  const lower = wing(-HEAD_SPREAD * vary(0.4), HEAD_LENGTH * 0.85 * vary(0.3));
   return {
-    head: `M ${at(wing(HEAD_SPREAD, HEAD_LENGTH))} L ${at(end)} L ${at(wing(-HEAD_SPREAD, HEAD_LENGTH * 0.85))}`,
+    head: `M ${at(upper)} L ${at(end)} L ${at(lower)}`,
     shaft: `M ${at(start)} ${curves.join(" ")}`,
   };
 }
