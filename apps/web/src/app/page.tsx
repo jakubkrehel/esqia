@@ -20,7 +20,7 @@ export default function Page() {
           Esqia
         </h1>
         <p className="font-text text-body text-gray-1100">
-          An inline markdown editor for React.
+          An inline MDX editor for Next.js.
         </p>
       </header>
       <InstallCard />

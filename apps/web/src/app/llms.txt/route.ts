@@ -4,7 +4,7 @@ export const dynamic = "force-static";
 
 const llmsTxt = `# Esqia
 
-> An inline markdown editor for React.
+> An inline MDX editor for Next.js.
 
 ${source}`;
 
