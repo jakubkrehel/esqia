@@ -1,7 +1,6 @@
 import { IconCodeLarge } from "central-icons/IconCodeLarge";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Frame } from "./parts";
 
 type Kind = "added" | "removed" | "same";
 
@@ -40,15 +39,19 @@ function Line({
       >
         {number}
       </span>
-      <span>{children}</span>
+      <span className="pr-3">{children}</span>
     </span>
   );
 }
 
 export function Diff() {
   return (
-    <Frame className="flex flex-col">
-      <div className="mx-1 mt-1 flex items-center justify-between rounded-xl bg-gray-100 py-2 pr-3 pl-3 shadow-custom">
+    <figure
+      aria-hidden="true"
+      className="preview-code select-none overflow-hidden"
+      data-media-block=""
+    >
+      <figcaption className="mx-1 mt-1 flex items-center justify-between rounded-xl bg-gray-100 py-2 pr-3 pl-3 shadow-custom">
         <span className="flex items-center gap-2">
           <IconCodeLarge className="size-4 text-gray-1000" />
           <span className="font-mono text-gray-1100 text-small">
@@ -59,28 +62,32 @@ export function Diff() {
           <span className="text-diff-removed">-1</span>
           <span className="text-diff-added">+1</span>
         </span>
-      </div>
-      <pre className="flex flex-1 flex-col justify-center font-mono text-gray-1100 text-small leading-6">
-        <Line number={1}>## How It Works</Line>
-        <Line number={2} />
-        <Line number={3}>Click into any markdown on the page and edit it.</Line>
-        <Line number={4} />
-        <Line kind="removed" number={5}>
-          Drag any block to move it.
-        </Line>
-        <Line kind="added" number={5}>
-          Drag any block to move it
-          <span className="rounded-sm bg-diff-added/30 dark:bg-diff-added/25">
-            , including demos
-          </span>
-          .
-        </Line>
-        <Line number={6} />
-        <Line number={7}>
-          Select text to apply **bold**, *italic* or `code`.
-        </Line>
-        <Line number={8} />
+      </figcaption>
+      <pre className="scrollbar-thin overflow-x-auto overscroll-x-contain py-3 font-mono text-gray-1100 text-small leading-6 [scrollbar-color:var(--color-gray-600)_transparent] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1">
+        <span className="grid w-max min-w-full">
+          <Line number={1}>## How It Works</Line>
+          <Line number={2} />
+          <Line number={3}>
+            Click into any markdown on the page and edit it.
+          </Line>
+          <Line number={4} />
+          <Line kind="removed" number={5}>
+            Drag any block to move it.
+          </Line>
+          <Line kind="added" number={5}>
+            Drag any block to move it
+            <span className="rounded-sm bg-diff-added/30 dark:bg-diff-added/25">
+              , including demos
+            </span>
+            .
+          </Line>
+          <Line number={6} />
+          <Line number={7}>
+            Select text to apply **bold**, *italic* or `code`.
+          </Line>
+          <Line number={8} />
+        </span>
       </pre>
-    </Frame>
+    </figure>
   );
 }
