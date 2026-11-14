@@ -41,6 +41,7 @@
 @layer base {
   :root {
     --font-text-sans: var(--font-inter);
+    --font-sans: var(--font-text-sans);
   }
 
   :root,
