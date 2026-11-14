@@ -72,7 +72,7 @@ function ManagerSwitch({
 }
 
 export function InstallCard() {
-  const [manager, setManager] = useState<Manager>("pnpm");
+  const [manager, setManager] = useState<Manager>("npm");
   const command = COMMANDS[manager];
   const [program, ...args] = command.split(" ");
 
