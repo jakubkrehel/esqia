@@ -45,7 +45,7 @@ export function Pixels() {
       <svg className="size-full" viewBox="0 0 592 296">
         {CELLS.map((cell) => (
           <rect
-            className={cell.mark ? "fill-gray-1200" : "fill-gray-200"}
+            className={cell.mark ? "fill-gray-1200" : "fill-gray-200/50"}
             height={SQUARE}
             key={cell.key}
             width={SQUARE}

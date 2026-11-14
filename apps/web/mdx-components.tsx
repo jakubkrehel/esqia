@@ -3,7 +3,6 @@ import type { ComponentProps } from "react";
 import { ClickHere } from "@/components/click-here";
 import { Gradient } from "@/components/gradient";
 import { Diff } from "@/components/graphics/diff";
-import { Layers } from "@/components/graphics/layers";
 import { Pixels } from "@/components/graphics/pixels";
 import { Source } from "@/components/graphics/source";
 import { Kbd } from "@/components/kbd";
@@ -45,7 +44,7 @@ const components: MDXComponents = {
   ),
   h2: ({ children, ...props }) => (
     <h2
-      className="mt-16 mb-4 font-demibold font-text text-xl text-gray-1200"
+      className="mt-16 mb-4 font-demibold font-text text-gray-1200 text-xl sm:mt-24"
       {...props}
     >
       {children}
@@ -53,7 +52,6 @@ const components: MDXComponents = {
   ),
   img: MDXBlockImage,
   Kbd,
-  Layers,
   li: (props) => (
     <li className="pl-2 font-text text-body text-text-paragraph" {...props} />
   ),

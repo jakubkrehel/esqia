@@ -47,12 +47,6 @@ export function Chip({
   );
 }
 
-export function Bar({ className }: { className?: string }) {
-  return (
-    <span className={cn("block h-2.5 rounded-full bg-gray-300", className)} />
-  );
-}
-
 export function Caret({ className }: { className?: string }) {
   return (
     <span

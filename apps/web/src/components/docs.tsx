@@ -132,7 +132,7 @@ function LanguageIcon({ lang, title }: { lang: string; title: string }) {
 
 function Heading({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mt-16 mb-4 font-demibold font-text text-xl text-gray-1200">
+    <h2 className="mt-16 mb-4 font-demibold font-text text-gray-1200 text-xl sm:mt-24">
       {children}
     </h2>
   );

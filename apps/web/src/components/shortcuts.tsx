@@ -34,7 +34,7 @@ const SHORTCUTS = [
 export function Shortcuts() {
   return (
     <>
-      <h2 className="mt-16 mb-4 font-demibold font-text text-xl text-gray-1200">
+      <h2 className="mt-16 mb-4 font-demibold font-text text-gray-1200 text-xl sm:mt-24">
         Keyboard Shortcuts
       </h2>
       <dl className="flex flex-col gap-4 font-text text-body text-text-paragraph">
