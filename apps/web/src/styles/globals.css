@@ -64,6 +64,8 @@
     --color-danger-text: oklch(0.577 0.245 27.325);
     --color-danger-solid: oklch(0.637 0.237 25.331);
     --color-danger-solid-hover: oklch(0.577 0.245 27.325);
+    --color-diff-added: color(display-p3 0.266455 0.667541 0.435918);
+    --color-diff-removed: color(display-p3 0.838044 0.219378 0.220424);
     --shadow-border: 0px 0px 0px 1px rgba(0, 0, 0, 0.06);
     --shadow-custom:
       0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06),
@@ -95,6 +97,8 @@
       --color-danger-text: oklch(0.704 0.191 22.216);
       --color-danger-solid: oklch(0.637 0.237 25.331);
       --color-danger-solid-hover: oklch(0.577 0.245 27.325);
+      --color-diff-added: color(display-p3 0.304148 0.80179 0.517191);
+      --color-diff-removed: color(display-p3 1 0.250216 0.262337);
       --shadow-border: 0 0 0 1px rgba(255, 255, 255, 0.08);
       --shadow-custom: 0 0 0 1px rgba(255, 255, 255, 0.08);
       --shadow-custom-hover: 0 0 0 1px rgba(255, 255, 255, 0.13);
@@ -207,6 +211,8 @@
   --color-danger-text: var(--color-danger-text);
   --color-danger-solid: var(--color-danger-solid);
   --color-danger-solid-hover: var(--color-danger-solid-hover);
+  --color-diff-added: var(--color-diff-added);
+  --color-diff-removed: var(--color-diff-removed);
   --shadow-border: var(--shadow-border);
   --shadow-custom: var(--shadow-custom);
   --shadow-custom-hover: var(--shadow-custom-hover);

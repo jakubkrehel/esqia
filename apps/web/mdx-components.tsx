@@ -2,6 +2,10 @@ import type { MDXComponents } from "mdx/types";
 import type { ComponentProps } from "react";
 import { ClickHere } from "@/components/click-here";
 import { Gradient } from "@/components/gradient";
+import { Diff } from "@/components/graphics/diff";
+import { Layers } from "@/components/graphics/layers";
+import { Pixels } from "@/components/graphics/pixels";
+import { Source } from "@/components/graphics/source";
 import { Kbd } from "@/components/kbd";
 import { MDXBlockImage, MDXBlockVideo } from "@/components/mdx/media";
 import { Point } from "@/components/point";
@@ -20,6 +24,7 @@ const components: MDXComponents = {
   ),
   ClickHere,
   code: Code,
+  Diff,
   figcaption: (props) => (
     <figcaption
       className="border-gray-200 border-b px-4 py-2.5 font-text text-gray-1100 text-sm"
@@ -48,6 +53,7 @@ const components: MDXComponents = {
   ),
   img: MDXBlockImage,
   Kbd,
+  Layers,
   li: (props) => (
     <li className="pl-2 font-text text-body text-text-paragraph" {...props} />
   ),
@@ -57,6 +63,7 @@ const components: MDXComponents = {
       {...props}
     />
   ),
+  Pixels,
   Point,
   p: (props) => (
     <p
@@ -70,6 +77,7 @@ const components: MDXComponents = {
       {...props}
     />
   ),
+  Source,
   strong: (props) => (
     <strong className="font-medium text-gray-1200" {...props} />
   ),
