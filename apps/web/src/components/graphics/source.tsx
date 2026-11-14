@@ -2,7 +2,7 @@ import { Caret, Chip, Frame } from "./parts";
 
 export function Source() {
   return (
-    <Frame className="grid grid-cols-2">
+    <Frame className="grid grid-cols-2" nested>
       <div className="flex flex-col gap-5 bg-gray-100 px-8 pt-20">
         <Chip>content.mdx</Chip>
         <pre className="font-mono text-gray-1100 text-small leading-6">

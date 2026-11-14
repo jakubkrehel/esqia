@@ -1,5 +1,5 @@
+import { IconCodeLarge } from "central-icons/IconCodeLarge";
 import type { ReactNode } from "react";
-import { CodeIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { Frame } from "./parts";
 
@@ -50,7 +50,7 @@ export function Diff() {
     <Frame className="flex flex-col">
       <div className="mx-1 mt-1 flex items-center justify-between rounded-xl bg-gray-100 py-2 pr-3 pl-3 shadow-custom">
         <span className="flex items-center gap-2">
-          <CodeIcon className="size-4 text-gray-1000" />
+          <IconCodeLarge className="size-4 text-gray-1000" />
           <span className="font-mono text-gray-1100 text-small">
             content.mdx
           </span>

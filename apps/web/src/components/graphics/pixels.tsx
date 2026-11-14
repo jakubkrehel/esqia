@@ -41,7 +41,7 @@ const CARET = CELLS.filter((cell) => cell.caret);
 
 export function Pixels() {
   return (
-    <Frame>
+    <Frame nested>
       <svg className="size-full" viewBox="0 0 592 296">
         {CELLS.map((cell) => (
           <rect
