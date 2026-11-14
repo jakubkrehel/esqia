@@ -40,7 +40,7 @@ export function Shortcuts() {
       <dl className="flex flex-col gap-4 font-text text-body text-text-paragraph">
         {SHORTCUTS.map(({ keys, label }) => (
           <div className="flex items-center gap-3" key={label}>
-            <dt>{label}</dt>
+            <dt className="text-pretty">{label}</dt>
             <span aria-hidden="true" className="h-px flex-1 bg-gray-400" />
             <dd className="flex flex-none items-center gap-1">
               {keys.map((key) => (
