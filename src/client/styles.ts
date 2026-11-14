@@ -184,7 +184,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .toolbar button:hover { background: var(--toolbar-hover); color: var(--text); }
 .toolbar button[aria-pressed="true"] { background: var(--hover); color: var(--text); }
 .toolbar input {
-  height: 32px; width: 284px; padding: 0 12px 1px; text-overflow: ellipsis; border: 0; background: transparent;
+  height: 32px; width: 284px; padding: 0 12px; text-overflow: ellipsis; border: 0; background: transparent;
   color: inherit; font: inherit; font-weight: 450; outline: none;
 }
 .toolbar input::placeholder { color: var(--faint); }
