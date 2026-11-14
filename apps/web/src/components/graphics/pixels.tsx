@@ -55,7 +55,7 @@ export function Pixels() {
         ))}
         {CARET.map((cell) => (
           <rect
-            className="graphic-caret fill-sky-400"
+            className="graphic-caret fill-gray-1200"
             height={SQUARE}
             key={cell.key}
             width={SQUARE}
