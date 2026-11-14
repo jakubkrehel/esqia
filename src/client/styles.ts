@@ -20,7 +20,7 @@ export const CHROME_CSS = `
   --danger: oklch(0.577 0.245 27.325);
   --success: oklch(0.627 0.194 149.214);
   --shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06), 0 2px 4px 0 rgb(0 0 0 / 0.04);
-  font: 500 14px/1.25 var(--font-sans, -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif);
+  font: 500 14px/1.25 var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   -webkit-font-smoothing: antialiased; color: var(--text);
 }
 :host([data-theme="dark"]) {
