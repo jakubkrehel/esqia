@@ -2,6 +2,47 @@ interface IconProps {
   className?: string;
 }
 
+const OPEN_MARK = [
+  [0, 0],
+  [1, 1],
+  [0, 2],
+  [1, 2],
+  [1, 3],
+  [0, 4],
+  [3, 0],
+  [3, 1],
+  [3, 2],
+  [3, 3],
+  [3, 4],
+  [6, 0],
+  [5, 1],
+  [5, 2],
+  [6, 2],
+  [5, 3],
+  [6, 4],
+] as const;
+
+export function EsqiaMarkIcon({ className }: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 34 24"
+    >
+      {OPEN_MARK.map(([column, row]) => (
+        <rect
+          height={4}
+          key={`${column}-${row}`}
+          width={4}
+          x={column * 5}
+          y={row * 5}
+        />
+      ))}
+    </svg>
+  );
+}
+
 export function CopyIcon({ className }: IconProps) {
   return (
     <svg

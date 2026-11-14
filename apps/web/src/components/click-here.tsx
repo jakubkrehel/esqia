@@ -2,6 +2,7 @@
 
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { EsqiaMarkIcon } from "@/components/icons";
 
 interface Point {
   x: number;
@@ -164,11 +165,12 @@ export function ClickHere({ children }: { children: ReactNode }) {
   return (
     <>
       <button
-        className="article-underline cursor-pointer"
+        className="article-underline cursor-pointer whitespace-nowrap"
         onClick={point}
         ref={ref}
         type="button"
       >
+        <EsqiaMarkIcon className="mr-1 mb-0.5 inline-block h-3 w-4.25" />
         {children}
       </button>
       <AnimatePresence>
