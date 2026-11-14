@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CopyButton } from "@/components/copy-button";
-import { GithubIcon, NpmIcon } from "@/components/icons";
+import { NpmIcon } from "@/components/icons";
 
 const COMMANDS = {
   bun: "bun add -d esqia",
@@ -21,11 +21,6 @@ const ARG_COLOR =
   "text-[color(display-p3_0.259723_0.647032_0.276349)] dark:text-[color(display-p3_0.451324_0.823458_0.446819)]";
 
 const LINKS = [
-  {
-    href: "https://github.com/jakubkrehel/esqia",
-    Icon: GithubIcon,
-    label: "GitHub",
-  },
   {
     href: "https://www.npmjs.com/package/esqia",
     Icon: NpmIcon,
