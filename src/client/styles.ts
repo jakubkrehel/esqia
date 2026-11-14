@@ -8,7 +8,7 @@ export const CHROME_CSS = `
   --surface: oklch(1 0 0);
   --hover: oklch(0.972 0 0);
   --menu-hover: oklch(0.955 0 0);
-  --toolbar-hover: oklch(0.872 0.01 258.338);
+  --toolbar-hover: oklch(0.955 0 0);
   --line: oklch(0.931 0 0);
   --text: oklch(0.244 0 0);
   --muted: oklch(0.54 0 0);
@@ -27,7 +27,7 @@ export const CHROME_CSS = `
   --surface: oklch(0.178 0 0);
   --hover: oklch(0.213 0 0);
   --menu-hover: oklch(0.252 0 0);
-  --toolbar-hover: var(--hover);
+  --toolbar-hover: oklch(0.252 0 0);
   --line: oklch(0.264 0 0);
   --text: oklch(0.949 0 0);
   --muted: oklch(0.773 0 0);
@@ -185,7 +185,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .toolbar button[aria-pressed="true"] { background: var(--hover); color: var(--text); }
 .toolbar input {
   height: 32px; width: 284px; padding: 0 12px; text-overflow: ellipsis; border: 0; background: transparent;
-  color: inherit; font: inherit; outline: none;
+  color: inherit; font: inherit; font-weight: 450; outline: none;
 }
 .toolbar input::placeholder { color: var(--faint); }
 .sep { flex-shrink: 0; width: 1px; height: 16px; margin: 0 4px; background: var(--line); }
