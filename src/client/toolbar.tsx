@@ -58,7 +58,10 @@ export function Toolbar({
   const current = OUTLINE_COLORS.findIndex((color) => color.value === outline);
   const outlineName = OUTLINE_COLORS[current]?.name ?? "Custom";
   const next = OUTLINE_COLORS[(current + 1) % OUTLINE_COLORS.length];
-  const confirming = confirmAt !== null && editing;
+  if (confirmAt && !editing) {
+    setConfirmAt(null);
+  }
+  const confirming = confirmAt !== null;
   const nothingChanged = changed === 0;
   const { bind, tip } = useTip();
 
@@ -84,10 +87,10 @@ export function Toolbar({
       }
     };
     window.addEventListener("pointerdown", dismiss);
-    window.addEventListener("keydown", escape);
+    window.addEventListener("keydown", escape, true);
     return () => {
       window.removeEventListener("pointerdown", dismiss);
-      window.removeEventListener("keydown", escape);
+      window.removeEventListener("keydown", escape, true);
     };
   }, [confirming]);
 

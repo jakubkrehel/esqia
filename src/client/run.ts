@@ -54,7 +54,10 @@ export interface RunOptions {
   sync: PageSync;
 }
 
+let opened = 0;
+
 export class Run extends Store<RunSnapshot> {
+  readonly id = ++opened;
   readonly file: string;
   readonly root: HTMLElement;
   readonly editor: Editor;

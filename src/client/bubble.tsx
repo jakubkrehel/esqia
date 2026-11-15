@@ -1,5 +1,11 @@
 import { posToDOMRect } from "@tiptap/core";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { ClientConfig } from "../shared/config";
 import { Anchored } from "./anchored";
 import { markOpen } from "./editor";
@@ -13,20 +19,22 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
   const { from, to, empty } = editor.state.selection;
   const hasText = editor.state.doc.textBetween(from, to).length > 0;
 
-  const [linkDraft, setLinkDraft] = useState<{
-    from: number;
-    href: string;
-  } | null>(null);
-  const linking = linkDraft && linkDraft.from === from ? linkDraft.href : null;
-  const setLinking = (href: string | null) =>
-    setLinkDraft(href === null ? null : { from, href });
+  const selection = `${from}:${to}`;
   const inCode = editor.isActive("codeBlock");
   const linkField = useRef<HTMLInputElement>(null);
-  const settled = useSettledSelection(editor.view.dom, `${from}:${to}`);
-
-  const open =
-    linking !== null ||
-    !(empty || !hasText || inCode || !settled || !editor.view.hasFocus());
+  const settled = useSettledSelection(editor.view.dom, selection);
+  const selecting = !(
+    empty ||
+    !hasText ||
+    inCode ||
+    !settled ||
+    !editor.view.hasFocus()
+  );
+  const { draft, linking, open, setDraft } = useLinkDraft(
+    selection,
+    selecting,
+    linkField
+  );
 
   const chain = () => editor.chain().focus();
   const button = (
@@ -73,13 +81,13 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
     <Anchored
       className="panel toolbar"
       context={editor.view.dom}
-      focus={linking === null ? undefined : linkField}
+      focus={linking ? linkField : undefined}
       gap={8}
       open={open}
       placement="top"
       rect={() => posToDOMRect(editor.view, from, to)}
     >
-      {linking === null ? (
+      {draft === null ? (
         <>
           {button(<BoldIcon />, "Bold", editor.isActive("bold"), () =>
             chain().toggleBold().run()
@@ -91,7 +99,7 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
             chain().toggleCode().run()
           )}
           {button(<LinkIcon />, "Link", editor.isActive("link"), () =>
-            setLinking(
+            setDraft(
               (editor.getAttributes("link").href as string | undefined) ?? ""
             )
           )}
@@ -109,34 +117,77 @@ export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (linking.trim()) {
+            if (draft.trim()) {
               chain()
                 .extendMarkRange("link")
-                .setLink({ href: linking.trim() })
+                .setLink({ href: draft.trim() })
                 .run();
             } else {
               chain().extendMarkRange("link").unsetLink().run();
             }
-            setLinking(null);
+            setDraft(null);
           }}
         >
           <input
             aria-label="Link URL"
-            onChange={(event) => setLinking(event.target.value)}
+            onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
-                setLinking(null);
+                setDraft(null);
                 editor.commands.focus();
               }
             }}
             placeholder="Paste a link, or leave empty to remove"
             ref={linkField}
-            value={linking}
+            value={draft}
           />
         </form>
       )}
     </Anchored>
   );
+}
+
+function useLinkDraft(
+  selection: string,
+  selecting: boolean,
+  field: RefObject<HTMLInputElement | null>
+) {
+  const [link, setLink] = useState<{
+    at: string;
+    dismissed: boolean;
+    href: string;
+  } | null>(null);
+
+  if (link && !link.dismissed && link.at !== selection) {
+    setLink({ ...link, dismissed: true });
+  }
+  if (link?.dismissed && selecting) {
+    setLink(null);
+  }
+  const linking = link !== null && !link.dismissed && link.at === selection;
+  const open = linking || selecting;
+
+  useEffect(() => {
+    if (!linking) {
+      return;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const panel = field.current?.closest(".toolbar");
+      if (!(panel && event.composedPath().includes(panel))) {
+        setLink((current) => current && { ...current, dismissed: true });
+      }
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => window.removeEventListener("pointerdown", onPointerDown, true);
+  }, [linking, field]);
+
+  return {
+    draft: linking || !open ? (link?.href ?? null) : null,
+    linking,
+    open,
+    setDraft: (href: string | null) =>
+      setLink(href === null ? null : { at: selection, dismissed: false, href }),
+  };
 }
 
 function useSettledSelection(target: HTMLElement, selection: string) {

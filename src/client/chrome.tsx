@@ -168,7 +168,7 @@ export function Chrome({
             }
           />
         )}
-        {run && <RunMenu config={config} run={run} />}
+        {run && <RunMenu config={config} key={run.id} run={run} />}
       </div>
       <div className="layer">{!inline && toolbar}</div>
       {inline && toolbar}
