@@ -4,34 +4,33 @@ export function Source() {
   return (
     <div
       aria-hidden="true"
-      className="grid w-full select-none sm:aspect-2/1 sm:grid-cols-2"
+      className="w-full select-none rounded-2xl bg-preview-bg p-1 shadow-custom"
       data-media-block=""
     >
-      <div className="flex flex-col gap-5 p-6 sm:pt-20 sm:pr-0 sm:pb-0 sm:pl-8">
-        <Chip>content.mdx</Chip>
-        <div className="flex flex-col gap-2 font-mono text-base text-gray-1100 leading-6.5">
-          <pre className="leading-7">
+      <div className="grid overflow-hidden rounded-xl bg-preview-bg shadow-custom sm:aspect-2/1 sm:grid-cols-2">
+        <div className="flex flex-col gap-5 bg-gray-100 p-6 sm:px-8 sm:pt-20 sm:pb-0">
+          <Chip>content.mdx</Chip>
+          <pre className="font-mono text-gray-1100 text-small leading-6">
             <span className="text-gray-800">## </span>
             <span className="text-gray-1200">How It Works</span>
-          </pre>
-          <pre>
+            {"\n\n"}
             Click into **any** markdown
             {"\n"}
             on the page and edit it.
           </pre>
         </div>
-      </div>
-      <div className="flex flex-col gap-5 p-6 sm:px-8 sm:pt-20 sm:pb-0">
-        <Chip>localhost:3000</Chip>
-        <div className="flex flex-col gap-2">
-          <p className="font-demibold font-text text-gray-1200 text-xl">
-            How It Works
-          </p>
-          <p className="font-text text-body text-text-paragraph">
-            Click into{" "}
-            <strong className="font-medium text-gray-1200">any</strong>
-            <Caret /> markdown on the page and edit it.
-          </p>
+        <div className="flex flex-col gap-5 border-gray-400 border-t p-6 sm:border-t-0 sm:border-l sm:px-8 sm:pt-20 sm:pb-0">
+          <Chip>localhost:3000</Chip>
+          <div className="flex flex-col gap-2">
+            <p className="font-demibold font-text text-gray-1200 text-xl">
+              How It Works
+            </p>
+            <p className="font-text text-body text-text-paragraph">
+              Click into{" "}
+              <strong className="font-medium text-gray-1200">any</strong>
+              <Caret /> markdown on the page and edit it.
+            </p>
+          </div>
         </div>
       </div>
     </div>
