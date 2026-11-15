@@ -93,9 +93,10 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   display: flex; align-items: center; gap: 8px;
   padding: 6px 10px; border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); color: var(--text);
   font-size: 14px; font-weight: 450; line-height: 20px;
-  translate: -50% 0; transform-origin: bottom center; opacity: 0; scale: 0.95;
+  translate: -50% 0; transform-origin: bottom center; opacity: 0; scale: 0.95; will-change: transform;
   transition: opacity 150ms ease-out, scale 150ms ease-out;
 }
+:host([data-theme="dark"]) .tip { --surface: oklch(0.15 0 0); }
 .tip[data-open] { opacity: 1; scale: 1; transition-duration: 200ms; }
 .tip:has(.keys) { padding-right: 6px; }
 .tip .keys { display: flex; align-items: center; gap: 4px; }
@@ -135,8 +136,8 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   position: absolute; border-radius: 4px; pointer-events: none !important;
   outline: 2px solid var(--outline); outline-offset: ${PAD}px;
 }
-.outline, .gutter, .tag { transition: opacity 100ms ease-out; }
-@starting-style { .outline, .gutter, .tag { opacity: 0; } }
+.tag { transition: opacity 100ms ease-out; }
+@starting-style { .tag { opacity: 0; } }
 .tag {
   position: fixed; height: 24px; padding: 0 8px; border-radius: 6px; pointer-events: none !important;
   display: flex; align-items: center; white-space: nowrap;
