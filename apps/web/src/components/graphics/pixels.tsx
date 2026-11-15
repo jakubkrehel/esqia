@@ -32,8 +32,8 @@ const CELLS = Array.from({ length: COLUMNS * ROWS }, (_, index) => {
     caret: inRows && markColumn === 3,
     key: `${column}-${row}`,
     mark: SIDES.has(`${markColumn}-${markRow}`),
-    x: column * PITCH - 2,
-    y: row * PITCH - 6,
+    x: column * PITCH - 6,
+    y: row * PITCH - 8,
   };
 });
 
@@ -42,10 +42,10 @@ const CARET = CELLS.filter((cell) => cell.caret);
 export function Pixels() {
   return (
     <Frame nested>
-      <svg className="size-full" viewBox="0 0 592 296">
+      <svg className="size-full" viewBox="0 0 584 292">
         {CELLS.map((cell) => (
           <rect
-            className={cell.mark ? "fill-gray-1200" : "fill-gray-200/50"}
+            className={cell.mark ? "fill-gray-1200" : "fill-gray-200/30"}
             height={SQUARE}
             key={cell.key}
             width={SQUARE}
