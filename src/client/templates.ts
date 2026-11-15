@@ -1,6 +1,7 @@
 import type { PhrasingContent } from "mdast";
 import { parseMdx } from "../shared/markdown";
 import type { Path } from "../shared/ops";
+import { SAMPLES } from "../shared/wrapper";
 import { type Block, pageWrappers, readBlock } from "./blocks";
 import { sliceOf } from "./parse-run";
 
@@ -60,9 +61,10 @@ export function sampleTemplates(
     }
   }
 
-  const lists = ofType("list")
-    .map((wrapper) => wrapper.firstElementChild)
-    .filter((el): el is HTMLElement => el instanceof HTMLElement);
+  const lists = [
+    ...ofType("list").map((wrapper) => wrapper.firstElementChild),
+    ...document.querySelectorAll(`[${SAMPLES}] > ul, [${SAMPLES}] > ol`),
+  ].filter((el): el is HTMLElement => el instanceof HTMLElement);
   const item = lists
     .flatMap((list) => [...list.children])
     .filter((el): el is HTMLElement => el instanceof HTMLLIElement)

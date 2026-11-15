@@ -36,6 +36,8 @@ export function slashItems(config: ClientConfig, query: string): SlashItem[] {
     { apply: heading(1), hint: "#", id: "h1", label: "Heading 1" },
     { apply: heading(2), hint: "##", id: "h2", label: "Heading 2" },
     { apply: heading(3), hint: "###", id: "h3", label: "Heading 3" },
+    { apply: toList(false), hint: "-", id: "bullets", label: "Bulleted list" },
+    { apply: toList(true), hint: "1.", id: "numbers", label: "Numbered list" },
     {
       apply: (editor) => editor.chain().focus().setCodeBlock().run(),
       hint: "```",
@@ -60,6 +62,30 @@ export function slashItems(config: ClientConfig, query: string): SlashItem[] {
     })),
   ];
   return items.filter((item) => item.label.toLowerCase().includes(query));
+}
+
+function toList(ordered: boolean) {
+  return (editor: Editor) => {
+    const { schema, selection, tr } = editor.state;
+    const { $from } = selection;
+    if ($from.parent.type.name !== "paragraph") {
+      return;
+    }
+    const start = $from.before();
+    tr.replaceWith(
+      start,
+      $from.after(),
+      schema.nodes.list.create(
+        ordered ? { marker: ".", ordered: true } : { ordered: false },
+        schema.nodes.listItem.create(null, $from.parent.content)
+      )
+    );
+    tr.setSelection(
+      TextSelection.create(tr.doc, start + 2 + $from.parentOffset)
+    );
+    editor.view.dispatch(tr);
+    editor.view.focus();
+  };
 }
 
 export function insertBlock(editor: Editor, raw: string) {

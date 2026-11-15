@@ -32,7 +32,9 @@ export class SlashMenuStore extends Store<SlashMenu | null> {
     this.set({
       ...state,
       active: previous?.query === query ? previous.active : 0,
-      items: slashItems(this.config, query),
+      items: slashItems(this.config, query).filter(
+        (item) => item.id !== "text"
+      ),
       query,
     });
   };

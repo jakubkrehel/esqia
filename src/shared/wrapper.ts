@@ -11,6 +11,7 @@ export const WRAPPER = {
 } as const;
 
 export const BLOCK_SELECTOR = `[${WRAPPER.file}]`;
+export const SAMPLES = "data-esqia-samples";
 
 export interface WrapperFields {
   end: number;

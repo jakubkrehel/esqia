@@ -1,69 +1,40 @@
-import {
-  type FocusEvent,
-  type PointerEvent,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Tooltip } from "@base-ui/react/tooltip";
+import type { ReactNode } from "react";
 
-const TIP_DELAY = 600;
 const TIP_WARM_FOR = 300;
+const TIP_GAP = 12;
 
-type TipId = "undo" | "redo" | "revert" | "open" | "outline";
+export type TipHandle = Tooltip.Handle<ReactNode>;
 
-interface Tip {
-  id: TipId;
-  instant: boolean;
-  open: boolean;
-  x: number;
-}
+export const createTips = (): TipHandle => Tooltip.createHandle<ReactNode>();
 
-export function useTip() {
-  const [tip, setTip] = useState<Tip | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const open = useRef(false);
-  const warmUntil = useRef(0);
-
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  const show = (button: HTMLElement, id: TipId) => {
-    clearTimeout(timer.current);
-    const x = button.offsetLeft + button.offsetWidth / 2;
-    const reveal = (instant: boolean) => {
-      open.current = true;
-      setTip({ id, instant, open: true, x });
-    };
-    if (performance.now() < warmUntil.current) {
-      reveal(true);
-    } else {
-      timer.current = setTimeout(() => reveal(false), TIP_DELAY);
-    }
-  };
-
-  const hide = () => {
-    clearTimeout(timer.current);
-    if (open.current) {
-      open.current = false;
-      warmUntil.current = performance.now() + TIP_WARM_FOR;
-    }
-    setTip((current) => current && { ...current, instant: false, open: false });
-  };
-
-  const bind = (id: TipId) => ({
-    onBlur: hide,
-    onFocus: (event: FocusEvent<HTMLButtonElement>) => {
-      if (event.currentTarget.matches(":focus-visible")) {
-        show(event.currentTarget, id);
-      }
-    },
-    onPointerDown: hide,
-    onPointerEnter: (event: PointerEvent<HTMLButtonElement>) =>
-      show(event.currentTarget, id),
-    onPointerLeave: hide,
-  });
-
-  return { bind, tip };
+export function Tips({
+  children,
+  container,
+  disabled,
+  handle,
+  side,
+}: {
+  children: ReactNode;
+  container: HTMLElement | null;
+  disabled: boolean;
+  handle: TipHandle;
+  side: "bottom" | "top";
+}) {
+  return (
+    <Tooltip.Provider timeout={TIP_WARM_FOR}>
+      {children}
+      <Tooltip.Root disabled={disabled} disableHoverablePopup handle={handle}>
+        {({ payload }) => (
+          <Tooltip.Portal container={container}>
+            <Tooltip.Positioner side={side} sideOffset={TIP_GAP}>
+              <Tooltip.Popup className="tip">{payload}</Tooltip.Popup>
+            </Tooltip.Positioner>
+          </Tooltip.Portal>
+        )}
+      </Tooltip.Root>
+    </Tooltip.Provider>
+  );
 }
 
 export const MOD =
@@ -84,41 +55,16 @@ export function Keys({ keys }: { keys: string[] }) {
   );
 }
 
-function tipLabel(id: TipId): ReactNode {
-  switch (id) {
-    case "undo":
-      return (
-        <>
-          Undo
-          <Keys keys={[MOD, "Z"]} />
-        </>
-      );
-    case "redo":
-      return (
-        <>
-          Redo
-          <Keys keys={[MOD, "⇧", "Z"]} />
-        </>
-      );
-    case "revert":
-      return "Revert all";
-    case "open":
-      return "Open in editor";
-    default:
-      return "Theme";
-  }
-}
+export const UNDO_TIP = (
+  <>
+    Undo
+    <Keys keys={[MOD, "Z"]} />
+  </>
+);
 
-export function ToolbarTip({ tip }: { tip: Tip }) {
-  return (
-    <div
-      aria-hidden="true"
-      className="tip"
-      data-instant={tip.instant ? "" : undefined}
-      data-open={tip.open ? "" : undefined}
-      style={{ left: tip.x }}
-    >
-      {tipLabel(tip.id)}
-    </div>
-  );
-}
+export const REDO_TIP = (
+  <>
+    Redo
+    <Keys keys={[MOD, "⇧", "Z"]} />
+  </>
+);

@@ -1,6 +1,6 @@
+import { Menu } from "@base-ui/react/menu";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { Anchored } from "./anchored";
 import type { Block } from "./blocks";
 import type { SlashItem } from "./commands";
 import {
@@ -14,7 +14,6 @@ import {
   tagPosition,
 } from "./geometry";
 import { GripIcon, PlusIcon, TrashIcon } from "./icons";
-import { MenuItem } from "./menu-item";
 
 const commitBeforePaint = flushSync;
 const MODIFIERS = new Set(["Alt", "Control", "Meta", "Shift"]);
@@ -51,6 +50,8 @@ export function BlockControls({
   const [hover, setHover] = useState<Block | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [menu, setMenu] = useState<Block | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [portal, setPortal] = useState<HTMLDivElement | null>(null);
   const gutter = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export function BlockControls({
     };
     const onPointerDown = (event: PointerEvent) => {
       if (!event.composedPath().includes(host)) {
-        setMenu(null);
+        setAdding(false);
       }
     };
 
@@ -120,21 +121,6 @@ export function BlockControls({
       window.removeEventListener("keydown", onKeyDown, true);
     };
   }, [host]);
-
-  const menuOpen = menu !== null;
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setMenu(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [menuOpen]);
 
   const startDrag = (
     event: React.PointerEvent<HTMLButtonElement>,
@@ -209,7 +195,17 @@ export function BlockControls({
   const origin = pageOrigin();
 
   return (
-    <>
+    <Menu.Root
+      modal={false}
+      onOpenChange={(open) => {
+        setAdding(open);
+        if (open) {
+          setMenu(block);
+        }
+      }}
+      onOpenChangeComplete={(open) => open || setMenu(null)}
+      open={adding}
+    >
       {block && geometry && (
         <>
           <div
@@ -220,9 +216,8 @@ export function BlockControls({
             }}
           />
           <Gutter
-            adding={Boolean(menu)}
+            adding={adding}
             gripping={Boolean(drag)}
-            onAdd={() => setMenu(menu ? null : block)}
             onDelete={() => {
               setHover(null);
               onDelete(block);
@@ -240,26 +235,28 @@ export function BlockControls({
           style={onPage(drag.line, origin)}
         />
       )}
-      {menu && (
-        <Anchored
-          className="panel menu"
-          context={menu.el}
-          placement="bottom-start"
-          rect={() => gutter.current?.getBoundingClientRect() ?? null}
+      <div ref={setPortal} />
+      <Menu.Portal container={portal}>
+        <Menu.Positioner
+          align="start"
+          anchor={gutter}
+          collisionPadding={8}
+          side="bottom"
+          sideOffset={6}
         >
-          {inserts.map((item) => (
-            <MenuItem
-              hint={item.hint}
-              key={item.label}
-              label={item.label}
-              onSelect={() => {
-                setMenu(null);
-                onInsert(menu, item);
-              }}
-            />
-          ))}
-        </Anchored>
-      )}
+          <Menu.Popup className="menu">
+            {inserts.map((item) => (
+              <Menu.Item
+                key={item.label}
+                onClick={() => menu && onInsert(menu, item)}
+              >
+                <span>{item.label}</span>
+                {item.hint && <span className="hint">{item.hint}</span>}
+              </Menu.Item>
+            ))}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
       {block && geometry && (
         <OpenTag
           block={block}
@@ -268,7 +265,7 @@ export function BlockControls({
           style={tagPosition(geometry)}
         />
       )}
-    </>
+    </Menu.Root>
   );
 }
 
@@ -358,7 +355,6 @@ function OpenLabel({
 function Gutter({
   adding,
   gripping,
-  onAdd,
   onDelete,
   onGrip,
   ref,
@@ -366,7 +362,6 @@ function Gutter({
 }: {
   adding: boolean;
   gripping: boolean;
-  onAdd: () => void;
   onDelete: () => void;
   onGrip: (event: React.PointerEvent<HTMLButtonElement>) => void;
   ref: React.Ref<HTMLDivElement>;
@@ -377,15 +372,12 @@ function Gutter({
       <button aria-label="Delete block" onClick={onDelete} type="button">
         <TrashIcon />
       </button>
-      <button
-        aria-expanded={adding}
+      <Menu.Trigger
         aria-label="Add below"
         data-active={adding ? "" : undefined}
-        onClick={onAdd}
-        type="button"
       >
         <PlusIcon />
-      </button>
+      </Menu.Trigger>
       <button
         aria-label="Drag to move"
         className="grip"

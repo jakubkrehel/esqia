@@ -1,4 +1,6 @@
-import { type Ref, useEffect, useRef, useState } from "react";
+import { Popover } from "@base-ui/react/popover";
+import { Tooltip } from "@base-ui/react/tooltip";
+import { useEffect, useState } from "react";
 import { type Corner, startCornerDrag } from "./corner-drag";
 import {
   CheckIcon,
@@ -9,7 +11,7 @@ import {
   TrashIcon,
   UndoIcon,
 } from "./icons";
-import { ToolbarTip, useTip } from "./toolbar-tip";
+import { createTips, REDO_TIP, Tips, UNDO_TIP } from "./toolbar-tip";
 
 export const OUTLINE_COLORS = [
   { name: "Gray", value: "oklch(70.8% 0 0)" },
@@ -52,58 +54,18 @@ export function Toolbar({
   onUndo?: () => void;
   redoable: number;
 }) {
-  const [confirmAt, setConfirmAt] = useState<ConfirmAt | null>(null);
-  const revert = useRef<HTMLButtonElement>(null);
-  const confirm = useRef<HTMLDivElement>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [bar, setBar] = useState<HTMLDivElement | null>(null);
   const current = OUTLINE_COLORS.findIndex((color) => color.value === outline);
   const outlineName = OUTLINE_COLORS[current]?.name ?? "Custom";
   const next = OUTLINE_COLORS[(current + 1) % OUTLINE_COLORS.length];
-  if (confirmAt && !editing) {
-    setConfirmAt(null);
+  if (confirming && !editing) {
+    setConfirming(false);
   }
-  const confirming = confirmAt !== null;
   const nothingChanged = changed === 0;
-  const { bind, tip } = useTip();
-
-  useEffect(() => {
-    if (!confirming) {
-      return;
-    }
-    const dismiss = (event: Event) => {
-      const path = event.composedPath();
-      if (
-        !(
-          (confirm.current && path.includes(confirm.current)) ||
-          (revert.current && path.includes(revert.current))
-        )
-      ) {
-        setConfirmAt(null);
-      }
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setConfirmAt(null);
-      }
-    };
-    window.addEventListener("pointerdown", dismiss);
-    window.addEventListener("keydown", escape, true);
-    return () => {
-      window.removeEventListener("pointerdown", dismiss);
-      window.removeEventListener("keydown", escape, true);
-    };
-  }, [confirming]);
-
-  const toggleConfirm = (button: HTMLButtonElement) => {
-    if (confirming) {
-      setConfirmAt(null);
-    } else if (!nothingChanged) {
-      setConfirmAt({
-        left: button.offsetLeft,
-        right: button.offsetLeft + button.offsetWidth,
-      });
-    }
-  };
+  const above = corner.startsWith("bottom");
+  const [tips] = useState(createTips);
+  const side = above ? "top" : "bottom";
 
   return (
     <div
@@ -114,6 +76,7 @@ export function Toolbar({
       onPointerDown={
         inline ? undefined : (event) => startCornerDrag(event, corner, onCorner)
       }
+      ref={setBar}
     >
       <button
         aria-label={editing ? "Stop editing" : "Edit this page"}
@@ -126,99 +89,96 @@ export function Toolbar({
         <MarkIcon />
       </button>
       <div className="tray" inert={!editing}>
-        <div className="tray-items">
-          <span className="sep" />
-          {onUndo && (
-            <button
-              aria-disabled={nothingChanged}
-              aria-keyshortcuts="Meta+Z Control+Z"
-              aria-label="Undo"
-              className="action"
-              onClick={() => nothingChanged || onUndo()}
-              type="button"
-              {...bind("undo")}
+        <Tips
+          container={bar}
+          disabled={confirming || !editing}
+          handle={tips}
+          side={side}
+        >
+          <div className="tray-items">
+            <span className="sep" />
+            {onUndo && (
+              <Tooltip.Trigger
+                aria-disabled={nothingChanged}
+                aria-keyshortcuts="Meta+Z Control+Z"
+                aria-label="Undo"
+                className="action"
+                handle={tips}
+                onClick={() => nothingChanged || onUndo()}
+                payload={UNDO_TIP}
+              >
+                <UndoIcon />
+              </Tooltip.Trigger>
+            )}
+            {onRedo && (
+              <Tooltip.Trigger
+                aria-disabled={redoable === 0}
+                aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
+                aria-label="Redo"
+                className="action"
+                handle={tips}
+                onClick={() => redoable === 0 || onRedo()}
+                payload={REDO_TIP}
+              >
+                <RedoIcon />
+              </Tooltip.Trigger>
+            )}
+            <Popover.Root
+              onOpenChange={(open) => setConfirming(open && !nothingChanged)}
+              open={confirming}
             >
-              <UndoIcon />
-            </button>
-          )}
-          {onRedo && (
-            <button
-              aria-disabled={redoable === 0}
-              aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
-              aria-label="Redo"
+              <Tooltip.Trigger
+                aria-disabled={nothingChanged}
+                aria-label="Revert all"
+                className="action"
+                handle={tips}
+                payload="Revert all"
+                render={<Popover.Trigger />}
+              >
+                <ResetIcon />
+              </Tooltip.Trigger>
+              <Popover.Portal container={bar}>
+                <Popover.Positioner align="start" side={side} sideOffset={12}>
+                  <Popover.Popup className="confirm">
+                    <RevertConfirm changed={changed} onRevert={onRevert} />
+                  </Popover.Popup>
+                </Popover.Positioner>
+              </Popover.Portal>
+            </Popover.Root>
+            <span className="sep" />
+            {onOpen && (
+              <Tooltip.Trigger
+                aria-label="Open in editor"
+                className="action"
+                handle={tips}
+                onClick={onOpen}
+                payload="Open in editor"
+              >
+                <OpenIcon />
+              </Tooltip.Trigger>
+            )}
+            <Tooltip.Trigger
+              aria-label={`Theme: ${outlineName}`}
               className="action"
-              onClick={() => redoable === 0 || onRedo()}
-              type="button"
-              {...bind("redo")}
+              handle={tips}
+              onClick={() => onOutline(next.value)}
+              payload="Theme"
             >
-              <RedoIcon />
-            </button>
-          )}
-          <button
-            aria-disabled={nothingChanged}
-            aria-expanded={confirming}
-            aria-label="Revert all"
-            className="action"
-            onClick={(event) => toggleConfirm(event.currentTarget)}
-            ref={revert}
-            type="button"
-            {...bind("revert")}
-          >
-            <ResetIcon />
-          </button>
-          {onOpen && (
-            <button
-              aria-label="Open in editor"
-              className="action"
-              onClick={onOpen}
-              type="button"
-              {...bind("open")}
-            >
-              <OpenIcon />
-            </button>
-          )}
-          <button
-            aria-label={`Theme: ${outlineName}`}
-            className="action"
-            onClick={() => onOutline(next.value)}
-            type="button"
-            {...bind("outline")}
-          >
-            <span className="swatch" style={{ background: outline }} />
-          </button>
-        </div>
+              <span className="swatch" style={{ background: outline }} />
+            </Tooltip.Trigger>
+          </div>
+        </Tips>
       </div>
-      {tip && editing && !confirming && <ToolbarTip tip={tip} />}
-      {confirming && (
-        <RevertConfirm
-          at={confirmAt}
-          changed={changed}
-          corner={corner}
-          onRevert={onRevert}
-          ref={confirm}
-        />
-      )}
     </div>
   );
 }
 
-interface ConfirmAt {
-  left: number;
-  right: number;
-}
-
 function RevertConfirm({
-  at,
   changed,
-  corner,
   onRevert,
-  ref,
 }: {
-  at: ConfirmAt;
   changed: number;
-  corner: Corner;
   onRevert: () => Promise<boolean>;
-  ref: Ref<HTMLDivElement>;
 }) {
   const [reverting, setReverting] = useState(false);
   const [reverted, setReverted] = useState(false);
@@ -232,40 +192,29 @@ function RevertConfirm({
   }, [reverted]);
 
   return (
-    <div
-      className="confirm"
-      ref={ref}
-      style={
-        corner.endsWith("right")
-          ? { left: at.right, translate: "-100% 0" }
-          : { left: at.left }
-      }
+    <button
+      data-reverted={reverted ? "" : undefined}
+      disabled={changed === 0 && !reverting && !reverted}
+      onClick={async () => {
+        if (reverting || reverted) {
+          return;
+        }
+        setReverting(true);
+        const done = await onRevert();
+        setReverting(false);
+        setReverted(done);
+      }}
+      type="button"
     >
-      <button
-        autoFocus
-        data-reverted={reverted ? "" : undefined}
-        disabled={changed === 0 && !reverting && !reverted}
-        onClick={async () => {
-          if (reverting || reverted) {
-            return;
-          }
-          setReverting(true);
-          const done = await onRevert();
-          setReverting(false);
-          setReverted(done);
-        }}
-        type="button"
-      >
-        <span className="swap">
-          <span data-shown={reverted ? undefined : ""}>
-            <TrashIcon />
-          </span>
-          <span data-shown={reverted ? "" : undefined}>
-            <CheckIcon />
-          </span>
+      <span className="swap">
+        <span data-shown={reverted ? undefined : ""}>
+          <TrashIcon />
         </span>
-        Revert all
-      </button>
-    </div>
+        <span data-shown={reverted ? "" : undefined}>
+          <CheckIcon />
+        </span>
+      </span>
+      Revert all
+    </button>
   );
 }

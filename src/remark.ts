@@ -1,9 +1,9 @@
 import path from "node:path";
-import type { Root, RootContent } from "mdast";
+import type { List, Root, RootContent } from "mdast";
 import type { MdxJsxAttribute, MdxJsxFlowElement } from "mdast-util-mdx-jsx";
 import type { VFile } from "vfile";
 import { hashSource } from "./shared/hash";
-import { blockFields, wrapperAttributes } from "./shared/wrapper";
+import { blockFields, SAMPLES, wrapperAttributes } from "./shared/wrapper";
 
 export { hashSource } from "./shared/hash";
 
@@ -51,6 +51,31 @@ const displayContents: MdxJsxAttribute = {
   },
 };
 
+const sampleList = (ordered: boolean): List => ({
+  children: [
+    {
+      children: [
+        { children: [{ type: "text", value: "Item" }], type: "paragraph" },
+      ],
+      spread: false,
+      type: "listItem",
+    },
+  ],
+  ordered,
+  spread: false,
+  type: "list",
+});
+
+const samples = (): MdxJsxFlowElement => ({
+  attributes: [
+    attribute(SAMPLES, ""),
+    { name: "hidden", type: "mdxJsxAttribute", value: null },
+  ],
+  children: [sampleList(false), sampleList(true)],
+  name: "div",
+  type: "mdxJsxFlowElement",
+});
+
 export default function remarkEsqia() {
   return (tree: Root, file: VFile) => {
     if (!file.path) {
@@ -82,5 +107,6 @@ export default function remarkEsqia() {
       };
       return wrapper;
     });
+    tree.children.push(samples());
   };
 }

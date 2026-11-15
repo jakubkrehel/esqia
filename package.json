@@ -53,6 +53,7 @@
     "typecheck": "tsc --noEmit && pnpm build && pnpm --filter web typecheck"
   },
   "dependencies": {
+    "@base-ui/react": "^1.9.0",
     "@floating-ui/react-dom": "^2.1.9",
     "@tiptap/core": "^3.32.2",
     "@tiptap/extension-bold": "^3.32.2",

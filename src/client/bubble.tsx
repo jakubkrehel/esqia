@@ -195,7 +195,10 @@ function useSettledSelection(target: HTMLElement, selection: string) {
   const [settledOn, setSettledOn] = useState<string | null>(null);
 
   useEffect(() => {
-    const press = () => setPressed(true);
+    const press = () => {
+      setPressed(true);
+      setSettledOn(null);
+    };
     const release = () => setPressed(false);
     target.addEventListener("pointerdown", press);
     window.addEventListener("pointerup", release);
