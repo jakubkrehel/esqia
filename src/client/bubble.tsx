@@ -6,7 +6,7 @@ import { markOpen } from "./editor";
 import { BoldIcon, CodeLargeIcon, ItalicIcon, LinkIcon } from "./icons";
 import type { Run } from "./run";
 
-const SHOW_DELAY = 400;
+const SHOW_DELAY = 600;
 
 export function Bubble({ run, config }: { run: Run; config: ClientConfig }) {
   const { editor } = run;

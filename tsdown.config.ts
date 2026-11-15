@@ -10,7 +10,7 @@ export default defineConfig([
     platform: "node",
   },
   {
-    banner: '"use client";',
+    banner: '"use client";\n"use no memo";',
     dts: true,
     entry: { index: "src/client/index.tsx" },
     fixedExtension: false,

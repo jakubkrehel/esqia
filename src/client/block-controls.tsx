@@ -121,6 +121,21 @@ export function BlockControls({
     };
   }, [host]);
 
+  const menuOpen = menu !== null;
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMenu(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [menuOpen]);
+
   const startDrag = (
     event: React.PointerEvent<HTMLButtonElement>,
     block: Block
