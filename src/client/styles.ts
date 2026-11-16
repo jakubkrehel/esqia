@@ -169,18 +169,10 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .panel { position: absolute; background: var(--surface); box-shadow: var(--shadow); }
 .toolbar[data-placement^="top"] { transform-origin: bottom center; }
 .toolbar[data-placement^="bottom"] { transform-origin: top center; }
-.toolbar[data-state="open"] { animation: toolbar-in 36ms linear(0, 0.317 25%, 0.586 50%, 0.811 75%, 1); }
-.toolbar[data-state="closed"] { animation: toolbar-out 200ms forwards; pointer-events: none !important; }
-@keyframes toolbar-in {
-  from { opacity: 0; scale: 0.98; }
-  to { opacity: 1; scale: 0.99; }
-}
-@keyframes toolbar-out {
-  0% { opacity: 1; scale: 1; animation-timing-function: linear(0, 0.314 25%, 0.58 50%, 0.8 75%, 1); }
-  13% { opacity: 1; scale: 0.99; animation-timing-function: step-start; }
-  13.01% { opacity: 1; scale: 0.98; animation-timing-function: linear(0, 0.367 10%, 0.6 20%, 0.747 30%, 0.84 40%, 0.899 50%, 0.936 60%, 0.974 80%, 1); }
-  100% { opacity: 0; scale: 0.98; }
-}
+.toolbar[data-state="open"] { animation: toolbar-in 150ms ease-out; }
+.toolbar[data-state="closed"] { animation: toolbar-out 150ms ease-out forwards; pointer-events: none !important; }
+@keyframes toolbar-in { from { opacity: 0; scale: 0.96; } }
+@keyframes toolbar-out { to { opacity: 0; scale: 0.96; } }
 .toolbar { display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 9999px; white-space: nowrap; }
 .toolbar button {
   height: 28px; min-width: 28px; padding: 0 6px; border: 0; border-radius: 9999px;
