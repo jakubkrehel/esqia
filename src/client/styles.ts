@@ -102,7 +102,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .action:has(+ .sep)::after { inset-inline-end: -8px; }
 .action:hover:not([aria-disabled="true"]), .action[aria-expanded="true"] { background: var(--hover); color: var(--text); }
 .action:active:not([aria-disabled="true"]) { transform: scale(0.96); }
-.action[aria-disabled="true"] { color: color-mix(in oklab, var(--muted) 40%, transparent); cursor: default; }
+.action[aria-disabled="true"] { color: color-mix(in oklab, var(--muted) 40%, transparent); cursor: not-allowed; }
 .confirm {
   direction: ltr; transform-origin: var(--transform-origin); outline: none;
   padding: 4px; border-radius: 9999px; background: var(--surface); box-shadow: var(--shadow);
