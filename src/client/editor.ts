@@ -198,6 +198,7 @@ export function createExtensions({
         return [slashSuggestion(this.editor, slash)];
       },
       name: "esqiaSlash",
+      priority: 1000,
     }),
     Extension.create({
       addKeyboardShortcuts() {

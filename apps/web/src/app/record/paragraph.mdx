@@ -1,7 +1,11 @@
-## The era of personal software
+## Building an animated sign in dialog
 
-Something that keeps coming up over and over again, pretty much since LLMs started getting good at building things, is the idea of personal software.
+Instead of changing the background color of the tab component in the active state, we add an absolutely positioned container with `inset-0` and we animate it using [shared layout animations](https://interfaces.dev/magazine/issues/how-i-use-shared-layout-animations).
 
 <br />
 
-The idea is that once models get good enough, the effort to create an app that suits your exact needs will be so low that it will eventually replace most traditional software and software will become a commodity.
+/
+
+<br />
+
+This way the tab indicator animates between the different states. The way this works under the hood is fairly complex, but there's [an entire issue](https://interfaces.dev/magazine/issues/how-i-use-shared-layout-animations) about the technique with some great reading materials that explain it in detail.
