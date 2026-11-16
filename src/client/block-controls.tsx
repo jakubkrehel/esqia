@@ -1,0 +1,399 @@
+import { Menu } from "@base-ui/react/menu";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import type { Block } from "./blocks";
+import type { SlashItem } from "./commands";
+import {
+  dropTarget,
+  edgeScroll,
+  gutterPosition,
+  hitTest,
+  measureBlock,
+  onPage,
+  type Rect,
+  tagPosition,
+} from "./geometry";
+import { GripIcon, PlusIcon, TrashIcon } from "./icons";
+
+const commitBeforePaint = flushSync;
+const MODIFIERS = new Set(["Alt", "Control", "Meta", "Shift"]);
+const TYPING_PAUSE = 600;
+
+type LineOf = (block: Pick<Block, "file" | "start">) => Promise<number>;
+
+interface Drag {
+  block: Block;
+  glide: boolean;
+  line: Rect | null;
+  moved: boolean;
+}
+
+interface BlockControlsProps {
+  host: HTMLElement;
+  inserts: SlashItem[];
+  lineOf?: LineOf;
+  onDelete: (block: Block) => void;
+  onInsert: (block: Block, item: SlashItem) => void;
+  onMove: (block: Block, target: Block | null) => void;
+  pageOrigin: () => { left: number; top: number };
+}
+
+export function BlockControls({
+  host,
+  inserts,
+  lineOf,
+  onMove,
+  onInsert,
+  onDelete,
+  pageOrigin,
+}: BlockControlsProps) {
+  const [hover, setHover] = useState<Block | null>(null);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const [menu, setMenu] = useState<Block | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [portal, setPortal] = useState<HTMLDivElement | null>(null);
+  const gutter = useRef<HTMLDivElement>(null);
+  const cancelDrag = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => cancelDrag.current?.(), []);
+
+  useEffect(() => {
+    let frame = 0;
+    let pointer = { x: -1, y: -1 };
+    let typing = false;
+    let pause: ReturnType<typeof setTimeout> | undefined;
+
+    const measure = () => {
+      frame = 0;
+      commitBeforePaint(() =>
+        setHover(typing ? null : hitTest(pointer.x, pointer.y))
+      );
+    };
+    const schedule = () => {
+      frame ||= requestAnimationFrame(measure);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.composedPath().includes(host)) {
+        return;
+      }
+      pointer = { x: event.clientX, y: event.clientY };
+      typing = false;
+      clearTimeout(pause);
+      schedule();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      const { target } = event;
+      if (
+        MODIFIERS.has(event.key) ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        !(target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      typing = true;
+      clearTimeout(pause);
+      pause = setTimeout(() => {
+        typing = false;
+        schedule();
+      }, TYPING_PAUSE);
+      schedule();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (!event.composedPath().includes(host)) {
+        setAdding(false);
+      }
+    };
+
+    document.addEventListener("pointermove", onPointerMove, { passive: true });
+    document.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("scroll", schedule, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(pause);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [host]);
+
+  const startDrag = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    block: Block
+  ) => {
+    event.preventDefault();
+    const origin = { x: event.clientX, y: event.clientY };
+    let y = origin.y;
+    let moved = false;
+    let frame = 0;
+    setDrag({ block, glide: false, line: null, moved: false });
+
+    const place = (glide: boolean) =>
+      setDrag({ block, glide, line: dropTarget(block, y).line, moved: true });
+    const onPointerMove = (move: PointerEvent) => {
+      if (
+        !moved &&
+        Math.hypot(move.clientX - origin.x, move.clientY - origin.y) < 4
+      ) {
+        return;
+      }
+      moved = true;
+      y = move.clientY;
+      place(true);
+    };
+    const onScroll = () => {
+      if (moved) {
+        place(false);
+      }
+    };
+    const scrollAtEdge = () => {
+      const speed = moved ? edgeScroll(y) : 0;
+      if (speed) {
+        window.scrollBy({ behavior: "instant", top: speed });
+      }
+      frame = requestAnimationFrame(scrollAtEdge);
+    };
+    const stop = () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", stop);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("keydown", onKeyDown, true);
+      cancelDrag.current = null;
+      setDrag(null);
+      setHover(null);
+    };
+    const onPointerUp = (up: PointerEvent) => {
+      stop();
+      if (moved) {
+        onMove(block, dropTarget(block, up.clientY).target);
+      }
+    };
+    const onKeyDown = (key: KeyboardEvent) => {
+      if (key.key === "Escape") {
+        key.preventDefault();
+        key.stopPropagation();
+        stop();
+      }
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", stop);
+    cancelDrag.current = stop;
+    window.addEventListener("scroll", onScroll, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("keydown", onKeyDown, true);
+    frame = requestAnimationFrame(scrollAtEdge);
+  };
+
+  const block = drag?.block ?? menu ?? hover;
+  const geometry = block && measureBlock(block);
+  const origin = pageOrigin();
+
+  return (
+    <Menu.Root
+      modal={false}
+      onOpenChange={(open) => {
+        setAdding(open);
+        if (open) {
+          setMenu(block);
+        }
+      }}
+      onOpenChangeComplete={(open) => open || setMenu(null)}
+      open={adding}
+    >
+      {block && geometry && (
+        <>
+          <div
+            className={drag?.moved ? "outline dragging" : "outline"}
+            style={{
+              ...onPage(geometry.rect, origin),
+              borderRadius: geometry.radius || undefined,
+            }}
+          />
+          <Gutter
+            adding={adding}
+            gripping={Boolean(drag)}
+            onDelete={() => {
+              setHover(null);
+              onDelete(block);
+            }}
+            onGrip={(event) => startDrag(event, block)}
+            ref={gutter}
+            style={onPage(gutterPosition(geometry), origin)}
+          />
+        </>
+      )}
+      {drag?.line && (
+        <div
+          className="indicator"
+          data-glide={drag.glide ? "" : undefined}
+          style={onPage(drag.line, origin)}
+        />
+      )}
+      <div ref={setPortal} />
+      <Menu.Portal container={portal}>
+        <Menu.Positioner
+          align="start"
+          anchor={gutter}
+          collisionPadding={8}
+          side="bottom"
+          sideOffset={6}
+        >
+          <Menu.Popup className="menu">
+            {inserts.map((item) => (
+              <Menu.Item
+                key={item.label}
+                onClick={() => menu && onInsert(menu, item)}
+              >
+                <span>{item.label}</span>
+                {item.hint && <span className="hint">{item.hint}</span>}
+              </Menu.Item>
+            ))}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+      {block && geometry && (
+        <OpenTag
+          block={block}
+          hidden={Boolean(drag)}
+          lineOf={lineOf}
+          style={tagPosition(geometry)}
+        />
+      )}
+    </Menu.Root>
+  );
+}
+
+function OpenTag({
+  block,
+  hidden,
+  lineOf,
+  style,
+}: {
+  block: Block;
+  hidden: boolean;
+  lineOf?: LineOf;
+  style: React.CSSProperties;
+}) {
+  const [alt, setAlt] = useState(false);
+  const opening = alt && lineOf !== undefined;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => setAlt(event.altKey);
+    const onPointerMove = (event: PointerEvent) => setAlt(event.altKey);
+    const onBlur = () => setAlt(false);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("keyup", onKey, true);
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("keyup", onKey, true);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!opening) {
+      return;
+    }
+    document.documentElement.dataset.esqiaOpen = "";
+    return () => {
+      delete document.documentElement.dataset.esqiaOpen;
+    };
+  }, [opening]);
+
+  if (!opening || hidden) {
+    return null;
+  }
+  return (
+    <OpenLabel
+      block={block}
+      key={`${block.file}:${block.start}`}
+      lineOf={lineOf}
+      style={style}
+    />
+  );
+}
+
+function OpenLabel({
+  block,
+  lineOf,
+  style,
+}: {
+  block: Block;
+  lineOf: LineOf;
+  style: React.CSSProperties;
+}) {
+  const [line, setLine] = useState<number | null>(null);
+  const { file, start } = block;
+
+  useEffect(() => {
+    let current = true;
+    lineOf({ file, start })
+      .then((found) => current && setLine(found))
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [file, start, lineOf]);
+
+  return (
+    <div className="tag" style={style}>
+      {file.split("/").at(-1)}
+      {line !== null && `:${line}`}
+    </div>
+  );
+}
+
+function Gutter({
+  adding,
+  gripping,
+  onDelete,
+  onGrip,
+  ref,
+  style,
+}: {
+  adding: boolean;
+  gripping: boolean;
+  onDelete: () => void;
+  onGrip: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  ref: React.Ref<HTMLDivElement>;
+  style: React.CSSProperties;
+}) {
+  return (
+    <div className="gutter" ref={ref} style={style}>
+      <button aria-label="Delete block" onClick={onDelete} type="button">
+        <TrashIcon />
+      </button>
+      <Menu.Trigger
+        aria-label="Add below"
+        data-active={adding ? "" : undefined}
+      >
+        <PlusIcon />
+      </Menu.Trigger>
+      <button
+        aria-label="Drag to move"
+        className="grip"
+        data-active={gripping ? "" : undefined}
+        onPointerDown={onGrip}
+        type="button"
+      >
+        <GripIcon />
+      </button>
+    </div>
+  );
+}

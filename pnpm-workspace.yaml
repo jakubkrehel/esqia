@@ -1,0 +1,9 @@
+packages:
+  - "."
+  - "apps/*"
+
+allowBuilds:
+  "@central-icons-react/round-filled-radius-3-stroke-2": true
+  "@central-icons-react/round-outlined-radius-3-stroke-2": true
+  esbuild: true
+  sharp: true

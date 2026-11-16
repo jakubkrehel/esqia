@@ -1,0 +1,171 @@
+import type { Editor } from "@tiptap/core";
+import type { ResolvedPos } from "@tiptap/pm/model";
+import {
+  NodeSelection,
+  TextSelection,
+  type Transaction,
+} from "@tiptap/pm/state";
+import type { ClientConfig } from "../shared/config";
+import { LINE_BREAK } from "../shared/markdown";
+
+export interface SlashState {
+  query: string;
+  range: { from: number; to: number };
+  rect: () => DOMRect | null;
+}
+
+export interface SlashItem {
+  apply: (editor: Editor) => void;
+  hint?: string;
+  id: string;
+  insert?: (editor: Editor) => void;
+  label: string;
+}
+
+export interface SlashMenu extends SlashState {
+  active: number;
+  items: SlashItem[];
+}
+
+export function slashItems(config: ClientConfig, query: string): SlashItem[] {
+  const heading = (level: 1 | 2 | 3) => (editor: Editor) => {
+    editor.chain().focus().setHeading({ level }).run();
+  };
+  const items: SlashItem[] = [
+    { apply: () => undefined, id: "text", label: "Text" },
+    { apply: heading(1), hint: "#", id: "h1", label: "Heading 1" },
+    { apply: heading(2), hint: "##", id: "h2", label: "Heading 2" },
+    { apply: heading(3), hint: "###", id: "h3", label: "Heading 3" },
+    { apply: toList(false), hint: "-", id: "bullets", label: "Bulleted list" },
+    { apply: toList(true), hint: "1.", id: "numbers", label: "Numbered list" },
+    {
+      apply: (editor) => editor.chain().focus().setCodeBlock().run(),
+      hint: "```",
+      id: "code",
+      label: "Code block",
+    },
+    {
+      apply: insertSpacer,
+      hint: LINE_BREAK,
+      id: "spacer",
+      insert: replaceWithSpacer,
+      label: "Line break",
+    },
+    ...config.snippets.map((snippet) => ({
+      apply: (editor: Editor) => insertBlock(editor, snippet.source),
+      hint:
+        snippet.source.length > 24
+          ? `${snippet.source.slice(0, 22)}…`
+          : snippet.source,
+      id: `snippet:${snippet.name}`,
+      label: snippet.name,
+    })),
+  ];
+  return items.filter((item) => item.label.toLowerCase().includes(query));
+}
+
+function toList(ordered: boolean) {
+  return (editor: Editor) => {
+    const { schema, selection, tr } = editor.state;
+    const { $from } = selection;
+    if ($from.parent.type.name !== "paragraph") {
+      return;
+    }
+    const start = $from.before();
+    tr.replaceWith(
+      start,
+      $from.after(),
+      schema.nodes.list.create(
+        ordered ? { marker: ".", ordered: true } : { ordered: false },
+        schema.nodes.listItem.create(null, $from.parent.content)
+      )
+    );
+    tr.setSelection(
+      TextSelection.create(tr.doc, start + 2 + $from.parentOffset)
+    );
+    editor.view.dispatch(tr);
+    editor.view.focus();
+  };
+}
+
+export function insertBlock(editor: Editor, raw: string) {
+  const { $from } = editor.state.selection;
+  const node = editor.schema.nodes.jsxBlock.create({ raw });
+  const emptyParagraph =
+    $from.depth === 1 &&
+    $from.parent.type.name === "paragraph" &&
+    $from.parent.content.size === 0;
+  const tr = editor.state.tr;
+  if (emptyParagraph) {
+    tr.replaceWith($from.before(), $from.after(), node);
+  } else {
+    tr.insert($from.after(1), node);
+  }
+  editor.view.dispatch(tr.scrollIntoView());
+  editor.view.focus();
+}
+
+export function insertSpacer(editor: Editor) {
+  const { tr } = editor.state;
+  spacerInPlace(tr, editor.state.selection.$from);
+  editor.view.dispatch(tr);
+}
+
+export function replaceWithSpacer(editor: Editor) {
+  const { tr } = editor.state;
+  const { $from } = editor.state.selection;
+  const before = $from.before();
+  tr.replaceWith(before, $from.after(), editor.schema.nodes.spacer.create());
+  tr.setSelection(NodeSelection.create(tr.doc, before));
+  editor.view.dispatch(tr);
+}
+
+export function spacerInPlace(tr: Transaction, $from: ResolvedPos) {
+  const { paragraph, spacer } = tr.doc.type.schema.nodes;
+  const before = $from.before();
+  tr.replaceWith(before, $from.after(), [spacer.create(), paragraph.create()]);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(before + 2)));
+}
+
+export function moveCurrentBlock(editor: Editor, direction: -1 | 1): boolean {
+  const { selection } = editor.state;
+  const { $from, $to } = selection;
+  const nodeSelected = selection instanceof NodeSelection;
+  const depth = $from.parent.type.name === "listItem" ? 2 : 1;
+  const level = nodeSelected ? $from.depth : depth - 1;
+  if (
+    (!nodeSelected && ($from.depth < depth || !$from.sameParent($to))) ||
+    (nodeSelected && level !== 0)
+  ) {
+    return false;
+  }
+  const parent = $from.node(level);
+  const index = $from.index(level);
+  const neighbour = parent.maybeChild(index + direction);
+  if (!neighbour) {
+    return true;
+  }
+  const node = parent.child(index);
+  const start = nodeSelected ? $from.pos : $from.before(depth);
+  const end = start + node.nodeSize;
+  const { tr } = editor.state;
+  let moved: number;
+  if (direction < 0) {
+    moved = start - neighbour.nodeSize;
+    tr.delete(start, end).insert(moved, node);
+  } else {
+    moved = start + neighbour.nodeSize;
+    tr.insert(end + neighbour.nodeSize, node).delete(start, end);
+  }
+  tr.setSelection(
+    nodeSelected
+      ? NodeSelection.create(tr.doc, moved)
+      : TextSelection.create(
+          tr.doc,
+          moved + ($from.pos - start),
+          moved + ($to.pos - start)
+        )
+  );
+  editor.view.dispatch(tr.scrollIntoView());
+  return true;
+}

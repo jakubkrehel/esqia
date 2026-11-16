@@ -1,0 +1,226 @@
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .article-underline {
+    text-decoration-color: var(--color-gray-600);
+    @apply underline underline-offset-3 transition-colors duration-200 ease;
+  }
+  .article-underline:hover {
+    color: var(--color-gray-1200);
+    text-decoration-color: var(--color-gray-1100);
+  }
+
+  .tooltip-popup {
+    z-index: 50;
+    padding: 6px 10px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--color-gray-1200);
+    background-color: var(--color-preview-bg);
+    border-radius: 8px;
+    box-shadow: var(--shadow-custom);
+    transition:
+      transform 0.2s ease-out,
+      scale 0.2s ease-out,
+      opacity 0.2s ease-out;
+  }
+
+  .tooltip-popup[data-starting-style] {
+    opacity: 0;
+    scale: 0.95;
+  }
+
+  .tooltip-popup[data-ending-style] {
+    opacity: 0;
+    scale: 0.95;
+    transition-duration: 0.15s;
+  }
+
+  .tooltip-popup[data-instant] {
+    transition-duration: 0s;
+  }
+
+  .border-overlay {
+    outline: 1px solid rgba(0, 0, 0, 0.1);
+    outline-offset: -1px;
+  }
+
+  .outline-subtle {
+    @apply outline outline-black/8 -outline-offset-1 dark:outline-white/8;
+  }
+
+  .outline-light {
+    @apply outline outline-black/5 -outline-offset-1 dark:outline-white/5;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .border-overlay {
+      outline-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+@property --viewfinder-inset {
+  syntax: "<length>";
+  initial-value: 0px;
+  inherits: true;
+}
+
+@utility animate-viewfinder-focus {
+  & > g {
+    transform-origin: center;
+    transform-box: view-box;
+    animation: viewfinder-focus 3s infinite;
+  }
+
+  & [data-corner="top-left"] {
+    translate: var(--viewfinder-inset) var(--viewfinder-inset);
+  }
+
+  & [data-corner="top-right"] {
+    translate: calc(-1 * var(--viewfinder-inset)) var(--viewfinder-inset);
+  }
+
+  & [data-corner="bottom-left"] {
+    translate: var(--viewfinder-inset) calc(-1 * var(--viewfinder-inset));
+  }
+
+  & [data-corner="bottom-right"] {
+    translate: calc(-1 * var(--viewfinder-inset))
+      calc(-1 * var(--viewfinder-inset));
+  }
+}
+
+@keyframes viewfinder-focus {
+  0% {
+    --viewfinder-inset: 0px;
+    rotate: 0deg;
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  11% {
+    --viewfinder-inset: 1.4px;
+    rotate: 0deg;
+  }
+  16% {
+    --viewfinder-inset: 1.4px;
+    rotate: 0deg;
+    animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  28% {
+    --viewfinder-inset: 1.4px;
+    rotate: 90deg;
+  }
+  32% {
+    --viewfinder-inset: 1.4px;
+    rotate: 90deg;
+    animation-timing-function: cubic-bezier(0.645, 0.045, 0.355, 1);
+  }
+  42%,
+  100% {
+    --viewfinder-inset: 0px;
+    rotate: 90deg;
+  }
+}
+
+@utility animate-viewfinder-scan {
+  & [data-scanline] {
+    animation: viewfinder-scan 3s cubic-bezier(0.645, 0.045, 0.355, 1) infinite;
+  }
+}
+
+@keyframes viewfinder-scan {
+  0% {
+    translate: 0 0;
+  }
+  14%,
+  16% {
+    translate: 0 -2.5px;
+  }
+  44%,
+  49% {
+    translate: 0 2.5px;
+  }
+  62%,
+  100% {
+    translate: 0 0;
+  }
+}
+
+@utility animate-toolbar-loop {
+  animation: toolbar-loop-bar 4s infinite;
+
+  & [data-trigger] {
+    animation: toolbar-loop-trigger 4s infinite;
+  }
+
+  & [data-tray] {
+    animation: toolbar-loop-tray 4s infinite;
+  }
+}
+
+@keyframes toolbar-loop-bar {
+  0%,
+  25% {
+    padding-right: 0;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  34%,
+  80% {
+    padding-right: 8px;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  89%,
+  100% {
+    padding-right: 0;
+  }
+}
+
+@keyframes toolbar-loop-trigger {
+  0%,
+  25% {
+    color: var(--color-gray-1100);
+    animation-timing-function: ease-out;
+  }
+  30%,
+  80% {
+    color: var(--color-gray-1200);
+    animation-timing-function: ease-out;
+  }
+  85%,
+  100% {
+    color: var(--color-gray-1100);
+  }
+}
+
+@keyframes toolbar-loop-tray {
+  0%,
+  25% {
+    grid-template-columns: 0fr;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  34%,
+  80% {
+    grid-template-columns: 1fr;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  89%,
+  100% {
+    grid-template-columns: 0fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-viewfinder-focus > g,
+  .animate-viewfinder-scan [data-scanline],
+  .animate-toolbar-loop,
+  .animate-toolbar-loop [data-trigger],
+  .animate-toolbar-loop [data-tray] {
+    animation: none;
+  }
+}

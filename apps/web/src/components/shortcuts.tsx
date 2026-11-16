@@ -1,0 +1,53 @@
+import { Keys } from "@/components/keys";
+
+const SHORTCUTS = [
+  {
+    keys: ["⌘", "⌥", "E"],
+    label: "Switch between reading and editing",
+  },
+  {
+    keys: ["Esc"],
+    label: "Save / Exit edit mode",
+  },
+  {
+    keys: ["/"],
+    label: "Open the insert menu",
+  },
+  {
+    keys: ["⌘", "⇧", "↑"],
+    label: "Move the block up",
+  },
+  {
+    keys: ["⌘", "⇧", "↓"],
+    label: "Move the block down",
+  },
+  {
+    keys: ["⌘", "Z"],
+    label: "Undo the last change inside the editor",
+  },
+  {
+    keys: ["⌘", "⇧", "Z"],
+    label: "Redo the latest undo",
+  },
+];
+
+export function Shortcuts() {
+  return (
+    <>
+      <h2 className="mt-16 mb-4 font-demibold font-text text-gray-1200 text-xl sm:mt-24">
+        Keyboard Shortcuts
+      </h2>
+      <dl className="flex flex-col gap-4 font-text text-body text-text-paragraph">
+        {SHORTCUTS.map(({ keys, label }) => (
+          <div className="flex items-center gap-3" key={label}>
+            <dt className="text-pretty">{label}</dt>
+            <span aria-hidden="true" className="h-px flex-1 bg-gray-400" />
+            <dd className="flex flex-none items-center gap-1">
+              <Keys keys={keys} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </>
+  );
+}

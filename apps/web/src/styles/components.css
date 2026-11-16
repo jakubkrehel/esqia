@@ -1,0 +1,52 @@
+@layer components {
+  .preview-card,
+  .preview-code {
+    width: 100%;
+    background-color: var(--color-preview-bg);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-custom);
+  }
+
+  .preview-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  p:has(> [data-media]),
+  [data-media-block] {
+    margin-block: --spacing(6);
+  }
+
+  :is(p:has(> [data-media]), [data-media-block]):has(+ h2),
+  [data-esqia-file]:has(+ h2, + [data-esqia-file] > h2)
+    > :is(p:has(> [data-media]), [data-media-block]) {
+    margin-bottom: 0;
+  }
+
+  [data-media-block]:has(+ [data-media-block]),
+  [data-esqia-file]:has(+ [data-esqia-file] > [data-media-block])
+    > [data-media-block] {
+    margin-bottom: 0;
+  }
+
+  .graphic-frame {
+    container-type: inline-size;
+  }
+
+  .graphic-stage {
+    scale: tan(atan2(100cqw, 592px));
+  }
+
+  .graphic-caret {
+    animation: graphic-blink 1.1s steps(1) infinite;
+  }
+}
+
+@keyframes graphic-blink {
+  50% {
+    opacity: 0;
+  }
+}
