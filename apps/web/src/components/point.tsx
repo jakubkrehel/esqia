@@ -22,7 +22,7 @@ export function Point({ icon }: { icon: keyof typeof ICONS }) {
   const Icon = ICONS[icon];
   return (
     <span
-      className="absolute -top-px -left-px flex"
+      className="absolute top-0 -left-px flex h-lh items-center"
       data-point=""
     >
       <span className="flex size-7 items-center justify-center rounded-lg bg-preview-bg shadow-custom">

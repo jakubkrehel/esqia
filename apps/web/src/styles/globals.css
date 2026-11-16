@@ -111,6 +111,7 @@
     padding: 2px 0.25rem;
     font-family: var(--font-berkeley-mono);
     font-size: 14px;
+    line-height: 1;
     font-feature-settings: normal;
     background-color: var(--color-preview-bg);
     border: 1px solid var(--color-preview-border);
