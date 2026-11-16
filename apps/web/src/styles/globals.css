@@ -109,7 +109,7 @@
 
   .code-inline {
     padding: 2px 0.25rem;
-    font-family: var(--font-berkeley-mono);
+    font-family: var(--font-paper-mono);
     font-size: 14px;
     font-feature-settings: normal;
     line-height: 1;
@@ -226,8 +226,8 @@
   --font-libre-baskerville--font-feature-settings: normal;
   --font-heldane: var(--font-heldane);
   --font-heldane--font-feature-settings: normal;
-  --font-berkeley-mono: var(--font-berkeley-mono);
-  --font-mono: var(--font-berkeley-mono);
+  --font-paper-mono: var(--font-paper-mono);
+  --font-mono: var(--font-paper-mono);
   --text-body: 17px;
   --text-small: 13px;
   --font-weight-book: 450;

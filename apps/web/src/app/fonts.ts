@@ -22,17 +22,16 @@ export const libreBaskerville = localFont({
   variable: "--font-libre-baskerville",
 });
 
-export const berkeleyMono = localFont({
+export const paperMono = localFont({
   display: "swap",
   fallback: ["ui-monospace", "monospace"],
   preload: false,
   src: [
     {
-      path: "./fonts/BerkeleyMono-Regular.woff2",
+      path: "./fonts/PaperMono-Regular.woff2",
       style: "normal",
       weight: "400",
     },
-    { path: "./fonts/BerkeleyMono-Bold.woff2", style: "normal", weight: "700" },
   ],
-  variable: "--font-berkeley-mono",
+  variable: "--font-paper-mono",
 });

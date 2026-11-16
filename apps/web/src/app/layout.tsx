@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { MotionProvider } from "@/components/motion-provider";
-import { berkeleyMono, inter, libreBaskerville } from "./fonts";
+import { inter, libreBaskerville, paperMono } from "./fonts";
 import "@/styles/globals.css";
 
 const domain = "https://esqia.jakub.kr";
@@ -65,7 +65,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html className={inter.variable} lang="en">
       <body
-        className={`${libreBaskerville.variable} ${berkeleyMono.variable} bg-gray-background font-sans text-base text-gray-1200 antialiased`}
+        className={`${libreBaskerville.variable} ${paperMono.variable} bg-gray-background font-sans text-base text-gray-1200 antialiased`}
       >
         <MotionProvider>{children}</MotionProvider>
       </body>
