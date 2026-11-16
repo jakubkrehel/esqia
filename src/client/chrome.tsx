@@ -81,11 +81,12 @@ export function Chrome({
   const corner = inline ? "bottom-left" : stored;
   const [session] = useState(() => new Session(editingHost));
   const [page, setPage] = useState<HTMLDivElement | null>(null);
-  const { changed, config, redoable, run, writing } = useSyncExternalStore(
-    session.subscribe,
-    session.getSnapshot,
-    () => INITIAL_SESSION
-  );
+  const { changed, config, notice, redoable, run, writing } =
+    useSyncExternalStore(
+      session.subscribe,
+      session.getSnapshot,
+      () => INITIAL_SESSION
+    );
   const hasBlocks = useSyncExternalStore(
     subscribeToBlocks,
     pageHasBlocks,
@@ -118,6 +119,9 @@ export function Chrome({
   useShortcuts({
     editing: mode === "edit",
     hasRun: () => session.getSnapshot().run !== null,
+    onClose: () => {
+      void session.close();
+    },
     onLeave: () => setMode("read"),
     onRedo: session.canRedo ? () => session.redo() : undefined,
     onToggle: () => setMode(toggled),
@@ -170,7 +174,14 @@ export function Chrome({
         )}
         {run && <RunMenu config={config} key={run.id} run={run} />}
       </div>
-      <div className="layer">{!inline && toolbar}</div>
+      <div className="layer">
+        {!inline && toolbar}
+        {notice && (
+          <div className="notice" data-corner={corner} role="status">
+            {notice}
+          </div>
+        )}
+      </div>
       {inline && toolbar}
     </>
   );
@@ -194,6 +205,7 @@ const toggled = (mode: Mode): Mode => (mode === "edit" ? "read" : "edit");
 function useShortcuts(options: {
   editing: boolean;
   hasRun: () => boolean;
+  onClose: () => void;
   onLeave: () => void;
   onRedo?: () => void;
   onToggle: () => void;
@@ -211,9 +223,13 @@ function useShortcuts(options: {
       if (
         event.key === "Escape" &&
         options.editing &&
-        !(event.defaultPrevented || options.hasRun() || isTyping())
+        !(event.defaultPrevented || isTyping())
       ) {
-        options.onLeave();
+        if (options.hasRun()) {
+          options.onClose();
+        } else {
+          options.onLeave();
+        }
         return;
       }
       const step = event.shiftKey ? options.onRedo : options.onUndo;

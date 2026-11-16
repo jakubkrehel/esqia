@@ -184,7 +184,10 @@ export function createExtensions({
       ? [quotesAsTyped(config.smartypants.ellipses !== false)]
       : []),
     UndoRedo,
-    Dropcursor.configure({ color: "oklch(74.6% 0.16 232.661)", width: 2 }),
+    Dropcursor.configure({
+      color: "var(--esqia-outline, oklch(74.6% 0.16 232.661))",
+      width: 2,
+    }),
     Gapcursor,
     Placeholder.configure({
       placeholder: ({ node }) =>

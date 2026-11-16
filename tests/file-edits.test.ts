@@ -60,6 +60,7 @@ const setup = ({
   });
   return {
     applied,
+    backend,
     close: () => run.close().closed,
     closed,
     edits,
@@ -139,16 +140,36 @@ describe("run edits", () => {
     );
   });
 
-  it("asks to discard after a conflict and stops writing", async () => {
+  it("follows its text when the file changed somewhere else", async () => {
     vi.useFakeTimers();
-    const { close, closed, failures, file, type } = setup({ hash: "stale" });
+    const { backend, close, closed, failures, file, type } = setup();
+    await backend.edit("a.mdx", "initial", {
+      kind: "replace",
+      op: { end: 7, expected: "# Title", start: 0, text: "# A longer title" },
+    });
+    type("Changed.");
+    await close();
+    expect(failures).toEqual([]);
+    expect(closed[0]).toMatchObject({ discard: false, wrote: true });
+    await expect(file()).resolves.toBe(
+      "# A longer title\n\nChanged.\n\nSecond.\n"
+    );
+  });
+
+  it("stops writing when its own text changed in the file", async () => {
+    vi.useFakeTimers();
+    const { backend, close, closed, failures, file, type } = setup();
+    await backend.edit("a.mdx", "initial", {
+      kind: "replace",
+      op: { end: 15, expected: "First.", start: 9, text: "Rewritten." },
+    });
     type("Changed.");
     await vi.advanceTimersByTimeAsync(800);
     type("Changed again.");
     await close();
     expect(failures).toHaveLength(1);
     expect(closed[0]).toMatchObject({ discard: true, wrote: false });
-    await expect(file()).resolves.toBe(source);
+    await expect(file()).resolves.toBe("# Title\n\nRewritten.\n\nSecond.\n");
   });
 });
 

@@ -19,13 +19,12 @@ type Manager = keyof typeof COMMANDS;
 const MANAGERS: Manager[] = ["npm", "pnpm", "yarn", "bun"];
 
 const PROMPT = [
-  "Set up esqia, an inline MDX editor for Next.js, in this project. Its docs are at https://github.com/jakubkrehel/esqia.",
+  "Set up esqia, an inline MDX editor for Next.js, in this project. Its docs are at https://esqia.jakub.kr/llms.txt.",
   "",
   "1. Install `esqia` as a dev dependency with the package manager this project uses.",
   '2. In the Next.js config, add `"esqia/remark"` as the last remark plugin of the `@next/mdx` setup, only when `process.env.NODE_ENV === "development"`, and wrap the exported config with `withEsqia` from `esqia/next`: `export default withEsqia(withMDX(nextConfig))`.',
   '3. In the root layout, render `<Esqia />` from `esqia` in development only: `{process.env.NODE_ENV === "development" && <Esqia />}`.',
   "4. If the site uses `remark-smartypants`, pass the same settings as `smartypants` in the second argument of `withEsqia`.",
-  '5. Esqia\'s button sits in the bottom-left corner, where Next.js puts its dev indicator. Move the indicator with `devIndicators: { position: "bottom-right" }`.',
   "",
   "Esqia edits the MDX that `@next/mdx` renders. If this project does not use it, say so instead of adding it. Change nothing else, and finish by telling me to run the dev server and press ⌘⌥E on a page with MDX content.",
 ].join("\n");

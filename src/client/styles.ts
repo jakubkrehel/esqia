@@ -43,7 +43,8 @@ export const CHROME_CSS = `
 .page { position: absolute; top: 0; left: 0; }
 .layer > *, .page > * { pointer-events: auto; }
 button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
-.bar { --inset-x: 20px; --inset-y: 20px; }
+.bar, .notice { --inset-x: 20px; --inset-y: 20px; }
+.notice { --inset-y: 68px; }
 [data-corner$="left"] { left: calc(var(--inset-x) + env(safe-area-inset-left)); }
 [data-corner$="right"] { right: calc(var(--inset-x) + env(safe-area-inset-right)); }
 [data-corner^="top"] { top: calc(var(--inset-y) + env(safe-area-inset-top)); }
@@ -58,6 +59,12 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .bar[data-mode="edit"] { padding-inline-end: 4px; }
 .bar[data-corner$="right"] { direction: rtl; }
 .bar[data-dragging], .bar[data-dragging] * { cursor: grabbing; }
+.notice {
+  position: fixed; max-width: min(420px, calc(100vw - 40px)); padding: 6px 12px; border-radius: 8px;
+  background: var(--surface); box-shadow: var(--shadow); color: var(--danger); pointer-events: none !important;
+  font-weight: 450; line-height: 20px; transition: opacity 200ms ease-out, scale 200ms ease-out;
+}
+@starting-style { .notice { opacity: 0; scale: 0.96; } }
 .trigger {
   width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9999px; outline: none;
   display: grid; place-items: center; cursor: pointer; flex-shrink: 0;
@@ -71,10 +78,10 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
 .trigger:hover { color: var(--text); }
 .trigger:hover::before { background-color: var(--hover); }
 .trigger:active { transform: scale(0.96); }
-.trigger:focus-visible { box-shadow: 0 0 0 4px rgb(0 0 0 / 0.1); }
+.trigger:focus-visible { box-shadow: 0 0 0 2px var(--faint); }
 .bar[data-mode="edit"] .trigger { color: var(--text); }
 .bar[data-mode="edit"] .trigger::before { scale: calc(28 / 36); }
-.bar[data-mode="edit"] .trigger:focus-visible { box-shadow: inset 0 0 0 4px rgb(0 0 0 / 0.1); }
+.bar[data-mode="edit"] .trigger:focus-visible { box-shadow: inset 0 0 0 2px var(--faint); }
 .tray { display: grid; grid-template-columns: 0fr; transition: grid-template-columns 350ms var(--expand); }
 .bar[data-mode="edit"] .tray { grid-template-columns: 1fr; }
 .tray-items { min-width: 0; overflow-x: clip; display: flex; align-items: center; gap: 4px; }

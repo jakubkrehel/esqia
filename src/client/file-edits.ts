@@ -29,8 +29,11 @@ export interface Closing<Closed> {
 
 export interface RunEdits {
   close: () => Closing<boolean>;
+  follow: () => Promise<void>;
   schedule: () => void;
 }
+
+export type Read = (file: string) => Promise<{ hash: string; source: string }>;
 
 export type Write = (
   file: string,
@@ -87,7 +90,7 @@ export class FileEdits {
   }
 
   openRun(opening: RunOpening): RunEdits {
-    return new RunSave(opening, this.sync, this.write);
+    return new RunSave(opening, this.sync, this.write, this.backend.source);
   }
 
   private readonly write: Write = async (file, hash, intent, group) => {

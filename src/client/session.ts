@@ -30,13 +30,12 @@ export type { OpenTarget } from "./opening";
 const PAGE_BEHIND =
   "The page is behind the file. Wait for it to refresh, then try again.";
 
-function logError(text: string) {
-  console.error(`esqia: ${text}`);
-}
+const NOTICE_FOR = 6000;
 
 export interface SessionSnapshot {
   changed: number;
   config: ClientConfig | null;
+  notice: string | null;
   redoable: number;
   run: Run | null;
   writing: boolean;
@@ -45,6 +44,7 @@ export interface SessionSnapshot {
 export const INITIAL_SESSION: SessionSnapshot = {
   changed: 0,
   config: null,
+  notice: null,
   redoable: 0,
   run: null,
   writing: false,
@@ -65,6 +65,9 @@ export class Session extends Store<SessionSnapshot> {
   );
   private editable = false;
   private lastFile: string | null = null;
+  private undoFiles: string[] = [];
+  private redoFiles: string[] = [];
+  private noticeTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly backend: Backend;
   private readonly edits: FileEdits;
   private readonly sync: PageSync;
@@ -93,7 +96,9 @@ export class Session extends Store<SessionSnapshot> {
       .config()
       .then((config) => this.update({ config }))
       .catch(() =>
-        logError("Can't reach the esqia sidecar. Restart `next dev`.")
+        console.error(
+          "esqia: Can't reach the esqia sidecar. Restart `next dev`."
+        )
       );
     this.refreshChanges();
   }
@@ -101,10 +106,21 @@ export class Session extends Store<SessionSnapshot> {
   private refreshChanges = () => {
     this.backend
       .changes()
-      .then((changes) =>
-        this.update({ changed: changes.edits, redoable: changes.redos })
-      )
+      .then((changes) => {
+        this.undoFiles = changes.files;
+        this.redoFiles = changes.redoFiles;
+        this.update({ changed: changes.edits, redoable: changes.redos });
+      })
       .catch(() => this.update({ changed: 0, redoable: 0 }));
+  };
+
+  private readonly fail = (text: string) => {
+    clearTimeout(this.noticeTimer);
+    this.update({ notice: text });
+    this.noticeTimer = setTimeout(
+      () => this.update({ notice: null }),
+      NOTICE_FOR
+    );
   };
 
   setEditable(editable: boolean) {
@@ -179,7 +195,7 @@ export class Session extends Store<SessionSnapshot> {
         return;
       }
       if (located.state === "behind") {
-        logError(PAGE_BEHIND);
+        this.fail(PAGE_BEHIND);
         return;
       }
       const { caret, file, hash, path, placement, range, source } =
@@ -198,7 +214,7 @@ export class Session extends Store<SessionSnapshot> {
             this.update({ run: null });
           }
         },
-        onError: logError,
+        onError: this.fail,
         onFocus: (focused) => {
           if (this.editable) {
             this.update({ run: focused });
@@ -218,7 +234,7 @@ export class Session extends Store<SessionSnapshot> {
       return next;
     } catch (error) {
       if (newest()) {
-        logError(errorText(error));
+        this.fail(errorText(error));
       }
     }
   }
@@ -301,33 +317,41 @@ export class Session extends Store<SessionSnapshot> {
       }, this.runClosed);
       return written ?? null;
     } catch (error) {
-      logError(errorText(error));
+      this.fail(errorText(error));
       return null;
     }
   }
 
   undo() {
-    return this.step(this.backend.undo);
+    return this.step(this.backend.undo, () => this.undoFiles);
   }
 
   redo() {
-    return this.step(this.backend.redo);
+    return this.step(this.backend.redo, () => this.redoFiles);
   }
 
-  private async step(apply: (file: string) => Promise<unknown>) {
+  private async step(
+    apply: (file: string) => Promise<unknown>,
+    pending: () => string[]
+  ) {
     if (!this.sync.refreshes) {
       return;
     }
     try {
       await this.sequence.write(async () => {
-        const file = this.lastFile ?? firstFile();
+        const stepped = pending();
+        const file =
+          this.lastFile && stepped.includes(this.lastFile)
+            ? this.lastFile
+            : (stepped.at(-1) ?? this.lastFile ?? firstFile());
         if (file) {
           await apply(file);
-          this.refreshChanges();
         }
       }, this.runClosed);
     } catch (error) {
-      logError(errorText(error));
+      this.fail(errorText(error));
+    } finally {
+      this.refreshChanges();
     }
   }
 
@@ -344,7 +368,7 @@ export class Session extends Store<SessionSnapshot> {
     try {
       await open(block.file, await this.lineOf(block));
     } catch (error) {
-      logError(errorText(error));
+      this.fail(errorText(error));
     }
   }
 
@@ -357,14 +381,14 @@ export class Session extends Store<SessionSnapshot> {
         if (skipped.length === 0) {
           return true;
         }
-        logError(
+        this.fail(
           `Reverted ${files(reverted.length)}. Skipped ${skipped.join(", ")}, changed in your editor since.`
         );
         return false;
       }, this.runClosed);
       return done ?? false;
     } catch (error) {
-      logError(errorText(error));
+      this.fail(errorText(error));
       return false;
     }
   }

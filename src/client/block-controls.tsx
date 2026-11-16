@@ -53,6 +53,9 @@ export function BlockControls({
   const [adding, setAdding] = useState(false);
   const [portal, setPortal] = useState<HTMLDivElement | null>(null);
   const gutter = useRef<HTMLDivElement>(null);
+  const cancelDrag = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => cancelDrag.current?.(), []);
 
   useEffect(() => {
     let frame = 0;
@@ -162,8 +165,10 @@ export function BlockControls({
       cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", stop);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("keydown", onKeyDown, true);
+      cancelDrag.current = null;
       setDrag(null);
       setHover(null);
     };
@@ -182,6 +187,8 @@ export function BlockControls({
     };
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", stop);
+    cancelDrag.current = stop;
     window.addEventListener("scroll", onScroll, {
       capture: true,
       passive: true,

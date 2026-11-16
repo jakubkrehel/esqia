@@ -1,14 +1,17 @@
 import type { BlockRange, Intent, Op } from "../shared/ops";
 import { ConflictError, errorText } from "./api";
-import type { Closing, RunEdits, RunOpening, Write } from "./file-edits";
+import type { Closing, Read, RunEdits, RunOpening, Write } from "./file-edits";
 import type { PageSync, RunPage } from "./page";
 
 const SAVE_DELAY = 800;
+const CHANGED =
+  "This block changed in your editor. Copy your text, then reopen the block.";
 
 export class RunSave implements RunEdits {
   private readonly opening: RunOpening;
   private readonly sync: PageSync;
   private readonly write: Write;
+  private readonly read: Read;
   private readonly page: RunPage;
   private readonly prefix: string;
   private readonly replacing: boolean;
@@ -21,11 +24,12 @@ export class RunSave implements RunEdits {
   private failed = false;
   private wrote = false;
 
-  constructor(opening: RunOpening, sync: PageSync, write: Write) {
+  constructor(opening: RunOpening, sync: PageSync, write: Write, read: Read) {
     const { at, range, source, version } = opening;
     this.opening = opening;
     this.sync = sync;
     this.write = write;
+    this.read = read;
     this.page = opening.page;
     this.replacing = at === "run";
     this.prefix = this.replacing ? "" : "\n\n";
@@ -71,19 +75,59 @@ export class RunSave implements RunEdits {
 
     this.opening.onSaving(true);
     this.saving = this.persist(intent)
+      .catch(async (error: unknown) => {
+        if (!(error instanceof ConflictError && (await this.rebase()))) {
+          throw error;
+        }
+        const again = this.next(this.opening.body(), closing);
+        if (again) {
+          await this.persist(again);
+        }
+      })
       .catch((error: unknown) => {
-        this.failed = true;
-        this.opening.onFailed(
-          error instanceof ConflictError
-            ? "Changed in your editor. Reopen the block to keep going."
-            : errorText(error)
-        );
+        this.fail(error instanceof ConflictError ? CHANGED : errorText(error));
       })
       .finally(() => {
         this.saving = null;
         this.opening.onSaving(false);
       });
     return this.saving;
+  }
+
+  async follow(): Promise<void> {
+    await this.saving;
+    if (this.failed) {
+      return;
+    }
+    try {
+      if (!(await this.rebase())) {
+        this.fail(CHANGED);
+      }
+    } catch (error) {
+      this.fail(errorText(error));
+    }
+  }
+
+  private fail(message: string) {
+    if (!this.failed) {
+      this.failed = true;
+      this.opening.onFailed(message);
+    }
+  }
+
+  private async rebase(): Promise<boolean> {
+    const { hash, source } = await this.read(this.opening.file);
+    if (hash === this.hash) {
+      return true;
+    }
+    const at = this.current ? source.indexOf(this.current) : -1;
+    if (at < 0 || source.includes(this.current, at + 1)) {
+      return false;
+    }
+    this.hash = hash;
+    this.start = at;
+    this.page.track(hash, this.range);
+    return true;
   }
 
   private next(body: string, closing: boolean): Intent | null {

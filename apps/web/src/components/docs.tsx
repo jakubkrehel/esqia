@@ -13,43 +13,14 @@ import {
   ReactIcon,
   TypescriptIcon,
 } from "@/components/icons";
-
-const NEXT_CONFIG = `import { withEsqia } from "esqia/next";
-
-const withMDX = createMDX({
-  options: {
-    remarkPlugins: [
-      ...(process.env.NODE_ENV === "development" ? ["esqia/remark"] : []),
-    ],
-  },
-});
-
-export default withEsqia(withMDX(nextConfig));`;
-
-const OPTIONS = `export default withEsqia(withMDX(nextConfig), {
-  snippets: [{ name: "Demo", source: "<Demo />" }],
-  marks: [{ name: "Serif", tag: "em", className: "font-serif" }],
-  smartypants: { dashes: false },
-});`;
-
-const SNIPPETS = `export default withEsqia(withMDX(nextConfig), {
-  snippets: [
-    { name: "Demo", source: "<Demo />" },
-    { name: "Newsletter", source: "<Newsletter />" },
-  ],
-});`;
-
-const MARKS = `export default withEsqia(withMDX(nextConfig), {
-  marks: [{ name: "Serif", tag: "em", className: "font-serif" }],
-});`;
-
-const SMARTYPANTS = `export default withEsqia(withMDX(nextConfig), {
-  smartypants: { dashes: false },
-});`;
-
-const LAYOUT = `import { Esqia } from "esqia";
-
-{process.env.NODE_ENV === "development" && <Esqia />}`;
+import {
+  LAYOUT,
+  MARKS,
+  NEXT_CONFIG,
+  OPTIONS,
+  SMARTYPANTS,
+  SNIPPETS,
+} from "@/lib/snippets";
 
 function shikiTheme(theme: typeof pierreLightVibrant): ThemeRegistration {
   return {

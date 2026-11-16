@@ -103,6 +103,7 @@ export function Toolbar({
                 aria-keyshortcuts="Meta+Z Control+Z"
                 aria-label="Undo"
                 className="action"
+                disabled={nothingChanged}
                 handle={tips}
                 onClick={() => nothingChanged || onUndo()}
                 payload={UNDO_TIP}
@@ -116,6 +117,7 @@ export function Toolbar({
                 aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
                 aria-label="Redo"
                 className="action"
+                disabled={redoable === 0}
                 handle={tips}
                 onClick={() => redoable === 0 || onRedo()}
                 payload={REDO_TIP}
@@ -131,6 +133,7 @@ export function Toolbar({
                 aria-disabled={nothingChanged}
                 aria-label="Revert all"
                 className="action"
+                disabled={nothingChanged}
                 handle={tips}
                 payload="Revert all"
                 render={<Popover.Trigger />}

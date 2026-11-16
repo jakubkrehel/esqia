@@ -70,9 +70,9 @@ export function sampleTemplates(
     .filter((el): el is HTMLElement => el instanceof HTMLLIElement)
     .sort((a, b) => b.textContent.length - a.textContent.length)[0];
 
-  const codeFigure = ofType("code")[0]?.firstElementChild as
-    | HTMLElement
-    | undefined;
+  const codeFigure = (ofType("code")[0]?.firstElementChild ??
+    document.querySelector(`[${SAMPLES}] > :not(ul, ol)`) ??
+    undefined) as HTMLElement | undefined;
   const inline = (selector: string) =>
     paragraphs
       .map((p) => p.querySelector<HTMLElement>(selector))

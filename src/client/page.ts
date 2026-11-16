@@ -7,6 +7,7 @@ export interface PageOpening {
   blocks: Block[];
   editor: Editor;
   file: string;
+  onBehind: () => void;
   path: Path;
   range: BlockRange;
   rendered: BlockRange;

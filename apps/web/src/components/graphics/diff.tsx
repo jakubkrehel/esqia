@@ -77,7 +77,7 @@ export function Diff() {
           <Line kind="added" number={5}>
             Drag any block to move it
             <span className="rounded-sm bg-diff-added/30 dark:bg-diff-added/25">
-              , including demos
+              , including examples
             </span>
             .
           </Line>

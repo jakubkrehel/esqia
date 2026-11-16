@@ -73,7 +73,12 @@ describe("edit history", () => {
       hash: "initial",
       ok: true,
     });
-    expect(history.changes()).toEqual({ edits: 0, files: [], redos: 0 });
+    expect(history.changes()).toEqual({
+      edits: 0,
+      files: [],
+      redoFiles: [],
+      redos: 0,
+    });
   });
 
   it("builds removes and moves from the file as it is now", async () => {

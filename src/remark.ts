@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { List, Root, RootContent } from "mdast";
+import type { Code, List, Root, RootContent } from "mdast";
 import type { MdxJsxAttribute, MdxJsxFlowElement } from "mdast-util-mdx-jsx";
 import type { VFile } from "vfile";
 import { hashSource } from "./shared/hash";
@@ -66,12 +66,14 @@ const sampleList = (ordered: boolean): List => ({
   type: "list",
 });
 
+const sampleCode: Code = { type: "code", value: "code" };
+
 const samples = (): MdxJsxFlowElement => ({
   attributes: [
     attribute(SAMPLES, ""),
     { name: "hidden", type: "mdxJsxAttribute", value: null },
   ],
-  children: [sampleList(false), sampleList(true)],
+  children: [sampleList(false), sampleList(true), sampleCode],
   name: "div",
   type: "mdxJsxFlowElement",
 });

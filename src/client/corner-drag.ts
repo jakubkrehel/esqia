@@ -27,7 +27,7 @@ export function startCornerDrag(
   onCorner: (corner: Corner) => void
 ) {
   const el = down.currentTarget;
-  if (down.button !== 0) {
+  if (down.button !== 0 || snapping.has(el)) {
     return;
   }
   const start = { x: down.clientX, y: down.clientY };
@@ -75,6 +75,8 @@ export function startCornerDrag(
   window.addEventListener("pointercancel", end);
 }
 
+const snapping = new WeakSet<HTMLElement>();
+
 function swallow(event: Event) {
   event.preventDefault();
   event.stopPropagation();
@@ -118,6 +120,7 @@ function snap(
   const shift = { x: target.x - rest.left, y: target.y - rest.top };
 
   const settle = () => {
+    snapping.delete(el);
     flushSync(() => onCorner(to));
     el.style.removeProperty("translate");
     el.style.removeProperty("transition");
@@ -128,13 +131,17 @@ function snap(
     settle();
     return;
   }
+  snapping.add(el);
   el.style.transition = SNAP;
   el.style.translate = `${shift.x}px ${shift.y}px`;
-  el.addEventListener("transitionend", function done(event) {
+  const done = (event: TransitionEvent) => {
     if (event.propertyName !== "translate") {
       return;
     }
     el.removeEventListener("transitionend", done);
+    el.removeEventListener("transitioncancel", done);
     settle();
-  });
+  };
+  el.addEventListener("transitionend", done);
+  el.addEventListener("transitioncancel", done);
 }

@@ -3,7 +3,7 @@ import { ClickHere } from "@/components/click-here";
 import { Docs } from "@/components/docs";
 import { Footer } from "@/components/footer";
 import { InstallCard } from "@/components/install-card";
-import { Kbd } from "@/components/kbd";
+import { Keys } from "@/components/keys";
 import { Shortcuts } from "@/components/shortcuts";
 import { ToolbarGraphic } from "@/components/toolbar-graphic";
 import Content from "./content.mdx";
@@ -25,7 +25,7 @@ export default function Page() {
       </header>
       <InstallCard />
       <p className="font-text text-body text-text-paragraph">
-        Press <Kbd>⌘</Kbd> <Kbd>⌥</Kbd> <Kbd>E</Kbd> to enter edit mode or use
+        Press <Keys keys={["⌘", "⌥", "E"]} spaced /> to enter edit mode or use
         the <ClickHere>button</ClickHere>.
       </p>
       <Content />

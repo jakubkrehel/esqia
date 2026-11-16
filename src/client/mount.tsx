@@ -24,15 +24,16 @@ export function mount({ demo, toolbar }: EsqiaProps) {
   pageStyle.textContent = PAGE_CSS;
   document.head.append(pageStyle);
 
+  const media = matchMedia("(prefers-color-scheme: dark)");
   const syncTheme = () => {
-    host.dataset.theme = getComputedStyle(
+    const schemes = getComputedStyle(
       document.documentElement
-    ).colorScheme.includes("dark")
-      ? "dark"
-      : "light";
+    ).colorScheme.split(" ");
+    const dark =
+      schemes.includes("dark") && (media.matches || !schemes.includes("light"));
+    host.dataset.theme = dark ? "dark" : "light";
   };
   syncTheme();
-  const media = matchMedia("(prefers-color-scheme: dark)");
   media.addEventListener("change", syncTheme);
   const themeObserver = new MutationObserver(syncTheme);
   themeObserver.observe(document.documentElement, {

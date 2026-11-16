@@ -1,6 +1,6 @@
 {
   "name": "esqia",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Edit your MDX from the rendered page while you write. A dev-only editor for Next.js.",
   "keywords": [
     "mdx",
@@ -69,7 +69,6 @@
     "@tiptap/extensions": "^3.32.2",
     "@tiptap/pm": "^3.32.2",
     "@tiptap/suggestion": "^3.32.2",
-    "@vercel/blob": "^2.8.2",
     "mdast-util-mdx": "^3.0.0",
     "mdast-util-mdx-jsx": "^3.2.0",
     "mdast-util-to-markdown": "^2.2.1",

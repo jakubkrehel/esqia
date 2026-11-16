@@ -67,6 +67,7 @@ export class Run extends Store<RunSnapshot> {
   private readonly onClose: () => void;
   private readonly onLeave: RunOptions["onLeave"];
   private closing: Closing<void> | null = null;
+  private refused = false;
 
   constructor(options: RunOptions) {
     super(IDLE_RUN);
@@ -108,7 +109,8 @@ export class Run extends Store<RunSnapshot> {
       file,
       onFailed: (message) => {
         options.onError(message);
-        this.close();
+        this.refused = true;
+        this.setEditable(false);
       },
       onSaved: options.onSaved,
       onSaving: (saving) => this.update({ saving }),
@@ -116,6 +118,7 @@ export class Run extends Store<RunSnapshot> {
         blocks,
         editor: this.editor,
         file,
+        onBehind: () => queueMicrotask(() => this.saves.follow()),
         path,
         range,
         rendered,
@@ -138,7 +141,7 @@ export class Run extends Store<RunSnapshot> {
 
   setEditable(editable: boolean) {
     if (!(this.editor.isDestroyed || this.closing)) {
-      this.editor.setEditable(editable);
+      this.editor.setEditable(editable && !this.refused);
     }
   }
 

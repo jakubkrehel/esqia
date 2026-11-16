@@ -37,8 +37,8 @@ pnpm workspace with the library at the root and the landing page beside it:
 
 - `src/remark.ts` — `esqia/remark`. Wraps every top-level MDX block in a `display: contents` div carrying its file, source offsets, block type and a hash of the file. Dev only; the sites add it conditionally.
 - `src/next.ts` — `esqia/next`. `withEsqia` starts the sidecar during `next dev` and passes its URL and token to the client through `env`. Outside development it returns the config untouched.
-- `src/server/` — the sidecar: a localhost HTTP server on a port derived from the project path. Reads files, applies ops that must still match the text they replace, uploads media, keeps undo history. Only touches `.md`/`.mdx` inside the project, only accepts localhost origins and the token.
-- `src/client/` — `<Esqia />`. The UI lives in a shadow root (`chrome.tsx`). Clicking a block hides the rendered run of text blocks around it and mounts a Tiptap editor in its place (`run.ts`), rendered with elements cloned from the page (`editor.ts`). `convert.ts` turns mdast into ProseMirror and back; blocks whose content didn't change are written back byte for byte.
+- `src/server/` — the sidecar: a localhost HTTP server on a port derived from the project path. Reads files, applies edits that must still match the text they replace, keeps undo history. Only touches `.md`/`.mdx` inside the project, only accepts localhost origins and the token.
+- `src/client/` — `<Esqia />`. The UI lives in a shadow root (`chrome.tsx`). Clicking a block hides the rendered run of text blocks around it and mounts a Tiptap editor in its place (`run.ts`), rendered with elements cloned from the page (`editor.ts`). `parse-run.ts` and `serialize-run.ts` turn mdast into ProseMirror and back; blocks whose content didn't change are written back byte for byte.
 - `src/shared/` — markdown parsing, block classification, serialization and ops, used by both sides and the tests.
 - `apps/web` — the landing page at esqia.jakub.kr. Next 16 with the CSS setup from jakub.kr. Its copy is `src/app/content.mdx`, and the page runs esqia on itself in development.
 

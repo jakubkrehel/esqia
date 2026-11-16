@@ -9,6 +9,7 @@ export interface FileStore {
 export interface Changes {
   edits: number;
   files: string[];
+  redoFiles: string[];
   redos: number;
 }
 
@@ -110,6 +111,9 @@ export class EditHistory {
     return {
       edits: touched.reduce((sum, [, entries]) => sum + entries.length, 0),
       files: touched.map(([file]) => file),
+      redoFiles: [...this.redos]
+        .filter(([, entries]) => entries.length > 0)
+        .map(([file]) => file),
       redos: [...this.redos.values()].reduce(
         (sum, entries) => sum + entries.length,
         0

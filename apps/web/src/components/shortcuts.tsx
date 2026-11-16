@@ -1,4 +1,4 @@
-import { Kbd } from "@/components/kbd";
+import { Keys } from "@/components/keys";
 
 const SHORTCUTS = [
   {
@@ -43,9 +43,7 @@ export function Shortcuts() {
             <dt className="text-pretty">{label}</dt>
             <span aria-hidden="true" className="h-px flex-1 bg-gray-400" />
             <dd className="flex flex-none items-center gap-1">
-              {keys.map((key) => (
-                <Kbd key={key}>{key}</Kbd>
-              ))}
+              <Keys keys={keys} />
             </dd>
           </div>
         ))}

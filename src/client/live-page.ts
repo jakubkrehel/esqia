@@ -23,12 +23,15 @@ export class LivePage implements RunPage {
   private readonly editor: Editor;
   private readonly host: LivePages;
   private readonly unwatch: () => void;
+  private readonly onBehind: () => void;
+  private readonly asked = new Set<string>();
 
   constructor(opening: PageOpening, host: LivePages) {
     const { editor, file, path, range, rendered, root, version } = opening;
     this.editor = editor;
     this.file = file;
     this.host = host;
+    this.onBehind = opening.onBehind;
     this.root = root;
     this.latest = { range, version };
     for (const behind of path.along(rendered)) {
@@ -46,6 +49,7 @@ export class LivePage implements RunPage {
   track(version: string, range: BlockRange) {
     this.latest = { range, version };
     this.shown.set(version, range);
+    this.arrange();
   }
 
   async close({ discard, wrote }: PageClosing): Promise<boolean> {
@@ -68,7 +72,16 @@ export class LivePage implements RunPage {
   arrange() {
     let first: HTMLElement | null = null;
     let previous: HTMLElement | null = null;
-    for (const block of fileBlocks(this.file)) {
+    const blocks = fileBlocks(this.file);
+    const unknown = blocks.find((block) => !this.shown.has(block.version));
+    if (unknown) {
+      if (!this.asked.has(unknown.version)) {
+        this.asked.add(unknown.version);
+        this.onBehind();
+      }
+      return;
+    }
+    for (const block of blocks) {
       const range = this.shown.get(block.version);
       const inside =
         range && block.start >= range.start && block.start < range.end;
