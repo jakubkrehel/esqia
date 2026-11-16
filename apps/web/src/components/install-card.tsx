@@ -1,7 +1,6 @@
 "use client";
 
 import { IconClaudeai } from "central-icons/IconClaudeai";
-import { IconCursor } from "central-icons/IconCursor";
 import { IconGithub } from "central-icons/IconGithub";
 import { IconNpm } from "central-icons/IconNpm";
 import { IconOpenaiCodex } from "central-icons/IconOpenaiCodex";
@@ -33,7 +32,6 @@ const PROMPT = [
 const AGENTS = [
   { Icon: IconClaudeai, name: "Claude" },
   { Icon: IconOpenaiCodex, name: "Codex" },
-  { Icon: IconCursor, name: "Cursor" },
 ];
 
 const PROGRAM_COLOR =
@@ -129,20 +127,30 @@ export function InstallCard() {
         />
       </div>
       <div className="flex h-11 items-center gap-2 overflow-hidden rounded-xl bg-preview-bg pr-1 pl-4 shadow-custom">
-        <span className="flex-1 truncate font-text text-gray-1100 text-sm">
-          Or install with{" "}
-          {AGENTS.map(({ Icon, name }, index) => (
-            <Fragment key={name}>
-              {index > 0 && <span className="max-sm:hidden">, </span>}
-              <span
-                className={`whitespace-nowrap font-medium text-gray-1200 ${index > 0 ? "max-sm:ml-1" : ""}`}
-              >
-                <Icon className="mb-0.5 inline-block size-4 sm:mr-1" />
-                <span className="max-sm:sr-only">{name}</span>
-              </span>
-            </Fragment>
-          ))}{" "}
-          and other agents.
+        <span className="flex-1 truncate font-mono text-gray-1100 text-sm">
+          <span className="sm:hidden">
+            Or install with an
+            {AGENTS.map(({ Icon, name }) => (
+              <Icon
+                className="mb-0.5 ml-1.5 inline-block size-4 text-gray-1200"
+                key={name}
+              />
+            ))}{" "}
+            agent.
+          </span>
+          <span className="max-sm:hidden">
+            Or install with{" "}
+            {AGENTS.map(({ Icon, name }, index) => (
+              <Fragment key={name}>
+                {index > 0 && ", "}
+                <span className="whitespace-nowrap font-medium text-gray-1200">
+                  <Icon className="mr-1 mb-0.5 inline-block size-4" />
+                  {name}
+                </span>
+              </Fragment>
+            ))}{" "}
+            or other agents.
+          </span>
         </span>
         <CopyButton
           className="size-9 rounded-lg"
