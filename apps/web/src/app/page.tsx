@@ -1,6 +1,7 @@
 import { Esqia } from "esqia";
 import { ClickHere } from "@/components/click-here";
 import { Docs } from "@/components/docs";
+import { FinePointer } from "@/components/fine-pointer";
 import { Footer } from "@/components/footer";
 import { InstallCard } from "@/components/install-card";
 import { Keys } from "@/components/keys";
@@ -24,7 +25,7 @@ export default function Page() {
         </p>
       </header>
       <InstallCard />
-      <p className="font-text text-body text-text-paragraph">
+      <p className="hidden font-text text-body text-text-paragraph pointer-fine:block">
         Press <Keys keys={["⌘", "⌥", "E"]} spaced /> to enter edit mode or use
         the <ClickHere>button</ClickHere>.
       </p>
@@ -32,16 +33,18 @@ export default function Page() {
       <Shortcuts />
       <Docs />
       <Footer />
-      {process.env.NODE_ENV === "development" ? (
-        <Esqia />
-      ) : (
-        <Esqia
-          demo={{
-            smartypants: { dashes: false },
-            sources: { [CONTENT]: source },
-          }}
-        />
-      )}
+      <FinePointer>
+        {process.env.NODE_ENV === "development" ? (
+          <Esqia />
+        ) : (
+          <Esqia
+            demo={{
+              smartypants: { dashes: false },
+              sources: { [CONTENT]: source },
+            }}
+          />
+        )}
+      </FinePointer>
     </main>
   );
 }
