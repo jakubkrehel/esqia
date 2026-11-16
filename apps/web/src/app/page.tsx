@@ -25,7 +25,7 @@ export default function Page() {
         </p>
       </header>
       <InstallCard />
-      <p className="font-text text-body text-text-paragraph not-pointer-fine:hidden">
+      <p className="hidden font-text text-body text-text-paragraph pointer-fine:block">
         Press <Keys keys={["⌘", "⌥", "E"]} spaced /> to enter edit mode or use
         the <ClickHere>button</ClickHere>.
       </p>
