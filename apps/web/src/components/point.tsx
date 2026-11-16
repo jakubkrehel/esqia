@@ -25,8 +25,8 @@ export function Point({ icon }: { icon: keyof typeof ICONS }) {
       className="absolute -top-px -left-px flex"
       data-point=""
     >
-      <span className="flex size-7 rounded-lg bg-preview-bg p-0.75 shadow-custom">
-        <span className="flex flex-1 items-center justify-center rounded-[5px] bg-gray-200 shadow-custom">
+      <span className="flex size-7 items-center justify-center rounded-lg bg-preview-bg shadow-custom">
+        <span className="flex size-5.5 items-center justify-center rounded-[5px] bg-gray-200 shadow-custom">
           <Icon className="size-3.5 text-gray-1100" />
         </span>
       </span>
