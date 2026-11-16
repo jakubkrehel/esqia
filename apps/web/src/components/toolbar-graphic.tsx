@@ -1,3 +1,7 @@
+import { IconArrowRedoDown } from "central-icons/IconArrowRedoDown";
+import { IconArrowRotateCounterClockwise } from "central-icons/IconArrowRotateCounterClockwise";
+import { IconArrowUndoUp } from "central-icons/IconArrowUndoUp";
+import { IconCodeLines } from "central-icons/IconCodeLines";
 import type { ReactNode } from "react";
 
 const OPEN_MARK = [
@@ -23,19 +27,6 @@ const OPEN_MARK = [
 const MARK_SQUARE = 4;
 const MARK_PITCH = 5;
 
-function Glyph({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-6"
-      fill="currentColor"
-      viewBox="0 0 24 24"
-    >
-      {children}
-    </svg>
-  );
-}
-
 function Action({ children }: { children: ReactNode }) {
   return (
     <span className="flex size-12 shrink-0 items-center justify-center rounded-full text-gray-1100">
@@ -51,14 +42,10 @@ export function ToolbarGraphic() {
       className="flex w-max select-none items-center gap-1 rounded-full bg-preview-bg px-2 shadow-custom dark:bg-gray-background"
     >
       <Action>
-        <Glyph>
-          <path d="M7.20688 5.70711C7.5974 5.31658 7.5974 4.68342 7.20688 4.29289C6.81636 3.90237 6.18319 3.90237 5.79267 4.29289L2.85333 7.23223C1.87701 8.20855 1.87702 9.79146 2.85333 10.7678L5.79267 13.7071C6.18319 14.0976 6.81636 14.0976 7.20688 13.7071C7.5974 13.3166 7.5974 12.6834 7.20688 12.2929L4.91399 10H16.5C18.433 10 20 11.567 20 13.5C20 15.433 18.433 17 16.5 17H12C11.4477 17 11 17.4477 11 18C11 18.5523 11.4477 19 12 19H16.5C19.5376 19 22 16.5376 22 13.5C22 10.4624 19.5376 8 16.5 8H4.91399L7.20688 5.70711Z" />
-        </Glyph>
+        <IconArrowUndoUp className="size-6" />
       </Action>
       <Action>
-        <Glyph>
-          <path d="M16.7931 18.2929C16.4026 18.6834 16.4026 19.3166 16.7931 19.7071C17.1836 20.0976 17.8168 20.0976 18.2073 19.7071L21.1467 16.7678C22.123 15.7915 22.123 14.2085 21.1467 13.2322L18.2073 10.2929C17.8168 9.90237 17.1836 9.90237 16.7931 10.2929C16.4026 10.6834 16.4026 11.3166 16.7931 11.7071L19.086 14H7.5C5.567 14 4 12.433 4 10.5C4 8.567 5.567 7 7.5 7H12C12.5523 7 13 6.55229 13 6C13 5.44771 12.5523 5 12 5H7.5C4.46243 5 2 7.46243 2 10.5C2 13.5376 4.46243 16 7.5 16H19.086L16.7931 18.2929Z" />
-        </Glyph>
+        <IconArrowRedoDown className="size-6" />
       </Action>
       <span className="mx-1 h-6 w-px shrink-0 bg-gray-400" />
       <span className="grid size-15 shrink-0 place-items-center text-gray-1200">
@@ -81,22 +68,10 @@ export function ToolbarGraphic() {
       </span>
       <span className="mx-1 h-6 w-px shrink-0 bg-gray-400" />
       <Action>
-        <Glyph>
-          <path
-            clipRule="evenodd"
-            d="M5.00014 3C5.55242 3 6.00014 3.44772 6.00014 4V5.42327C6.49765 4.96268 7.01974 4.55425 7.58021 4.21024C8.86314 3.42278 10.3023 3 12.0285 3C16.999 3 21.0285 7.02944 21.0285 12C21.0285 16.9706 16.999 21 12.0285 21C8.10824 21 4.77586 18.4941 3.54083 14.9999C3.35678 14.4792 3.62971 13.9079 4.15042 13.7238C4.67114 13.5398 5.24246 13.8127 5.42651 14.3334C6.38794 17.0536 8.98217 19 12.0285 19C15.8945 19 19.0285 15.866 19.0285 12C19.0285 8.13401 15.8945 5 12.0285 5C10.6586 5 9.58367 5.32722 8.62643 5.91476C8.15226 6.20581 7.69673 6.56697 7.24272 7H9.00014C9.55242 7 10.0001 7.44772 10.0001 8C10.0001 8.55228 9.55242 9 9.00014 9H5.00014C4.44785 9 4.00014 8.55228 4.00014 8V4C4.00014 3.44772 4.44785 3 5.00014 3Z"
-            fillRule="evenodd"
-          />
-        </Glyph>
+        <IconArrowRotateCounterClockwise className="size-6" />
       </Action>
       <Action>
-        <Glyph>
-          <path
-            clipRule="evenodd"
-            d="M2 5C2 4.44772 2.44772 4 3 4H13C13.5523 4 14 4.44772 14 5C14 5.55228 13.5523 6 13 6H3C2.44772 6 2 5.55228 2 5ZM17 5C17 4.44772 17.4477 4 18 4H21C21.5523 4 22 4.44772 22 5C22 5.55228 21.5523 6 21 6H18C17.4477 6 17 5.55228 17 5ZM2 12C2 11.4477 2.44772 11 3 11H8C8.55228 11 9 11.4477 9 12C9 12.5523 8.55228 13 8 13H3C2.44772 13 2 12.5523 2 12ZM12 12C12 11.4477 12.4477 11 13 11H21C21.5523 11 22 11.4477 22 12C22 12.5523 21.5523 13 21 13H13C12.4477 13 12 12.5523 12 12ZM2 19C2 18.4477 2.44772 18 3 18H10C10.5523 18 11 18.4477 11 19C11 19.5523 10.5523 20 10 20H3C2.44772 20 2 19.5523 2 19ZM14 19C14 18.4477 14.4477 18 15 18H21C21.5523 18 22 18.4477 22 19C22 19.5523 21.5523 20 21 20H15C14.4477 20 14 19.5523 14 19Z"
-            fillRule="evenodd"
-          />
-        </Glyph>
+        <IconCodeLines className="size-6" />
       </Action>
     </div>
   );

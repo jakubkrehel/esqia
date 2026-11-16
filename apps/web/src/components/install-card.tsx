@@ -2,10 +2,10 @@
 
 import { IconClaudeai } from "central-icons/IconClaudeai";
 import { IconCursor } from "central-icons/IconCursor";
+import { IconNpm } from "central-icons/IconNpm";
 import { IconOpenaiCodex } from "central-icons/IconOpenaiCodex";
 import { Fragment, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
-import { NpmIcon } from "@/components/icons";
 
 const COMMANDS = {
   bun: "bun add -d esqia",
@@ -43,7 +43,7 @@ const ARG_COLOR =
 const LINKS = [
   {
     href: "https://www.npmjs.com/package/esqia",
-    Icon: NpmIcon,
+    Icon: IconNpm,
     label: "npm",
   },
 ];

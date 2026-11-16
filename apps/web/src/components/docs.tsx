@@ -1,5 +1,8 @@
 import pierreDarkVibrant from "@pierre/theme/pierre-dark-vibrant";
 import pierreLightVibrant from "@pierre/theme/pierre-light-vibrant";
+import { IconReact } from "central-icons/IconReact";
+import { IconTypescript } from "central-icons/IconTypescript";
+import { IconCodeMedium } from "central-icons-outlined/IconCodeMedium";
 import { Fragment, type ReactNode } from "react";
 import {
   type BundledLanguage,
@@ -7,12 +10,7 @@ import {
   type ThemeRegistration,
 } from "shiki";
 import { CopyButton } from "@/components/copy-button";
-import {
-  CodeIcon,
-  NextIcon,
-  ReactIcon,
-  TypescriptIcon,
-} from "@/components/icons";
+import { NextIcon } from "@/components/icons";
 import {
   LAYOUT,
   MARKS,
@@ -93,12 +91,12 @@ function LanguageIcon({ lang, title }: { lang: string; title: string }) {
     return <NextIcon className="size-4 shrink-0 text-gray-1200" />;
   }
   if (lang === "tsx") {
-    return <ReactIcon className="size-4 shrink-0 text-[#149eca]" />;
+    return <IconReact className="size-4 shrink-0 text-[#149eca]" />;
   }
   if (lang === "ts") {
-    return <TypescriptIcon className="size-4 shrink-0 text-[#3178c6]" />;
+    return <IconTypescript className="size-4 shrink-0 text-[#3178c6]" />;
   }
-  return <CodeIcon className="size-4 shrink-0 text-gray-1000" />;
+  return <IconCodeMedium className="size-4 shrink-0 text-gray-1000" />;
 }
 
 function Heading({ children }: { children: ReactNode }) {

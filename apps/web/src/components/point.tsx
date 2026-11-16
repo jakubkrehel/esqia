@@ -1,21 +1,19 @@
-import {
-  ComponentsIcon,
-  CursorClickIcon,
-  DifferenceIcon,
-  InsertBlockIcon,
-  MediaIcon,
-  MoveIcon,
-  TextIcon,
-} from "@/components/icons";
+import { IconArrowsZoom } from "central-icons/IconArrowsZoom";
+import { IconColumnWideAdd } from "central-icons/IconColumnWideAdd";
+import { IconCursorClick } from "central-icons/IconCursorClick";
+import { IconDifferenceModified } from "central-icons/IconDifferenceModified";
+import { IconFontStyle } from "central-icons/IconFontStyle";
+import { IconFormsCircleSquare } from "central-icons/IconFormsCircleSquare";
+import { IconMultiMedia } from "central-icons/IconMultiMedia";
 
 const ICONS = {
-  components: ComponentsIcon,
-  cursor: CursorClickIcon,
-  diff: DifferenceIcon,
-  drag: MoveIcon,
-  media: MediaIcon,
-  slash: InsertBlockIcon,
-  text: TextIcon,
+  components: IconFormsCircleSquare,
+  cursor: IconCursorClick,
+  diff: IconDifferenceModified,
+  drag: IconArrowsZoom,
+  media: IconMultiMedia,
+  slash: IconColumnWideAdd,
+  text: IconFontStyle,
 };
 
 export function Point({ icon }: { icon: keyof typeof ICONS }) {

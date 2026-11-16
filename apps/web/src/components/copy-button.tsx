@@ -1,7 +1,8 @@
 "use client";
 
+import { IconCircleCheck } from "central-icons/IconCircleCheck";
+import { IconSquareBehindSquare1 } from "central-icons-outlined/IconSquareBehindSquare1";
 import { useEffect, useState } from "react";
-import { CheckIcon, CopyIcon } from "@/components/icons";
 
 export function CopyButton({
   className,
@@ -38,10 +39,10 @@ export function CopyButton({
       }
       type="button"
     >
-      <CopyIcon
+      <IconSquareBehindSquare1
         className={`col-start-1 row-start-1 text-gray-1000 transition-[opacity,scale,filter,color] duration-300 ease-standard group-hover:text-gray-1200 ${iconClassName} ${copied ? "scale-25 opacity-0 blur-xs" : ""}`}
       />
-      <CheckIcon
+      <IconCircleCheck
         className={`col-start-1 row-start-1 text-gray-1000 transition-[opacity,scale,filter] duration-300 ease-standard ${iconClassName} ${copied ? "" : "scale-25 opacity-0 blur-xs"}`}
       />
     </button>

@@ -19,4 +19,6 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm install --global npm@12.2.1
       - run: pnpm install --frozen-lockfile --filter esqia
+        env:
+          CENTRAL_LICENSE_KEY: ${{ secrets.CENTRAL_LICENSE_KEY }}
       - run: npm publish

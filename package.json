@@ -1,6 +1,6 @@
 {
   "name": "esqia",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Edit your MDX from the rendered page while you write. A dev-only editor for Next.js.",
   "keywords": [
     "mdx",
@@ -84,6 +84,7 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "central-icons": "npm:@central-icons-react/round-filled-radius-3-stroke-2@^1.2.41",
     "next": "16.4.5",
     "oxlint": "1.91.0",
     "react": "19.3.1",

@@ -254,6 +254,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
+      central-icons:
+        specifier: npm:@central-icons-react/round-filled-radius-3-stroke-2@^1.2.41
+        version: '@central-icons-react/round-filled-radius-3-stroke-2@1.2.41(react@19.3.1)'
       next:
         specifier: 16.4.5
         version: 16.4.5(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -291,8 +294,11 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       central-icons:
-        specifier: npm:@central-icons-react/round-filled-radius-3-stroke-2@^1.2.29
-        version: '@central-icons-react/round-filled-radius-3-stroke-2@1.2.31(react@19.3.1)'
+        specifier: npm:@central-icons-react/round-filled-radius-3-stroke-2@^1.2.41
+        version: '@central-icons-react/round-filled-radius-3-stroke-2@1.2.41(react@19.3.1)'
+      central-icons-outlined:
+        specifier: npm:@central-icons-react/round-outlined-radius-3-stroke-2@^1.2.41
+        version: '@central-icons-react/round-outlined-radius-3-stroke-2@1.2.41(react@19.3.1)'
       cn:
         specifier: ^0.5.2
         version: 0.5.2
@@ -477,8 +483,13 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@central-icons-react/round-filled-radius-3-stroke-2@1.2.31':
-    resolution: {integrity: sha512-7ciu7CyE+FPoJvE5Vy6Dch+JhCMLLDjIbRjQaWyMsBSkgwUaOYTwk4V+sYwZA13syCWSTz9sI+ntQmK8rYU3DA==}
+  '@central-icons-react/round-filled-radius-3-stroke-2@1.2.41':
+    resolution: {integrity: sha512-U07OP6wA1xNHyp2bjW8cj1u0t1DaTSenEhkoinbJfcmiUk/B3Uu0E7ThUUsRZTeRhUqbCvMyiTaClRkvsPTyvA==}
+    peerDependencies:
+      react: '>=16.6.0 <20'
+
+  '@central-icons-react/round-outlined-radius-3-stroke-2@1.2.41':
+    resolution: {integrity: sha512-xU6eL6Sm8s6Lih1NUS23RKnaNbHCkQueFaFjMkV29u24tZLpoQ62mbYI0jXKDGDxu23iPDqdwhk7dQcEKUhkKw==}
     peerDependencies:
       react: '>=16.6.0 <20'
 
@@ -2790,7 +2801,11 @@ snapshots:
   '@biomejs/cli-win32-x64@2.6.5':
     optional: true
 
-  '@central-icons-react/round-filled-radius-3-stroke-2@1.2.31(react@19.3.1)':
+  '@central-icons-react/round-filled-radius-3-stroke-2@1.2.41(react@19.3.1)':
+    dependencies:
+      react: 19.3.1
+
+  '@central-icons-react/round-outlined-radius-3-stroke-2@1.2.41(react@19.3.1)':
     dependencies:
       react: 19.3.1
 
