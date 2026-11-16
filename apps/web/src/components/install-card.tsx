@@ -2,6 +2,7 @@
 
 import { IconClaudeai } from "central-icons/IconClaudeai";
 import { IconCursor } from "central-icons/IconCursor";
+import { IconGithub } from "central-icons/IconGithub";
 import { IconNpm } from "central-icons/IconNpm";
 import { IconOpenaiCodex } from "central-icons/IconOpenaiCodex";
 import { Fragment, useState } from "react";
@@ -41,6 +42,11 @@ const ARG_COLOR =
   "text-[color(display-p3_0.259723_0.647032_0.276349)] dark:text-[color(display-p3_0.451324_0.823458_0.446819)]";
 
 const LINKS = [
+  {
+    href: "https://github.com/jakubkrehel/esqia",
+    Icon: IconGithub,
+    label: "GitHub",
+  },
   {
     href: "https://www.npmjs.com/package/esqia",
     Icon: IconNpm,
