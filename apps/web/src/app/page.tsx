@@ -20,7 +20,7 @@ export default function Page() {
           Esqia
         </h1>
         <p className="font-text text-body text-gray-1100">
-          An inline MDX editor for Next.js.
+          An easy way to edit MDX directly on your page.
         </p>
       </header>
       <InstallCard />
