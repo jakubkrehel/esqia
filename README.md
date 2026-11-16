@@ -1,6 +1,6 @@
 # esqia
 
-An inline MDX editor for Next.js.
+An easy way to edit MDX directly on your page.
 
 ```sh
 npm install -D esqia
