@@ -10,14 +10,17 @@ export function Source() {
       <div className="grid overflow-hidden rounded-xl bg-preview-bg shadow-custom sm:aspect-2/1 sm:grid-cols-2">
         <div className="flex flex-col gap-5 bg-gray-100 p-6 sm:px-8 sm:pt-20 sm:pb-0">
           <Chip>content.mdx</Chip>
-          <pre className="font-mono text-gray-1100 text-small leading-6">
-            <span className="text-gray-800">## </span>
-            <span className="text-gray-1200">How It Works</span>
-            {"\n\n"}
-            Click into **any** markdown
-            {"\n"}
-            on the page and edit it.
-          </pre>
+          <div className="flex flex-col gap-3.5 font-mono text-gray-1100 text-small leading-6">
+            <pre>
+              <span className="text-gray-800">## </span>
+              <span className="text-gray-1200">How It Works</span>
+            </pre>
+            <pre>
+              Click into **any** markdown
+              {"\n"}
+              on the page and edit it.
+            </pre>
+          </div>
         </div>
         <div className="flex flex-col gap-5 border-gray-400 border-t p-6 sm:border-t-0 sm:border-l sm:px-8 sm:pt-20 sm:pb-0">
           <Chip>localhost:3000</Chip>
