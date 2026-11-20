@@ -1,3 +1,4 @@
+import { InterfereProvider } from "@interfere/next/provider";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -68,7 +69,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body
         className={`${libreBaskerville.variable} ${paperMono.variable} bg-gray-background font-sans text-base text-gray-1200 antialiased`}
       >
-        <MotionProvider>{children}</MotionProvider>
+        <InterfereProvider>
+          <MotionProvider>{children}</MotionProvider>
+        </InterfereProvider>
         <Analytics />
       </body>
     </html>
