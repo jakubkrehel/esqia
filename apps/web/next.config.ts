@@ -1,4 +1,5 @@
 import path from "node:path";
+import { withInterfere } from "@interfere/next/config";
 import createMDX from "@next/mdx";
 import pierreDarkVibrant from "@pierre/theme/pierre-dark-vibrant";
 import pierreLightVibrant from "@pierre/theme/pierre-light-vibrant";
@@ -36,6 +37,8 @@ const withMDX = createMDX({
   },
 });
 
-export default withEsqia(withMDX(nextConfig), {
-  smartypants: { dashes: false },
-});
+export default withInterfere(
+  withEsqia(withMDX(nextConfig), {
+    smartypants: { dashes: false },
+  })
+);

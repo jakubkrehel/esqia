@@ -8,6 +8,7 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@interfere/next": "^13.1.1",
     "@mdx-js/loader": "^3.1.1",
     "@next/mdx": "^16.4.3",
     "@pierre/theme": "^2.0.0",
