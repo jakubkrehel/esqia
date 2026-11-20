@@ -24,11 +24,11 @@ export const CHROME_CSS = `
   -webkit-font-smoothing: antialiased; color: var(--text);
 }
 :host([data-theme="dark"]) {
-  --surface: oklch(0.178 0 0);
-  --hover: oklch(0.213 0 0);
-  --menu-hover: oklch(0.252 0 0);
-  --toolbar-hover: oklch(0.252 0 0);
-  --line: oklch(0.264 0 0);
+  --surface: oklch(0.215 0 0);
+  --hover: oklch(0.24 0 0);
+  --menu-hover: oklch(0.268 0 0);
+  --toolbar-hover: oklch(0.268 0 0);
+  --line: oklch(0.282 0 0);
   --text: oklch(0.949 0 0);
   --muted: oklch(0.773 0 0);
   --faint: oklch(0.583 0 0);
@@ -116,7 +116,7 @@ button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent
   transform-origin: var(--transform-origin); will-change: transform;
   transition: opacity 200ms ease-out, scale 200ms ease-out;
 }
-:host([data-theme="dark"]) .tip { --surface: oklch(0.15 0 0); }
+:host([data-theme="dark"]) .tip { --surface: oklch(0.195 0 0); }
 .tip[data-starting-style], .tip[data-ending-style] { opacity: 0; scale: 0.95; }
 .tip[data-ending-style] { transition-duration: 150ms; }
 .tip:has(.keys) { padding-right: 6px; }
