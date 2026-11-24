@@ -46,6 +46,8 @@
 
   :root,
   .light-tokens {
+    --color-syntax-program: color(display-p3 0.391345 0.215644 0.85356);
+    --color-syntax-argument: color(display-p3 0.259723 0.647032 0.276349);
     --color-gray-background: #ffffff;
     --color-gray-100: oklch(0.991 0 0);
     --color-gray-200: oklch(0.972 0 0);
@@ -79,6 +81,8 @@
 
   @media (prefers-color-scheme: dark) {
     :root {
+      --color-syntax-program: color(display-p3 0.615613 0.445256 1);
+      --color-syntax-argument: color(display-p3 0.451324 0.823458 0.446819);
       --color-gray-background: #101010;
       --color-gray-100: oklch(0.215 0 0);
       --color-gray-200: oklch(0.24 0 0);
@@ -213,6 +217,10 @@
   --color-danger-text: var(--color-danger-text);
   --color-danger-solid: var(--color-danger-solid);
   --color-danger-solid-hover: var(--color-danger-solid-hover);
+  --color-syntax-program: var(--color-syntax-program);
+  --color-syntax-argument: var(--color-syntax-argument);
+  --color-react: #149eca;
+  --color-typescript: #3178c6;
   --color-diff-added: var(--color-diff-added);
   --color-diff-removed: var(--color-diff-removed);
   --shadow-border: var(--shadow-border);
@@ -229,6 +237,8 @@
   --font-paper-mono: var(--font-paper-mono);
   --font-mono: var(--font-paper-mono);
   --text-body: 17px;
+  --radius-5: 5px;
+  --radius-7: 7px;
   --text-small: 13px;
   --font-weight-book: 450;
   --font-weight-demibold: 550;

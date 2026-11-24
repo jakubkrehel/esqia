@@ -3,9 +3,6 @@ import core from "ultracite/oxlint/core";
 import next from "ultracite/oxlint/next";
 import react from "ultracite/oxlint/react";
 import vitest from "ultracite/oxlint/vitest";
-import designSystemBaseline from "./lint/design-system-baseline.json" with {
-  type: "json",
-};
 
 const restrictedImports = {
   paths: [
@@ -93,16 +90,14 @@ export default defineConfig({
           "^gap-",
           "^items-",
           "^justify-",
+          "^-?translate-",
         ],
         primitives: ["@/components/copy-button", "@/components/kbd"],
       },
     ],
     "design-system/no-important": "error",
     "design-system/no-inline-style": "error",
-    "design-system/no-raw-values": [
-      "error",
-      { baseline: designSystemBaseline["no-raw-values"] },
-    ],
+    "design-system/no-raw-values": "error",
     "design-system/no-reach-in-selectors": [
       "error",
       { primitives: ["@/components/copy-button", "@/components/kbd"] },
