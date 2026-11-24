@@ -60,7 +60,7 @@ export function Chip({
         className
       )}
     >
-      <span className="block whitespace-nowrap rounded-[5px] bg-gray-200 px-1.5 py-0.5 font-mono text-gray-1100 text-xs shadow-custom">
+      <span className="block whitespace-nowrap rounded-5 bg-gray-200 px-1.5 py-0.5 font-mono text-gray-1100 text-xs shadow-custom">
         {children}
       </span>
     </span>

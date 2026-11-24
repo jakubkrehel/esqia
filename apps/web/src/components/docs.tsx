@@ -85,10 +85,10 @@ function LanguageIcon({ lang, title }: { lang: string; title: string }) {
     return <NextIcon className="size-4 shrink-0 text-gray-1200" />;
   }
   if (lang === "tsx") {
-    return <IconReact className="size-4 shrink-0 text-[#149eca]" />;
+    return <IconReact className="size-4 shrink-0 text-react" />;
   }
   if (lang === "ts") {
-    return <IconTypescript className="size-4 shrink-0 text-[#3178c6]" />;
+    return <IconTypescript className="size-4 shrink-0 text-typescript" />;
   }
   return <IconCodeMedium className="size-4 shrink-0 text-gray-1000" />;
 }

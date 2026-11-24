@@ -65,7 +65,7 @@ const components: MDXComponents = {
   Point,
   p: (props) => (
     <p
-      className="relative font-text text-body text-pretty text-text-paragraph has-[>[data-point]]:my-2 has-[>[data-point]]:leading-6.5 has-[>[data-point]]:rounded-[7px] has-[>[data-point]]:pl-10"
+      className="relative font-text text-body text-pretty text-text-paragraph has-[>[data-point]]:my-2 has-[>[data-point]]:leading-6.5 has-[>[data-point]]:rounded-7 has-[>[data-point]]:pl-10"
       {...props}
     />
   ),
