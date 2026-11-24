@@ -3,6 +3,9 @@ import core from "ultracite/oxlint/core";
 import next from "ultracite/oxlint/next";
 import react from "ultracite/oxlint/react";
 import vitest from "ultracite/oxlint/vitest";
+import designSystemBaseline from "./lint/design-system-baseline.json" with {
+  type: "json",
+};
 
 const restrictedImports = {
   paths: [
@@ -29,8 +32,22 @@ const restrictedImports = {
 
 export default defineConfig({
   extends: [core, react, vitest],
+  jsPlugins: [{ name: "design-system", specifier: "outtrue" }],
   ignorePatterns: [...(core.ignorePatterns ?? [])],
   overrides: [
+    {
+      files: ["src/**", "tests/**"],
+      rules: {
+        "design-system/known-tokens": "off",
+        "design-system/layout-only-classname": "off",
+        "design-system/no-important": "off",
+        "design-system/no-inline-style": "off",
+        "design-system/no-raw-values": "off",
+        "design-system/no-reach-in-selectors": "off",
+        "design-system/one-way-imports": "off",
+        "design-system/prefer-shorthand": "off",
+      },
+    },
     {
       files: ["apps/web/postcss.config.js"],
       rules: { "unicorn/prefer-module": "off" },
@@ -63,6 +80,41 @@ export default defineConfig({
   ],
 
   rules: {
+    "design-system/known-tokens": [
+      "error",
+      { theme: ["apps/web/src/styles/globals.css"] },
+    ],
+    "design-system/layout-only-classname": [
+      "error",
+      {
+        allow: [
+          "^(?:inline-)?flex$",
+          "^flex-(?:row|col)",
+          "^gap-",
+          "^items-",
+          "^justify-",
+        ],
+        primitives: ["@/components/copy-button", "@/components/kbd"],
+      },
+    ],
+    "design-system/no-important": "error",
+    "design-system/no-inline-style": "error",
+    "design-system/no-raw-values": [
+      "error",
+      { baseline: designSystemBaseline["no-raw-values"] },
+    ],
+    "design-system/no-reach-in-selectors": [
+      "error",
+      { primitives: ["@/components/copy-button", "@/components/kbd"] },
+    ],
+    "design-system/one-way-imports": [
+      "error",
+      {
+        alias: { "@/": "apps/web/src/" },
+        layers: ["apps/web/src/components", "apps/web/src/app"],
+      },
+    ],
+    "design-system/prefer-shorthand": "error",
     complexity: ["error", { max: 20, variant: "modified" }],
     eqeqeq: ["error", "always", { null: "ignore" }],
 

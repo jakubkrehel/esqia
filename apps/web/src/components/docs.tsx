@@ -58,13 +58,7 @@ async function CodeBlock({
             {title}
           </span>
         </span>
-        <CopyButton
-          className="size-7 rounded-md"
-          duration={2000}
-          iconClassName="size-4"
-          label="Copy code"
-          text={code}
-        />
+        <CopyButton duration={2000} label="Copy code" size="sm" text={code} />
       </figcaption>
       <pre className="tab-size-4 scrollbar-thin overflow-x-auto overscroll-x-contain p-3 font-mono text-small [scrollbar-color:var(--color-gray-600)_transparent] **:font-mono [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1">
         <code data-theme="">

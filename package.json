@@ -86,6 +86,7 @@
     "@types/react-dom": "^19.3.0",
     "central-icons": "npm:@central-icons-react/round-filled-radius-3-stroke-2@^1.2.41",
     "next": "16.4.6",
+    "outtrue": "0.1.0",
     "oxlint": "1.93.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",

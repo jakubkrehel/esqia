@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { MotionProvider } from "@/components/motion-provider";
 import { inter, libreBaskerville, paperMono } from "./fonts";
 import "@/styles/globals.css";
+import { cn } from "@/lib/utils";
 
 const domain = "https://esqia.jakub.kr";
 const siteName = "Esqia";
@@ -67,7 +68,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html className={inter.variable} lang="en">
       <body
-        className={`${libreBaskerville.variable} ${paperMono.variable} bg-gray-background font-sans text-base text-gray-1200 antialiased`}
+        className={cn(
+          libreBaskerville.variable,
+          paperMono.variable,
+          "bg-gray-background font-sans text-base text-gray-1200 antialiased"
+        )}
       >
         <InterfereProvider>
           <MotionProvider>{children}</MotionProvider>

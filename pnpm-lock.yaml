@@ -260,6 +260,9 @@ importers:
       next:
         specifier: 16.4.6
         version: 16.4.6(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      outtrue:
+        specifier: 0.1.0
+        version: 0.1.0(oxlint@1.93.0)
       oxlint:
         specifier: 1.93.0
         version: 1.93.0
@@ -2509,6 +2512,13 @@ packages:
 
   orderedmap@2.1.1:
     resolution: {integrity: sha512-TvAWxi0nDe1j/rtMcWcIj94+Ffe6n7zhow33h40SKxmsmozs6dz/e+EajymfoFcHd7sxNn8yHM8839uixMOV6g==}
+
+  outtrue@0.1.0:
+    resolution: {integrity: sha512-yxxYmcDkO9D4ua0eRjT8GyHh+0aAXUebuRqB919Kn/3vUpDVMK2p5NbG+NqXm0OB7lKD7BiQ2hRd1ZlGUyvSYQ==}
+    engines: {node: '>=22.18.0'}
+    hasBin: true
+    peerDependencies:
+      oxlint: '>=1.92.0'
 
   oxlint@1.93.0:
     resolution: {integrity: sha512-19JMsQFX+YvEbcUTFQxjTwhvs0Ibg0D6CFneSLgpwnACWcY/6LjhpGpkPodh0T5aIT1pjMTLlYaeBFzaVgugTA==}
@@ -5157,6 +5167,10 @@ snapshots:
       regex-recursion: 6.0.2
 
   orderedmap@2.1.1: {}
+
+  outtrue@0.1.0(oxlint@1.93.0):
+    dependencies:
+      oxlint: 1.93.0
 
   oxlint@1.93.0:
     optionalDependencies:

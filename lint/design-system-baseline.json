@@ -1,0 +1,9 @@
+{
+  "no-raw-values": {
+    "apps/web/mdx-components.tsx": 1,
+    "apps/web/src/components/docs.tsx": 2,
+    "apps/web/src/components/graphics/parts.tsx": 1,
+    "apps/web/src/components/install-card.tsx": 4,
+    "apps/web/src/components/point.tsx": 1
+  }
+}

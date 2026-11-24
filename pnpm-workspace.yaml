@@ -7,3 +7,6 @@ allowBuilds:
   "@central-icons-react/round-outlined-radius-3-stroke-2": true
   esbuild: true
   sharp: true
+
+minimumReleaseAgeExclude:
+  - outtrue@0.1.0
