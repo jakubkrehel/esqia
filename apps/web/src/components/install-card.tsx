@@ -6,6 +6,7 @@ import { IconNpm } from "central-icons/IconNpm";
 import { IconOpenaiCodex } from "central-icons/IconOpenaiCodex";
 import { Fragment, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
+import { cn } from "@/lib/utils";
 
 const COMMANDS = {
   bun: "bun add -d esqia",
@@ -72,7 +73,10 @@ function ManagerSwitch({
       />
       {MANAGERS.map((manager) => (
         <label
-          className={`interactive relative flex cursor-pointer items-center justify-center rounded-lg font-medium text-sm has-focus-visible:outline-2 has-focus-visible:outline-gray-1100 hover-hover:hover:text-gray-1200 ${manager === value ? "text-gray-1200" : "text-gray-1100"}`}
+          className={cn(
+            "interactive relative flex cursor-pointer items-center justify-center rounded-lg font-medium text-sm has-focus-visible:outline-2 has-focus-visible:outline-gray-1100 hover-hover:hover:text-gray-1200",
+            manager === value ? "text-gray-1200" : "text-gray-1100"
+          )}
           key={manager}
         >
           <input
@@ -119,12 +123,7 @@ export function InstallCard() {
           <span className={PROGRAM_COLOR}>{program}</span>
           <span className={ARG_COLOR}> {args.join(" ")}</span>
         </code>
-        <CopyButton
-          className="size-9 rounded-lg"
-          iconClassName="size-4.5"
-          label="Copy command"
-          text={command}
-        />
+        <CopyButton label="Copy command" size="md" text={command} />
       </div>
       <div className="flex h-11 items-center gap-2 overflow-hidden rounded-xl bg-preview-bg pr-1 pl-4 shadow-custom">
         <span className="flex-1 truncate font-mono text-gray-1100 text-sm">
@@ -152,12 +151,7 @@ export function InstallCard() {
             or other agents.
           </span>
         </span>
-        <CopyButton
-          className="size-9 rounded-lg"
-          iconClassName="size-4.5"
-          label="Copy prompt"
-          text={PROMPT}
-        />
+        <CopyButton label="Copy prompt" size="md" text={PROMPT} />
       </div>
     </div>
   );

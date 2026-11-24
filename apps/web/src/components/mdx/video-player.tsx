@@ -214,7 +214,7 @@ export default function VideoPlayer({
       <Video
         {...rest}
         autoPlay={!prefersReducedMotion}
-        className="absolute inset-0 h-full w-full object-contain"
+        className="absolute inset-0 size-full object-contain"
         ref={videoRef}
         src={src}
       />

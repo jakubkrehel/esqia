@@ -30,6 +30,8 @@ All commands run from the repo root (pnpm workspace):
 
 Biome is pinned to the version `ultracite` targets; a newer Biome rejects its preset. Lint warnings and unused Oxlint suppressions fail checks. Type-aware Oxlint is disabled; `pnpm typecheck` checks types separately.
 
+The design system lint rules come from the `outtrue` package, loaded through `jsPlugins` in the Oxlint config as `design-system/*`. They run on `apps/web` only. `lint/design-system-baseline.json` holds the violations each file is still allowed. A file over its count fails and so does a file under it, so lower the count when you fix one.
+
 Releases publish to npm from `.github/workflows/release.yml` when a GitHub release is published. Bump `version` in `package.json` first.
 
 ## Architecture
