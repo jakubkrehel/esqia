@@ -25,6 +25,7 @@ export default withEsqia(withMDX(nextConfig));
 
 Then render it in your root layout.
 
+<!-- biome-ignore format: the snippet is a fragment of a layout, not a whole module -->
 ```tsx
 // app/layout.tsx
 import { Esqia } from "esqia";
